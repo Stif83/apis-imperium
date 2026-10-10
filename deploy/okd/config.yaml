@@ -1,0 +1,12 @@
+# URLs publiques. L'authentification passe par le Keycloak partagé du cluster (namespace
+# keycloak, realm okd, client apisimperium-web) : le jeu ne déploie pas son propre Keycloak.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apiculteur-config
+data:
+  APP_URL: https://apisimperium.apps.okd.lab.local
+  KEYCLOAK_URL: https://keycloak-service-keycloak.apps.okd.lab.local
+  KEYCLOAK_ISSUER: https://keycloak-service-keycloak.apps.okd.lab.local/realms/okd
+  KEYCLOAK_REALM: okd
+  KEYCLOAK_CLIENT_ID: apisimperium-web

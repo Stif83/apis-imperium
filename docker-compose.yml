@@ -1,0 +1,67 @@
+# Environnement local complet : http://localhost:3000 (jeu), http://localhost:8080 (Keycloak).
+# Si le port 3000 est occupé : APP_PORT=3100 docker compose up -d (avant la toute première
+# initialisation, car l'URL du jeu est inscrite dans le realm Keycloak à sa création).
+# Les mots de passe ci-dessous sont des valeurs de développement, à ne pas réutiliser en production.
+services:
+  postgres:
+    build: ./postgres
+    image: apiculteur/postgres:${TAG:-dev}
+    environment:
+      POSTGRES_USER: apiculteur
+      POSTGRES_PASSWORD: apiculteur
+      POSTGRES_DB: apiculteur
+      KEYCLOAK_DB_PASSWORD: keycloak
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apiculteur -d apiculteur"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  keycloak:
+    build: ./keycloak
+    image: apiculteur/keycloak:${TAG:-dev}
+    environment:
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_HOSTNAME: http://localhost:8080
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      APP_URL: http://localhost:${APP_PORT:-3000}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build: ./backend
+    image: apiculteur/backend:${TAG:-dev}
+    environment:
+      DATABASE_URL: postgresql+psycopg://apiculteur:apiculteur@postgres:5432/apiculteur
+      AUTH_MODE: ${AUTH_MODE:-keycloak}
+      KEYCLOAK_ISSUER: http://localhost:8080/realms/apiculteur
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/apiculteur/protocol/openid-connect/certs
+      KEYCLOAK_CLIENT_ID: apiculteur-web
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    image: apiculteur/frontend:${TAG:-dev}
+    environment:
+      BACKEND_URL: http://backend:8000
+      AUTH_MODE: ${AUTH_MODE:-keycloak}
+      KEYCLOAK_URL: http://localhost:8080
+      KEYCLOAK_REALM: apiculteur
+      KEYCLOAK_CLIENT_ID: apiculteur-web
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

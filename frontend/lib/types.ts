@@ -1,0 +1,110 @@
+export type Genome = Record<string, [string, string]>;
+export type BeeType = 'princess' | 'drone' | 'queen';
+export type Cost = { honey: number; items: Record<string, number> };
+
+export type Allele = { label: string; value: number; dominant: boolean };
+export type Species = {
+  label: string;
+  branch: string;
+  color: string;
+  secondary: string;
+  dominant: boolean;
+  temp: string;
+  products: [string, number][];
+  template: Record<string, string>;
+};
+export type Item = { label: string; category: 'comb' | 'resource' | 'consumable' | 'module'; color: string; sell: number };
+export type Offer = {
+  id: string;
+  kind: 'bee' | 'hive' | 'item' | 'machine' | 'unlock' | 'sapling' | 'plot';
+  species?: string;
+  type?: BeeType;
+  hive_type?: string;
+  item?: string;
+  machine?: string;
+  min_species?: number;
+};
+
+export type Content = {
+  temps: string[];
+  temp_labels: Record<string, string>;
+  biomes: Record<string, { label: string; temp: string; color: string }>;
+  chromosomes: Record<string, string>;
+  alleles: Record<string, Record<string, Allele>>;
+  species: Record<string, Species>;
+  mutations: { a: string; b: string; result: string; chance: number; temp?: string | null }[];
+  items: Record<string, Item>;
+  recipes: Record<string, [string, number, number][]>;
+  manual_batch: number;
+  modules: Record<string, { frame: boolean; desc: string }>;
+  hive_types: Record<string, { label: string; slots: number; max_slots: number; frames_only: boolean; production: number }>;
+  machines: Record<string, { label: string; desc: string }>;
+  offers: Offer[];
+  bee_sell: Record<string, number>;
+  imprint_honey_per_gene: number;
+  showcase_max_entries: number;
+  garden: {
+    chromosomes: Record<string, string>;
+    alleles: Record<string, Record<string, Allele>>;
+    trees: Record<string, Omit<Species, 'temp'>>;
+    mutations: { a: string; b: string; result: string; chance: number }[];
+    butterflies: Record<string, { label: string; color: string; secondary: string; chance: number; hosts: string[]; sell: number }>;
+    sapling_sell: number;
+  };
+};
+
+export type Plot = {
+  id: string;
+  tree: { genome: Genome; mate: Genome; health: number; max_health: number } | null;
+  status: 'empty' | 'growing' | 'mature';
+};
+
+export type Bee = { id: string; type: BeeType; genome: Genome; count: number; hive_id: string | null };
+export type Queen = { genome: Genome; mate: Genome; health: number; max_health: number; generation: number };
+export type Hive = {
+  id: string;
+  name: string;
+  hive_type: string;
+  biome: string;
+  slots: number;
+  slot_cost: number | null;
+  modules: string[];
+  queen: Queen | null;
+  output: Record<string, number>;
+  keep_drones: boolean;
+  mods: { production: number; lifespan: number; mutation: number; automation: boolean; temp: string };
+  status: 'empty' | 'working' | 'climate';
+};
+
+export type GameState = {
+  player: { id: string; username: string; honey: number; genetics_unlocked: boolean };
+  server_time: number;
+  cycle_seconds: number;
+  inventory: Record<string, number>;
+  bees: Bee[];
+  hives: Hive[];
+  machines: Record<string, number>;
+  discovered: string[];
+  genes: Record<string, string[]>;
+  offers: Record<string, { cost: Cost; lock: string | null }>;
+  rescue_available: boolean;
+  garden: {
+    plots: Plot[];
+    saplings: { id: string; genome: Genome; count: number }[];
+    butterflies: { id: string; species: string; count: number }[];
+    found_trees: string[];
+    found_butterflies: string[];
+  };
+};
+
+export type Showcase = {
+  id: string;
+  title: string;
+  description: string;
+  author: string;
+  mine: boolean;
+  entries: { kind: string; type: string; genome: Genome }[];
+  likes: number;
+  liked: boolean;
+  created_at: string | null;
+};

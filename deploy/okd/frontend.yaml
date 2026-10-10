@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: apiculteur/frontend
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: BACKEND_URL
+              value: http://backend:8000
+            - name: AUTH_MODE
+              value: keycloak
+            - name: KEYCLOAK_URL
+              valueFrom:
+                configMapKeyRef: { name: apiculteur-config, key: KEYCLOAK_URL }
+            - name: KEYCLOAK_REALM
+              valueFrom:
+                configMapKeyRef: { name: apiculteur-config, key: KEYCLOAK_REALM }
+            - name: KEYCLOAK_CLIENT_ID
+              valueFrom:
+                configMapKeyRef: { name: apiculteur-config, key: KEYCLOAK_CLIENT_ID }
+          readinessProbe:
+            httpGet:
+              path: /config
+              port: 3000
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: frontend
+spec:
+  host: apisimperium.apps.okd.lab.local
+  to:
+    kind: Service
+    name: frontend
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

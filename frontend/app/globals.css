@@ -1,0 +1,185 @@
+/* Aucune ressource externe (polices, CDN) : l'application doit tourner sur une infra isolée. */
+:root {
+  --bg: #1b1610;
+  --panel: #272016;
+  --panel-2: #33291b;
+  --border: #4a3b25;
+  --text: #f3e9d2;
+  --muted: #a8997c;
+  --accent: #f0b429;
+  --accent-ink: #2b1d0e;
+  --danger: #e2572b;
+  --ok: #7ccf6b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 28px 0 10px; color: var(--accent); }
+p { margin: 0 0 10px; }
+.muted { color: var(--muted); }
+.lacking { color: var(--danger); }
+b { font-weight: 600; }
+
+main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 64px; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px;
+  padding: 10px 16px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: 700; font-size: 16px; }
+.topbar nav { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
+.topbar nav a {
+  padding: 6px 12px; border-radius: 6px;
+  color: var(--muted); text-decoration: none;
+}
+.topbar nav a:hover { color: var(--text); background: var(--panel-2); }
+.topbar nav a.active { color: var(--accent-ink); background: var(--accent); font-weight: 600; }
+.account { display: flex; align-items: center; gap: 12px; }
+
+.honey { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; color: var(--accent); }
+.lacking .honey { color: var(--danger); }
+.honey-drop {
+  width: 10px; height: 10px; background: currentColor;
+  border-radius: 0 50% 50% 50%; transform: rotate(45deg);
+}
+
+button, select, input, textarea {
+  font: inherit; color: var(--text);
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 10px;
+}
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.danger:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+button.small { padding: 2px 7px; font-size: 12px; }
+input[type='number'] { width: 70px; }
+textarea { width: 100%; min-height: 60px; resize: vertical; }
+select { max-width: 100%; }
+
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.grid.wide { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+.grid.small { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+.card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0;
+}
+.card.clickable { cursor: pointer; }
+.card.clickable:hover { border-color: var(--muted); }
+.card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.card .title { font-weight: 600; }
+.card.locked { opacity: 0.6; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.row.between { justify-content: space-between; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.stack { display: flex; flex-direction: column; gap: 8px; }
+
+.bee-head { display: flex; align-items: center; gap: 10px; }
+.bee-icon { image-rendering: pixelated; flex: none; }
+.item-icon { flex: none; }
+
+.genome { width: 100%; border-collapse: collapse; font-size: 12px; }
+.genome th { text-align: left; font-weight: 400; color: var(--muted); padding: 1px 6px 1px 0; }
+.genome td { padding: 1px 6px 1px 0; }
+.genome thead th { font-size: 11px; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--border);
+  font-size: 12px; white-space: nowrap;
+}
+.cost { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.badge { padding: 1px 8px; border-radius: 999px; font-size: 12px; background: var(--panel-2); border: 1px solid var(--border); }
+.badge.ok { color: var(--ok); border-color: var(--ok); }
+.badge.warn { color: var(--danger); border-color: var(--danger); }
+
+.bar { height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+.bar > div { height: 100%; background: var(--accent); transition: width 0.6s linear; }
+
+.slots { display: flex; flex-wrap: wrap; gap: 6px; }
+.slot {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 6px; font-size: 12px;
+  border: 1px dashed var(--border); color: var(--muted);
+}
+.slot.filled { border-style: solid; color: var(--text); background: var(--panel-2); }
+
+.notice {
+  padding: 10px 12px; border-radius: 8px;
+  background: var(--panel-2); border: 1px solid var(--border);
+}
+
+.splash {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px;
+}
+
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  padding: 10px 16px; border-radius: 8px; z-index: 20;
+  background: var(--danger); color: #fff; font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 640px) {
+  .grid.wide { grid-template-columns: 1fr; }
+}
+
+button.link { background: none; border: none; padding: 0; color: var(--muted); text-align: left; }
+button.link:hover { color: var(--text); }
+.grow { flex: 1; min-width: 0; }
+
+.hive-name { background: none; border: none; padding: 0; font-weight: 600; font-size: 15px; text-align: left; }
+.hive-name .muted { font-weight: 400; opacity: 0; }
+.hive-name:hover .muted { opacity: 1; }
+.hive-name-input { font-weight: 600; flex: 1; min-width: 0; }
+
+button.hold { position: relative; overflow: hidden; flex: 1; user-select: none; touch-action: none; }
+.hold-fill { position: absolute; inset: 0 auto 0 0; background: rgba(43, 29, 14, 0.35); pointer-events: none; }
+.hold-label { position: relative; pointer-events: none; }
+
+.tree-scroll { overflow: auto; max-height: 75vh; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.tree-node { cursor: pointer; }
+.tree-node text { font-size: 9px; fill: var(--muted); text-anchor: middle; pointer-events: none; }
+.tree-node.selected text, .tree-node.linked text { fill: var(--text); }
+.tree-node rect.halo { fill: transparent; stroke: transparent; }
+.tree-node:hover rect.halo { stroke: var(--muted); }
+.tree-node.linked rect.halo { stroke: var(--border); fill: var(--panel-2); }
+.tree-node.selected rect.halo { stroke: var(--accent); fill: var(--panel-2); }
+.tree-node.dim { opacity: 0.25; }
+.tree-edge { stroke: var(--border); stroke-width: 1; fill: none; opacity: 0.5; }
+.tree-edge.parent { stroke: #5bb8e8; stroke-width: 2; opacity: 1; }
+.tree-edge.child { stroke: var(--accent); stroke-width: 2; opacity: 1; }
+.tree-edge.dim { opacity: 0.08; }
+.legend { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; }
+.family { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.family .op { color: var(--muted); }
+.mini { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 8px; min-width: 76px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); font-size: 12px; }
+button.mini:hover { border-color: var(--accent); }
+
+.hive-card { border-top-width: 4px; }
+.swatch { width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(0, 0, 0, 0.5); flex: none; }
+
+.plot-card { min-height: 190px; }
+.plot-tree { display: flex; align-items: flex-end; justify-content: center; height: 84px; }
+.card.locked-soft { border-style: dashed; }
+div.mini { cursor: default; }
+button.chip.pick { cursor: pointer; }
+button.chip.pick.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+button.primary .honey { color: inherit; }
