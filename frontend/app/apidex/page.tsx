@@ -65,19 +65,68 @@ function layout(ids: string[], mutations: Mutation[], tiers: Record<string, numb
   return { pos, edges, width: widest * NODE_W, height: rows.length * NODE_H };
 }
 
+type Branch = { name: string; ids: string[]; tier: number; color: string; secondary: string; parents: string[] };
+
+/** Branches dans l'ordre de progression : palier médian de leurs espèces, puis ordre du contenu. */
+function computeBranches(content: Content, tiers: Record<string, number>): Branch[] {
+  const map = new Map<string, Branch>();
+  for (const [id, s] of Object.entries(content.species)) {
+    let b = map.get(s.branch);
+    if (!b) {
+      b = { name: s.branch, ids: [], tier: 0, color: s.color, secondary: s.secondary, parents: [] };
+      map.set(s.branch, b);
+    }
+    b.ids.push(id);
+  }
+  for (const b of map.values()) {
+    // La médiane évite qu'une seule espèce vendue en boutique tire toute la branche vers le début
+    const sorted = b.ids.map((id) => tiers[id]).sort((x, y) => x - y);
+    b.tier = sorted[Math.floor((sorted.length - 1) / 2)];
+    const parents = new Set<string>();
+    for (const m of content.mutations) {
+      if (!b.ids.includes(m.result)) continue;
+      for (const p of [m.a, m.b]) {
+        const pb = content.species[p].branch;
+        if (pb !== b.name) parents.add(pb);
+      }
+    }
+    b.parents = [...parents];
+  }
+  return [...map.values()].sort((a, b) => a.tier - b.tier);
+}
+
+const TIER_NAMES = ['Premiers pas', 'Premières mutations', 'Élevage confirmé', 'Lignées avancées', 'Raretés', 'Légendes'];
+// Paliers regroupés en six étapes pour ne pas multiplier les sections
+const band = (t: number) => (t <= 1 ? 0 : t <= 3 ? 1 : t <= 4 ? 2 : t <= 6 ? 3 : t <= 8 ? 4 : 5);
+
+const FILTERS = [
+  ['all', 'Toutes'],
+  ['progress', 'À compléter'],
+  ['done', 'Complètes'],
+] as const;
+
 export default function ApidexPage() {
   const { content, state } = useGame();
+  const [view, setView] = useState<'branches' | 'tree'>('branches');
+  const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>('all');
   const [selected, setSelected] = useState<string | null>(null);
+  const [sheet, setSheet] = useState(false);
   const [partial, setPartial] = useState(false);
 
   const known = useMemo(() => new Set(state.discovered), [state.discovered]);
   const tiers = useMemo(() => computeTiers(content), [content]);
+  const branches = useMemo(() => computeBranches(content, tiers), [content, tiers]);
   const allIds = Object.keys(content.species);
-  // Une espèce inconnue reste anonyme partout : ni nom, ni branche, ni couleurs
+  // Une espèce inconnue reste anonyme partout : ni nom, ni couleurs
   const name = (id: string) => (known.has(id) ? content.species[id].label : '???');
 
   const parentsOf = (id: string) => content.mutations.filter((m) => m.result === id);
   const childrenOf = (id: string) => content.mutations.filter((m) => m.a === id || m.b === id);
+
+  const open = (id: string) => {
+    setSelected(id);
+    setSheet(true);
+  };
 
   const visible = useMemo(() => {
     if (!partial || !selected) return allIds;
@@ -113,7 +162,7 @@ export default function ApidexPage() {
   const Mini = ({ id }: { id: string }) => {
     const species = content.species[id];
     return (
-      <button className="mini" onClick={() => setSelected(id)}>
+      <button className="mini" onClick={() => open(id)}>
         <BeeIcon color={species.color} secondary={species.secondary} type="queen" size={28} unknown={!known.has(id)} />
         {name(id)}
       </button>
@@ -132,112 +181,223 @@ export default function ApidexPage() {
     </div>
   );
 
+  const shown = branches.filter((b) => {
+    const n = b.ids.filter((id) => known.has(id)).length;
+    if (filter === 'done') return n === b.ids.length;
+    if (filter === 'progress') return n < b.ids.length;
+    return true;
+  });
+  const bands = [...new Set(shown.map((b) => band(b.tier)))].sort((a, b) => a - b);
+  const complete = branches.filter((b) => b.ids.every((id) => known.has(id))).length;
   const species = selected ? content.species[selected] : null;
 
   return (
     <>
-      <PageHead title="Apidex" extra={<span className="badge ok">{known.size} / {allIds.length} espèces</span>}>
-        Toutes les espèces et leurs croisements. Les espèces encore inconnues restent anonymes. Certaines mutations demandent une
-        condition (heure, météo, biome, arbre au jardin…) : elle doit être réunie au moment où la reine meurt.
+      <PageHead
+        title="Apidex"
+        extra={
+          <span className="row">
+            <span className="badge ok">
+              {known.size} / {allIds.length} espèces
+            </span>
+            <span className="badge">
+              {complete} / {branches.length} branches
+            </span>
+          </span>
+        }
+      >
+        Toutes les espèces, rangées par branche, de la plus accessible à la plus rare. Les espèces encore inconnues restent anonymes.
+        Cliquez sur une abeille pour voir comment l'obtenir et ce qu'elle peut donner. Certaines mutations demandent une condition
+        (heure, météo, biome…) : elle doit être réunie au moment où la reine meurt.
       </PageHead>
 
-      <h2>Arbre des mutations</h2>
-      <div className="row" style={{ marginBottom: 8 }}>
-        <button className={partial ? '' : 'primary'} onClick={() => setPartial(false)}>
-          Arbre complet
+      <div className="row tabs">
+        <button className={`tab${view === 'branches' ? ' active' : ''}`} onClick={() => setView('branches')}>
+          Branches
         </button>
-        <button className={partial ? 'primary' : ''} disabled={!selected} onClick={() => setPartial(true)}>
-          Lignée de l'abeille choisie
+        <button className={`tab${view === 'tree' ? ' active' : ''}`} onClick={() => setView('tree')}>
+          Arbre des mutations
         </button>
-        <span className="legend muted">
-          <i style={{ background: '#5bb8e8' }} /> parents
-        </span>
-        <span className="legend muted">
-          <i style={{ background: 'var(--accent)' }} /> mutations futures
-        </span>
-        {!selected && <span className="muted">Cliquez sur une abeille pour voir ses parents et ses mutations.</span>}
-      </div>
-      <div className="tree-scroll">
-        <svg width={tree.width} height={tree.height} style={{ display: 'block', margin: '0 auto' }}>
-          {tree.edges.map((edge, i) => {
-            const a = tree.pos[edge.from];
-            const b = tree.pos[edge.to];
-            const kind = edge.to === selected ? 'parent' : edge.from === selected ? 'child' : selected ? 'dim' : '';
-            const y1 = a.y + ICON + 16;
-            const y2 = b.y - 2;
-            const mid = (y1 + y2) / 2;
-            return <path key={i} className={`tree-edge ${kind}`} d={`M${a.x},${y1} C${a.x},${mid} ${b.x},${mid} ${b.x},${y2}`} />;
-          })}
-          {visible.map((id) => {
-            const { x, y } = tree.pos[id];
-            const s = content.species[id];
-            const mark = id === selected ? 'selected' : linked.has(id) ? 'linked' : selected ? 'dim' : '';
-            const label = name(id);
-            return (
-              <g key={id} className={`tree-node ${mark}`} onClick={() => setSelected(id === selected ? null : id)}>
-                <title>{label}</title>
-                <rect className="halo" x={x - NODE_W / 2 + 2} y={y - 2} width={NODE_W - 4} height={ICON + 18} rx={6} />
-                <BeeIcon color={s.color} secondary={s.secondary} type="queen" size={ICON} x={x - ICON / 2} y={y} unknown={!known.has(id)} />
-                <text x={x} y={y + ICON + 10}>
-                  {label.length > 11 ? `${label.slice(0, 10)}…` : label}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+        {view === 'branches' && (
+          <span className="row" style={{ marginLeft: 'auto' }} role="radiogroup" aria-label="Filtre">
+            {FILTERS.map(([id, label]) => (
+              <button
+                key={id}
+                role="radio"
+                aria-checked={filter === id}
+                className={`chip pick${filter === id ? ' selected' : ''}`}
+                onClick={() => setFilter(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </span>
+        )}
       </div>
 
-      {selected && species && (
+      {view === 'branches' && (
         <>
-          <h2>{name(selected)}</h2>
-          <div className="card">
-            {known.has(selected) ? (
-              <>
-                <div className="bee-head">
-                  <BeeIcon color={species.color} secondary={species.secondary} type="queen" />
-                  <div>
-                    <div className="title">{species.label}</div>
-                    <div className="muted">
-                      {species.branch} · climat {content.temp_labels[species.temp]}
-                    </div>
-                  </div>
-                </div>
-                <div className="row">
-                  {species.products.map(([item, chance]) => (
-                    <span key={item} className="row muted">
-                      <ItemQty id={item} /> {percent(chance)}
-                    </span>
-                  ))}
-                </div>
-                <Traits genome={Object.fromEntries(Object.entries(species.template).map(([c, a]) => [c, [a, a]]))} />
-              </>
-            ) : (
-              <div className="muted">Espèce encore inconnue. Découvrez-la pour connaître ses caractéristiques.</div>
-            )}
+          {shown.length === 0 && <p className="muted">Aucune branche ici pour l'instant.</p>}
+          {bands.map((t) => (
+            <section key={t}>
+              <h2 className="tier-head">{TIER_NAMES[t]}</h2>
+              <div className="branch-grid">
+                {shown
+                  .filter((b) => band(b.tier) === t)
+                  .map((b) => {
+                    const n = b.ids.filter((id) => known.has(id)).length;
+                    return (
+                      <div key={b.name} className={`branch-card${n === b.ids.length ? ' complete' : ''}`}>
+                        <div
+                          className="branch-band"
+                          style={{ background: n > 0 ? `linear-gradient(90deg, #${b.color}, #${b.secondary})` : 'var(--border)' }}
+                        />
+                        <div className="row between">
+                          <span className="title">{b.name}</span>
+                          {n === b.ids.length ? (
+                            <span className="stamp">Complète</span>
+                          ) : (
+                            <span className="badge">
+                              {n} / {b.ids.length}
+                            </span>
+                          )}
+                        </div>
+                        <div className="bar">
+                          <div style={{ width: `${(100 * n) / b.ids.length}%` }} />
+                        </div>
+                        <div className="branch-bees">
+                          {b.ids.map((id) => {
+                            const s = content.species[id];
+                            return (
+                              <button key={id} className={`branch-bee${known.has(id) ? '' : ' unknown'}`} title={name(id)} onClick={() => open(id)}>
+                                <BeeIcon color={s.color} secondary={s.secondary} type="queen" size={40} unknown={!known.has(id)} />
+                                <span>{name(id)}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {b.parents.length > 0 && (
+                          <div className="muted branch-from">
+                            Issue de :
+                            {b.parents.map((p) => (
+                              <span key={p} className="trait">
+                                {p}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </section>
+          ))}
+        </>
+      )}
 
-            <div className="title">Parents</div>
-            {parentsOf(selected).length === 0 && (
-              <div className="muted">Espèce de base : elle ne s'obtient pas par mutation, mais en boutique.</div>
-            )}
-            {parentsOf(selected).map((m, i) => (
-              <Family key={i} m={m} />
-            ))}
-
-            <div className="title">Mutations futures</div>
-            {childrenOf(selected).length === 0 && <div className="muted">Aucune : cette espèce est au bout de sa lignée.</div>}
-            {childrenOf(selected).map((m, i) => (
-              <Family key={i} m={m} />
-            ))}
+      {view === 'tree' && (
+        <>
+          <div className="row" style={{ marginBottom: 8 }}>
+            <button className={partial ? '' : 'primary compact'} onClick={() => setPartial(false)}>
+              Arbre complet
+            </button>
+            <button className={partial ? 'primary compact' : ''} disabled={!selected} onClick={() => setPartial(true)}>
+              Lignée de l'abeille choisie
+            </button>
+            <span className="legend muted">
+              <i style={{ background: 'var(--info)' }} /> parents
+            </span>
+            <span className="legend muted">
+              <i style={{ background: 'var(--accent)' }} /> mutations futures
+            </span>
+          </div>
+          <div className="tree-scroll">
+            <svg width={tree.width} height={tree.height} style={{ display: 'block', margin: '0 auto' }}>
+              {tree.edges.map((edge, i) => {
+                const a = tree.pos[edge.from];
+                const b = tree.pos[edge.to];
+                const kind = edge.to === selected ? 'parent' : edge.from === selected ? 'child' : selected ? 'dim' : '';
+                const y1 = a.y + ICON + 16;
+                const y2 = b.y - 2;
+                const mid = (y1 + y2) / 2;
+                return <path key={i} className={`tree-edge ${kind}`} d={`M${a.x},${y1} C${a.x},${mid} ${b.x},${mid} ${b.x},${y2}`} />;
+              })}
+              {visible.map((id) => {
+                const { x, y } = tree.pos[id];
+                const s = content.species[id];
+                const mark = id === selected ? 'selected' : linked.has(id) ? 'linked' : selected ? 'dim' : '';
+                const label = name(id);
+                return (
+                  <g key={id} className={`tree-node ${mark}`} onClick={() => (id === selected ? setSelected(null) : open(id))}>
+                    <title>{label}</title>
+                    <rect className="halo" x={x - NODE_W / 2 + 2} y={y - 2} width={NODE_W - 4} height={ICON + 18} rx={6} />
+                    <BeeIcon color={s.color} secondary={s.secondary} type="queen" size={ICON} x={x - ICON / 2} y={y} unknown={!known.has(id)} />
+                    <text x={x} y={y + ICON + 10}>
+                      {label.length > 11 ? `${label.slice(0, 10)}…` : label}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
           </div>
         </>
       )}
 
-      <h2>Espèces</h2>
-      <div className="row">
-        {allIds.map((id) => (
-          <Mini key={id} id={id} />
-        ))}
-      </div>
+      {sheet && selected && species && (
+        <div className="overlay" onClick={() => setSheet(false)}>
+          <div className="sheet wide" role="dialog" aria-label={name(selected)} onClick={(e) => e.stopPropagation()}>
+            <div className="row between">
+              <div className="bee-head">
+                <BeeIcon color={species.color} secondary={species.secondary} type="queen" size={64} unknown={!known.has(selected)} />
+                <div>
+                  <div style={{ font: '600 24px/1.2 var(--display)' }}>{name(selected)}</div>
+                  <div className="muted">
+                    {known.has(selected) ? `${species.branch} · climat ${content.temp_labels[species.temp]}` : 'Espèce encore inconnue'}
+                  </div>
+                </div>
+              </div>
+              <button className="help-btn" aria-label="Fermer" onClick={() => setSheet(false)}>
+                ×
+              </button>
+            </div>
+            {known.has(selected) && (
+              <div className="row">
+                <Traits genome={Object.fromEntries(Object.entries(species.template).map(([c, a]) => [c, [a, a]]))} />
+                {species.products.map(([item, chance]) => (
+                  <span key={item} className="row muted" style={{ gap: 4 }}>
+                    <ItemQty id={item} /> {percent(chance)}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="title">Comment l'obtenir</div>
+            {parentsOf(selected).length === 0 && <div className="muted">Espèce de base : elle s'achète en boutique.</div>}
+            {parentsOf(selected).map((m, i) => (
+              <Family key={i} m={m} />
+            ))}
+
+            <div className="title">Ce qu'elle peut donner</div>
+            {childrenOf(selected).length === 0 && <div className="muted">Rien : cette espèce est au bout de sa lignée.</div>}
+            {childrenOf(selected).map((m, i) => (
+              <Family key={i} m={m} />
+            ))}
+
+            <div>
+              <button
+                className="small"
+                onClick={() => {
+                  setView('tree');
+                  setPartial(true);
+                  setSheet(false);
+                }}
+              >
+                Voir sa lignée dans l'arbre
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

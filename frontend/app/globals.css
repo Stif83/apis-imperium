@@ -398,3 +398,28 @@ button.primary .honey { color: inherit; }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 button.primary.compact { padding: 6px 10px; font-size: 14px; border-radius: 12px; }
 button.primary .honey-drop { background: var(--accent-ink); box-shadow: none; }
+
+/* ---------- Apidex : branches ---------- */
+.tier-head { display: flex; align-items: center; gap: 10px; }
+.tier-head::after { content: ""; flex: 1; height: 2px; background: var(--border); border-radius: 2px; }
+.branch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.branch-card {
+  position: relative; overflow: hidden;
+  background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 18px 14px 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+}
+.branch-card.complete { box-shadow: 0 0 0 2px var(--ok), var(--shadow); }
+.branch-band { position: absolute; inset: 0 0 auto 0; height: 7px; }
+.branch-card .title { font: 600 19px/1.2 var(--display); }
+.branch-bees { display: flex; flex-wrap: wrap; gap: 6px; }
+.branch-bee {
+  display: grid; justify-items: center; gap: 2px; width: 74px; padding: 6px 2px;
+  border: 0; border-radius: 12px; background: var(--panel-2);
+  font-size: 12px; font-weight: 700; line-height: 1.15; text-align: center;
+}
+.branch-bee span { overflow-wrap: anywhere; }
+.branch-bee.unknown { color: var(--muted); }
+.branch-bee:hover { box-shadow: 0 0 0 2px var(--accent); }
+.branch-from { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 13px; }
+.sheet.wide { width: min(760px, 100%); }
+.sheet .title { font: 600 17px/1.25 var(--display); }
