@@ -430,6 +430,18 @@ Vérifié : 22 tests ; build ; dans un navigateur, Boutique, Usine, Génétique 
 débloquée), Rucher, en clair et en nuit, sans erreur console. Non vérifié à l'œil : Communauté
 avec des vitrines publiées.
 
+## Demande du 2026-10-18 (4) : Apidex par branches, installation simplifiée
+
+- **Apidex** : vue « Branches » par défaut. Une carte par branche (bandeau à ses couleurs, progression,
+  espèces, branches d'origine), rangées en six étapes selon le palier médian de leurs espèces.
+  Filtres toutes / à compléter / complètes. Fiche d'espèce au clic (comment l'obtenir, ce qu'elle
+  peut donner, conditions en pastilles). L'arbre des mutations reste en second onglet.
+- **Installation d'une reine** : un bouton ouvre un sélecteur en deux étapes (princesse, puis
+  faux-bourdon de la même espèce présélectionné). Les princesses qui ne supportent pas le climat
+  de la ruche sont grisées (« Trop froid », « Trop chaud »). Le serveur refuse aussi ce cas
+  (`install` dans `service.py`). Une reine déjà installée peut toujours tomber en « Climat inadapté »
+  si un module d'alvéaire change ensuite la température.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

@@ -14,6 +14,7 @@ import {
   TYPE_LABELS,
   Traits,
   WEATHER_ICONS,
+  climateFit,
   fmt,
   groupBees,
   speciesName,
@@ -21,11 +22,7 @@ import {
 } from '@/components/ui';
 import { HiveArt } from '@/components/HiveArt';
 import { useGame } from '@/lib/game';
-import type { Bee, Hive } from '@/lib/types';
-
-function beeLabel(content: ReturnType<typeof useGame>['content'], bee: Bee) {
-  return `${speciesName(content, bee.genome)} ×${bee.count}`;
-}
+import type { Hive } from '@/lib/types';
 
 const STATUS: Record<Hive['status'], { label: string; className: string; title: string }> = {
   working: { label: 'Au travail', className: 'badge ok', title: 'La reine produit des rayons.' },
@@ -34,6 +31,93 @@ const STATUS: Record<Hive['status'], { label: string; className: string; title: 
   climate: { label: 'Climat inadapté', className: 'badge warn', title: "Le climat de la ruche ne convient pas à cette reine : elle ne travaille pas et ne vieillit pas." },
   empty: { label: 'Sans reine', className: 'badge', title: 'Installez une princesse et un faux-bourdon.' },
 };
+
+/** Choix du couple à installer : seules les princesses qui supportent le climat de la ruche sont sélectionnables. */
+function InstallSheet({ hive, onClose }: { hive: Hive; onClose: () => void }) {
+  const { content, state, act } = useGame();
+  const reserve = state.bees.filter((b) => b.hive_id === null);
+  const princesses = reserve
+    .filter((b) => b.type === 'princess')
+    .map((b) => ({ bee: b, fit: climateFit(content, b.genome, hive.mods.temp) }))
+    .sort((a, b) => Math.abs(a.fit) - Math.abs(b.fit));
+  const drones = reserve.filter((b) => b.type === 'drone');
+  const [princessId, setPrincessId] = useState(princesses.find((p) => p.fit === 0)?.bee.id ?? '');
+  const princess = reserve.find((b) => b.id === princessId);
+  // Par défaut, un faux-bourdon de la même espèce que la princesse
+  const sameSpecies = (id: string) => drones.find((d) => d.genome.species[0] === id)?.id;
+  const [droneId, setDroneId] = useState(() => (princess && sameSpecies(princess.genome.species[0])) ?? drones[0]?.id ?? '');
+  const choosePrincess = (id: string) => {
+    setPrincessId(id);
+    const bee = reserve.find((b) => b.id === id);
+    const match = bee && sameSpecies(bee.genome.species[0]);
+    if (match) setDroneId(match);
+  };
+  const usable = princesses.filter((p) => p.fit === 0).length;
+  const temp = content.temp_labels[hive.mods.temp];
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet wide" role="dialog" aria-label={`Installer une reine dans ${hive.name}`} onClick={(e) => e.stopPropagation()}>
+        <div className="row between">
+          <div>
+            <div style={{ font: '600 22px/1.2 var(--display)' }}>Installer une reine</div>
+            <div className="muted">
+              {hive.name} · {BIOME_ICONS[hive.biome]} climat {temp}
+            </div>
+          </div>
+          <button className="help-btn" aria-label="Fermer" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        <div className="title">1. La princesse</div>
+        {usable === 0 && (
+          <div className="notice">
+            Aucune de vos princesses ne supporte le climat « {temp} ». Achetez une ruche dans un autre biome, ou une princesse adaptée.
+          </div>
+        )}
+        <div className="grid tiles">
+          {princesses.map(({ bee, fit }) => (
+            <button
+              key={bee.id}
+              className={`bee-tile${bee.id === princessId ? ' selected' : ''}`}
+              disabled={fit !== 0}
+              title={fit === 0 ? undefined : fit < 0 ? 'Trop froid pour elle ici' : 'Trop chaud pour elle ici'}
+              onClick={() => choosePrincess(bee.id)}
+            >
+              <GenomeIcon genome={bee.genome} type="princess" size={44} />
+              <span className="name">{content.species[bee.genome.species[0]]?.label}</span>
+              {fit === 0 ? <Traits genome={bee.genome} /> : <span className="badge info">{fit < 0 ? '🥶 Trop froid' : '🥵 Trop chaud'}</span>}
+              <span className="count">×{bee.count}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="title">2. Le faux-bourdon</div>
+        <div className="grid tiles">
+          {drones.map((bee) => (
+            <button key={bee.id} className={`bee-tile${bee.id === droneId ? ' selected' : ''}`} onClick={() => setDroneId(bee.id)}>
+              <GenomeIcon genome={bee.genome} type="drone" size={44} />
+              <span className="name">{content.species[bee.genome.species[0]]?.label}</span>
+              <Traits genome={bee.genome} />
+              <span className="count">×{bee.count}</span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          className="primary"
+          disabled={!princessId || !droneId}
+          onClick={async () => {
+            if (await act(`/hives/${hive.id}/install`, { princess_id: princessId, drone_id: droneId })) onClose();
+          }}
+        >
+          Accoupler et installer
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function HiveName({ hive }: { hive: Hive }) {
   const { act } = useGame();
@@ -109,8 +193,7 @@ function Scene({ hive }: { hive: Hive }) {
 
 function HiveCard({ hive }: { hive: Hive }) {
   const { content, state, act } = useGame();
-  const [princess, setPrincess] = useState('');
-  const [drone, setDrone] = useState('');
+  const [picking, setPicking] = useState(false);
   const [details, setDetails] = useState(false);
   const [gain, setGain] = useState<string | null>(null);
 
@@ -123,8 +206,6 @@ function HiveCard({ hive }: { hive: Hive }) {
   const fittable = Object.keys(content.modules).filter(
     (m) => (state.inventory[m] ?? 0) > 0 && (!type.frames_only || content.modules[m].frame),
   );
-  const princessId = princesses.some((b) => b.id === princess) ? princess : princesses[0]?.id ?? '';
-  const droneId = drones.some((b) => b.id === drone) ? drone : drones[0]?.id ?? '';
   const queen = hive.queen;
   const biome = content.biomes[hive.biome];
 
@@ -169,30 +250,13 @@ function HiveCard({ hive }: { hive: Hive }) {
             </div>
           </div>
         ) : princesses.length && drones.length ? (
-          <div className="stack">
-            <div className="row">
-              <select className="grow" aria-label="Princesse" value={princessId} onChange={(e) => setPrincess(e.target.value)}>
-                {princesses.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    ♀ {beeLabel(content, b)}
-                  </option>
-                ))}
-              </select>
-              <select className="grow" aria-label="Faux-bourdon" value={droneId} onChange={(e) => setDrone(e.target.value)}>
-                {drones.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    ♂ {beeLabel(content, b)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button className="primary" onClick={() => act(`/hives/${hive.id}/install`, { princess_id: princessId, drone_id: droneId })}>
-              Accoupler et installer
-            </button>
-          </div>
+          <button className="primary" onClick={() => setPicking(true)}>
+            Installer une reine
+          </button>
         ) : (
           <div className="muted">Il faut une princesse et un faux-bourdon en réserve.</div>
         )}
+        {picking && <InstallSheet hive={hive} onClose={() => setPicking(false)} />}
 
         {(outputs.length > 0 || waiting.length > 0 || gain) && (
           <div className="row">

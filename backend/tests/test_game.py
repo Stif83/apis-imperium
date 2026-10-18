@@ -169,7 +169,12 @@ def test_climate_blocks_work(game):
     game.buy("bee:modest:princess")
     game.buy("bee:modest:drone")
     hive = game.hives[0]
+    # Une princesse du désert ne s'installe pas dans une ruche tempérée
+    with pytest.raises(GameError):
+        game.install(hive.id, _bee(game, "princess", "modest").id, _bee(game, "drone", "modest").id)
+    hive.biome = "desert"
     game.install(hive.id, _bee(game, "princess", "modest").id, _bee(game, "drone", "modest").id)
+    # Si le climat change ensuite (modules d'alvéaire), la reine s'arrête
     hive.biome = "tundra"
     game.advance(10)
     assert hive.queen["health"] == hive.queen["max_health"]

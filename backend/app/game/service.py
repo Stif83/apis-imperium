@@ -411,10 +411,13 @@ class Game:
             raise GameError("Cette ruche a déjà une reine.")
         princess = self._bee(princess_id, "princess")
         drone = self._bee(drone_id, "drone")
+        mods = self._mods(hive)
+        if not G.climate_ok(G.normalize(princess.genome), mods["temp"]):
+            raise GameError(f"Cette princesse ne supporte pas le climat de cette ruche ({C.TEMP_LABELS[mods['temp']]}).")
         princess_genome, drone_genome = princess.genome, drone.genome
         self._take_bee(princess)
         self._take_bee(drone)
-        self._make_queen(hive, princess_genome, drone_genome, 1, self._mods(hive))
+        self._make_queen(hive, princess_genome, drone_genome, 1, mods)
 
     def eject_queen(self, hive_id: str) -> None:
         hive = self._hive(hive_id)

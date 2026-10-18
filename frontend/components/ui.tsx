@@ -61,6 +61,15 @@ export function ThemeToggle() {
   );
 }
 
+/** Écart entre le climat d'une ruche et ce que supporte l'abeille : 0 si elle s'y plaît, sinon -1 (trop froid) ou +1 (trop chaud). */
+export function climateFit(content: Content, genome: Genome, hiveTemp: string): -1 | 0 | 1 {
+  const wanted = content.temps.indexOf(content.species[genome.species[0]]?.temp ?? 'normal');
+  const tolerance = content.alleles.tolerance?.[genome.tolerance?.[0] ?? 'none']?.value ?? 0;
+  const diff = content.temps.indexOf(hiveTemp) - wanted;
+  if (Math.abs(diff) <= tolerance) return 0;
+  return diff < 0 ? -1 : 1;
+}
+
 export const BIOME_ICONS: Record<string, string> = { plains: '🌼', taiga: '🌲', tundra: '🧊', jungle: '🌴', desert: '🌵' };
 
 /** Titre de page ; l'explication est rangée derrière un bouton « ? ». */
