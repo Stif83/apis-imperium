@@ -5,7 +5,8 @@ stockés dans les sauvegardes. On peut en ajouter librement, mais on ne renomme 
 supprime jamais un identifiant existant.
 """
 
-from .garden import BASE_TREES, STARTER_PLOTS, public_garden
+from .garden import BASE_TREES, BUTTERFLIES, STARTER_PLOTS, TREE_SPECIES, public_garden
+from .world import public_world
 
 TEMPS = ["icy", "cold", "normal", "warm", "hot", "hellish"]
 TEMP_LABELS = {
@@ -33,6 +34,10 @@ CHROMOSOMES = {
     "lifespan": "Longévité",
     "fertility": "Fertilité",
     "tolerance": "Tolérance climatique",
+    # Ajoutés en 1.4 (inspirés d'APICO)
+    "activity": "Activité",
+    "weatherproof": "Intempéries",
+    "stability": "Stabilité",
 }
 
 
@@ -72,6 +77,27 @@ ALLELES = {
         ("one", "± 1 palier", 1, False),
         ("two", "± 2 paliers", 2, False),
     ]),
+    # Heures de travail : voir world.ACTIVITY_HOURS
+    "activity": _alleles([
+        ("diurnal", "Diurne", 0, True),
+        ("nocturnal", "Nocturne", 0, False),
+        ("crepuscular", "Crépusculaire", 0, False),
+        ("cathemeral", "Jour et nuit", 0, False),
+    ]),
+    "weatherproof": _alleles([
+        ("none", "Craint la pluie", 0, True),
+        ("yes", "Résiste aux intempéries", 1, False),
+    ]),
+    # Multiplicateur des chances de mutation, lu sur la reine
+    "stability": _alleles([
+        ("chaotic", "Chaotique", 2.5, False),
+        ("erratic", "Erratique", 1.8, False),
+        ("unstable", "Instable", 1.4, False),
+        ("normal", "Normale", 1.0, True),
+        ("stable", "Stable", 0.6, True),
+        ("ordered", "Ordonnée", 0.3, False),
+        ("pure", "Pure", 0.0, False),
+    ]),
 }
 
 DEFAULT_SECONDARY = "ffdc16"
@@ -95,6 +121,9 @@ def _species(rows):
                 "lifespan": lifespan,
                 "fertility": extra.get("fertility", "2"),
                 "tolerance": extra.get("tolerance", "none"),
+                "activity": extra.get("activity", "diurnal"),
+                "weatherproof": extra.get("weatherproof", "none"),
+                "stability": extra.get("stability", "normal"),
             },
         }
     return out
@@ -218,7 +247,79 @@ SPECIES = _species([
     ("charmed", "Charmée", "Enchantées", "48eea7", "normal", "slower", "shortened", [("comb_mystic", 0.30)], {"secondary": "ad3bf7"}),
     ("enchanted", "Enchantée", "Enchantées", "18e726", "normal", "slow", "elongated", [("comb_mystic", 0.35)], {"secondary": "ad3bf7"}),
     ("supernatural", "Surnaturelle", "Enchantées", "005614", "normal", "normal", "long", [("comb_mystic", 0.40), ("mana", 0.15)], {"secondary": "ad3bf7", "dominant": False}),
+    # 1.4 : branches liées à l'heure, à la météo, au jardin et à l'élevage (mécaniques inspirées d'APICO)
+    ("noctule", "Noctambule", "Nocturnes", "2c2f5a", "normal", "slower", "normal", [("comb_nocturnal", 0.30)], {"secondary": "c9d1ff", "activity": "nocturnal"}),
+    ("lunar", "Lunaire", "Nocturnes", "b8c4e8", "normal", "slow", "long", [("comb_nocturnal", 0.35), ("moonstone", 0.04)], {"secondary": "5a6ab0", "activity": "nocturnal"}),
+    ("astral", "Astrale", "Nocturnes", "3b1f6b", "normal", "slow", "long", [("comb_nocturnal", 0.40), ("stardust", 0.05)], {"secondary": "ffe98a", "activity": "nocturnal", "dominant": False}),
+    ("stellar", "Stellaire", "Nocturnes", "161040", "normal", "normal", "longer", [("comb_nocturnal", 0.40), ("stardust", 0.10)], {"secondary": "fff6c2", "activity": "nocturnal", "dominant": False}),
+    ("solar", "Solaire", "Solaires", "ffb300", "hot", "normal", "short", [("comb_solar", 0.30)], {"secondary": "fff176", "tolerance": "one"}),
+    ("radiant", "Radieuse", "Solaires", "ffd54f", "hot", "normal", "normal", [("comb_solar", 0.35), ("sunstone", 0.04)], {"secondary": "fff9c4", "tolerance": "one"}),
+    ("zenith", "Zénithale", "Solaires", "fff176", "hot", "fast", "normal", [("comb_solar", 0.45), ("sunstone", 0.08)], {"secondary": "ff8f00", "tolerance": "one", "dominant": False}),
+    ("eclipse", "Éclipse", "Célestes", "111111", "normal", "normal", "longer", [("comb_nocturnal", 0.30), ("comb_solar", 0.30), ("stardust", 0.06), ("sunstone", 0.06)], {"secondary": "ffb300", "activity": "cathemeral", "tolerance": "one", "dominant": False}),
+    ("dawn", "Aurorale", "Aurorales", "ff9e80", "normal", "slow", "short", [("comb_dawn", 0.30)], {"secondary": "ffe0b2", "activity": "crepuscular"}),
+    ("dewy", "Rosée", "Aurorales", "b3e5fc", "normal", "slow", "normal", [("comb_dawn", 0.35), ("dew", 0.10)], {"secondary": "ffe0b2", "activity": "crepuscular", "weatherproof": "yes"}),
+    ("vesper", "Vespérale", "Aurorales", "8e24aa", "normal", "normal", "normal", [("comb_dawn", 0.40), ("dew", 0.05)], {"secondary": "ff7043", "activity": "crepuscular", "dominant": False}),
+    ("rainy", "Pluviale", "Pluviales", "5c7cfa", "normal", "slower", "short", [("comb_rain", 0.30)], {"secondary": "a5d8ff", "weatherproof": "yes"}),
+    ("misty", "Brumeuse", "Pluviales", "cfd8dc", "normal", "slow", "normal", [("comb_rain", 0.35), ("dew", 0.08)], {"secondary": "eceff1", "weatherproof": "yes", "activity": "crepuscular"}),
+    ("rainbow", "Irisée", "Pluviales", "ff80ab", "normal", "normal", "normal", [("comb_rain", 0.30), ("dye", 0.20), ("prism", 0.03)], {"secondary": "80d8ff", "weatherproof": "yes", "dominant": False}),
+    ("stormy", "Orageuse", "Orageuses", "455a64", "normal", "normal", "short", [("comb_storm", 0.30)], {"secondary": "ffee58", "weatherproof": "yes"}),
+    ("thunder", "Fulgurante", "Orageuses", "263238", "normal", "fast", "short", [("comb_storm", 0.40), ("lightning_shard", 0.05)], {"secondary": "ffff00", "weatherproof": "yes", "activity": "cathemeral", "dominant": False}),
+    ("snowy", "Neigeuse", "Neigeuses", "f5fbff", "icy", "slower", "short", [("comb_frozen", 0.30), ("snowflake", 0.05)], {"secondary": "90caf9", "weatherproof": "yes", "tolerance": "one"}),
+    ("crystalline", "Cristalline", "Neigeuses", "e1f5fe", "icy", "slow", "normal", [("comb_frozen", 0.35), ("snowflake", 0.10), ("quartz", 0.05)], {"secondary": "4fc3f7", "weatherproof": "yes"}),
+    ("blizzard", "Blizzard", "Neigeuses", "b0bec5", "icy", "normal", "normal", [("comb_frozen", 0.45), ("ice_shard", 0.30)], {"secondary": "eceff1", "weatherproof": "yes", "activity": "cathemeral", "dominant": False}),
+    ("aurora", "Boréale", "Neigeuses", "1de9b6", "icy", "slow", "longer", [("comb_frozen", 0.30), ("comb_nocturnal", 0.20), ("stardust", 0.06)], {"secondary": "7c4dff", "weatherproof": "yes", "activity": "nocturnal", "dominant": False}),
+    ("dune", "Des dunes", "Terroirs", "e6c27a", "hot", "slow", "normal", [("comb_parched", 0.40), ("quartz", 0.05)], {"secondary": "fff3c4", "tolerance": "one"}),
+    ("canopy", "De canopée", "Terroirs", "1b5e20", "warm", "slow", "normal", [("comb_silky", 0.35), ("fruit", 0.10)], {"secondary": "aed581", "weatherproof": "yes"}),
+    ("summit", "Des cimes", "Terroirs", "33691e", "cold", "slow", "normal", [("comb_mossy", 0.30), ("resin", 0.08)], {"secondary": "cfd8dc", "weatherproof": "yes"}),
+    ("permafrost", "Pergélisol", "Terroirs", "78909c", "icy", "slower", "long", [("comb_frozen", 0.30), ("comb_rocky", 0.20), ("amber", 0.03)], {"secondary": "e0f7fa", "weatherproof": "yes"}),
+    ("steppe", "Des steppes", "Terroirs", "c5e1a5", "normal", "normal", "short", [("comb_wheaten", 0.35), ("pollen", 0.08)], {"secondary": "fff59d"}),
+    ("blossom", "Fleurie", "Florales", "f48fb1", "normal", "normal", "short", [("comb_floral", 0.30)], {"secondary": "fce4ec"}),
+    ("resinous", "Résineuse", "Florales", "8d6e63", "cold", "slow", "normal", [("comb_mossy", 0.20), ("resin", 0.20)], {"secondary": "ffcc80", "tolerance": "one"}),
+    ("syrupy", "Sirupeuse", "Florales", "d84315", "normal", "slow", "normal", [("comb_sweet", 0.30), ("maple_syrup", 0.10)], {"secondary": "ffab91"}),
+    ("citrus", "Agrumière", "Florales", "fdd835", "warm", "normal", "normal", [("comb_floral", 0.25), ("lemon", 0.15)], {"secondary": "9ccc65"}),
+    ("orchard", "Vergère", "Florales", "ad1457", "normal", "normal", "normal", [("comb_floral", 0.30), ("plum", 0.10), ("cherry", 0.10)], {"secondary": "c5e1a5", "dominant": False}),
+    ("sylvan", "Sylvaine", "Florales", "2e7d32", "normal", "slow", "longer", [("comb_floral", 0.30), ("precious_wood", 0.08)], {"secondary": "a1887f"}),
+    ("ebon", "Ébène", "Florales", "212121", "normal", "slow", "longer", [("comb_shadow", 0.30), ("precious_wood", 0.12)], {"secondary": "6d4c41", "activity": "nocturnal", "dominant": False}),
+    ("pollinator", "Pollinisatrice", "Florales", "ffeb3b", "normal", "fast", "short", [("comb_floral", 0.40), ("pollen", 0.15)], {"secondary": "f06292", "fertility": "3"}),
+    ("papillon", "Papillonne", "Florales", "ce93d8", "normal", "fast", "normal", [("comb_floral", 0.40), ("petal", 0.12)], {"secondary": "4dd0e1", "dominant": False}),
+    ("gregarious", "Grégaire", "Sociales", "ffca28", "normal", "normal", "short", [("comb_honey", 0.40), ("wax", 0.10)], {"fertility": "3"}),
+    ("colonial", "Coloniale", "Sociales", "ffa000", "normal", "normal", "normal", [("comb_honey", 0.50), ("royal_jelly", 0.05)], {"fertility": "3"}),
+    ("swarm", "Essaim", "Sociales", "ff6f00", "normal", "fast", "normal", [("comb_honey", 0.60), ("royal_jelly", 0.10)], {"fertility": "4", "dominant": False}),
+    ("solitary", "Solitaire", "Recluses", "8d8d6e", "normal", "slow", "long", [("comb_mellow", 0.30)], {"secondary": "fff7b6", "fertility": "1", "stability": "stable"}),
+    ("anchorite", "Anachorète", "Recluses", "5d4037", "normal", "slow", "longest", [("comb_mellow", 0.40), ("quartz", 0.08)], {"secondary": "fff7b6", "fertility": "1", "activity": "nocturnal", "stability": "stable", "dominant": False}),
+    ("mechanical", "Mécanique", "Mécaniques", "9e9e9e", "normal", "slow", "normal", [("comb_mechanical", 0.30)], {"secondary": "ff7043"}),
+    ("clockwork", "Horlogère", "Mécaniques", "bf9b30", "normal", "normal", "normal", [("comb_mechanical", 0.35), ("gear", 0.06)], {"secondary": "5d4037", "activity": "cathemeral"}),
+    ("steam", "À vapeur", "Mécaniques", "6d4c41", "hot", "slow", "normal", [("comb_mechanical", 0.30), ("coal", 0.15)], {"secondary": "bdbdbd", "tolerance": "one"}),
+    ("electric", "Électrique", "Mécaniques", "29b6f6", "normal", "fast", "short", [("comb_mechanical", 0.30), ("comb_storm", 0.20), ("energy", 0.08)], {"secondary": "ffee58", "weatherproof": "yes"}),
+    ("cyber", "Cybernétique", "Mécaniques", "00e5ff", "normal", "faster", "normal", [("comb_mechanical", 0.40), ("circuit", 0.06)], {"secondary": "263238", "activity": "cathemeral", "weatherproof": "yes", "dominant": False}),
+    ("erratic", "Erratique", "Chaotiques", "cddc39", "normal", "normal", "short", [("comb_chaotic", 0.25)], {"secondary": "7b1fa2", "stability": "erratic"}),
+    ("mutant", "Mutante", "Chaotiques", "76ff03", "normal", "normal", "short", [("comb_chaotic", 0.35), ("chaos_shard", 0.03)], {"secondary": "d500f9", "stability": "chaotic"}),
+    ("chimera", "Chimère", "Chaotiques", "aa00ff", "normal", "fast", "normal", [("comb_chaotic", 0.40), ("chaos_shard", 0.06), ("venom", 0.05)], {"secondary": "76ff03", "stability": "chaotic", "dominant": False}),
+    ("ordered", "Ordonnée", "Harmonieuses", "eceff1", "normal", "slow", "long", [("comb_mellow", 0.30), ("propolis", 0.08)], {"secondary": "90a4ae", "stability": "ordered"}),
+    ("immaculate", "Immaculée", "Harmonieuses", "ffffff", "normal", "slow", "longer", [("comb_mellow", 0.35), ("royal_jelly", 0.06)], {"secondary": "e0e0e0", "stability": "pure", "dominant": False}),
+    ("eternal", "Éternelle", "Temporelles", "ffd700", "normal", "slower", "longest", [("comb_fossil", 0.30), ("amber", 0.08)], {"secondary": "4e342e", "dominant": False}),
+    ("ephemeral", "Éphémère", "Temporelles", "f8bbd0", "normal", "fastest", "shortest", [("comb_floral", 0.30), ("comb_static", 0.30)], {"secondary": "ffffff", "activity": "cathemeral"}),
+    ("fecund", "Féconde", "Temporelles", "aed581", "normal", "normal", "short", [("comb_honey", 0.40), ("pollen", 0.10)], {"secondary": "fff176", "fertility": "4"}),
+    ("primordial", "Primordiale", "Légendaires", "4a148c", "normal", "slow", "longest", [("comb_royal", 0.30), ("primordial_essence", 0.02)], {"secondary": "ffd54f", "stability": "stable", "dominant": False}),
+    ("celestial", "Céleste", "Légendaires", "e8eaf6", "normal", "normal", "longest", [("comb_royal", 0.30), ("stardust", 0.10), ("sunstone", 0.05)], {"secondary": "ffd700", "activity": "cathemeral", "dominant": False}),
+    ("imperatrix", "Apis Imperatrix", "Légendaires", "ffc107", "normal", "fast", "longest", [("comb_royal", 0.50), ("imperial_jelly", 0.05)], {"secondary": "7f0000", "activity": "cathemeral", "weatherproof": "yes", "stability": "stable", "fertility": "4", "tolerance": "two", "dominant": False}),
 ])
+
+# 1.4 : nouveaux gènes des espèces existantes (un génome enregistré les reçoit à la lecture)
+_TRAITS = {
+    **{s: {"weatherproof": "yes"} for s in ("marshy", "miry", "boggy", "water", "river", "ocean", "ink",
+                                           "tropical", "exotic", "edenic", "wintry", "icy", "glacial", "merry", "tipsy")},
+    **{s: {"activity": "nocturnal"} for s in ("ended", "spectral", "phantasmal", "shadowed", "darkened", "abyssal",
+                                             "vindictive", "vengeful", "avenging")},
+    **{s: {"activity": "crepuscular"} for s in ("excited", "energetic")},
+    **{s: {"stability": "stable"} for s in ("monastic", "secluded", "hermitic", "imperial")},
+    "ecstatic": {"activity": "cathemeral"},
+    "unstable": {"stability": "unstable"},
+    "nuclear": {"stability": "erratic"},
+    "radioactive": {"stability": "chaotic"},
+}
+for _sid, _genes in _TRAITS.items():
+    SPECIES[_sid]["template"].update(_genes)
 
 HIVE_SPECIES = ["forest", "meadows", "modest", "tropical", "wintry", "marshy"]
 
@@ -332,16 +433,94 @@ def _mutations():
         ("eldritch", "forest", "charmed", 0.10, None),
         ("charmed", "eldritch", "enchanted", 0.08, None),
         ("charmed", "enchanted", "supernatural", 0.08, None),
+        # 1.4 : mutations à condition (voir MUTATION_CONDITIONS)
+        ("marshy", "forest", "noctule", 0.12, {"phase": "night"}),
+        ("noctule", "noble", "lunar", 0.10, {"phase": "night", "weather": "clear"}),
+        ("lunar", "mystical", "astral", 0.08, {"phase": "night", "weather": "clear"}),
+        ("astral", "lunar", "stellar", 0.05, {"hours": [1, 5], "weather": "clear"}),
+        ("modest", "meadows", "solar", 0.12, {"phase": "day", "biome": "desert"}),
+        ("solar", "noble", "radiant", 0.10, {"phase": "day"}),
+        ("radiant", "solar", "zenith", 0.06, {"hours": [11, 14]}),
+        ("zenith", "stellar", "eclipse", 0.04, {"phase": "dawn_dusk"}),
+        ("common", "meadows", "dawn", 0.12, {"phase": "dawn_dusk"}),
+        ("dawn", "rainy", "dewy", 0.10, {"phase": "dawn_dusk"}),
+        ("dawn", "noctule", "vesper", 0.10, {"phase": "dusk"}),
+        ("marshy", "water", "rainy", 0.12, {"weather": "rain"}),
+        ("rainy", "dawn", "misty", 0.10, {"weather": "rain"}),
+        ("rainy", "solar", "rainbow", 0.06, {"weather": "rain", "phase": "day"}),
+        ("rainy", "excited", "stormy", 0.10, {"weather": "storm"}),
+        ("stormy", "energetic", "thunder", 0.06, {"weather": "storm"}),
+        ("wintry", "rainy", "snowy", 0.12, {"weather": "snow"}),
+        ("snowy", "icy", "crystalline", 0.08, {"weather": "snow"}),
+        ("snowy", "glacial", "blizzard", 0.06, {"weather": "snow", "biome": "tundra"}),
+        ("crystalline", "lunar", "aurora", 0.05, {"weather": "snow", "phase": "night"}),
+        ("arid", "solar", "dune", 0.10, {"biome": "desert"}),
+        ("tropical", "forest", "canopy", 0.10, {"biome": "jungle"}),
+        ("forest", "wintry", "summit", 0.10, {"biome": "taiga"}),
+        ("wintry", "rock", "permafrost", 0.08, {"biome": "tundra"}),
+        ("meadows", "rural", "steppe", 0.10, {"biome": "plains", "phase": "day"}),
+        ("meadows", "sweet", "blossom", 0.12, {"tree": "cherry"}),
+        ("forest", "sticky", "resinous", 0.10, {"tree": "pine"}),
+        ("sweet", "rural", "syrupy", 0.10, {"tree": "maple"}),
+        ("fruity", "tropical", "citrus", 0.08, {"tree": "lemon"}),
+        ("fruity", "blossom", "orchard", 0.08, {"tree": "plum"}),
+        ("forest", "charmed", "sylvan", 0.08, {"tree": "sequoia"}),
+        ("shadowed", "sylvan", "ebon", 0.06, {"tree": "ebony", "phase": "night"}),
+        ("blossom", "orchard", "pollinator", 0.08, {"butterflies": 5}),
+        ("pollinator", "leporine", "papillon", 0.05, {"butterflies": 12}),
+        ("common", "diligent", "gregarious", 0.10, {"hives_min": 4}),
+        ("gregarious", "industrious", "colonial", 0.08, {"hives_min": 6}),
+        ("colonial", "majestic", "swarm", 0.05, {"hives_min": 8}),
+        ("forest", "monastic", "solitary", 0.10, {"hives_max": 1}),
+        ("solitary", "hermitic", "anchorite", 0.06, {"hives_max": 1, "phase": "night"}),
+        ("industrious", "copper", "mechanical", 0.10, {"machines": 2}),
+        ("mechanical", "tin", "clockwork", 0.08, {"automated": True}),
+        ("mechanical", "tempered", "steam", 0.08, {"module": "alveary_heater"}),
+        ("energetic", "mechanical", "electric", 0.08, {"weather": "storm"}),
+        ("clockwork", "electric", "cyber", 0.05, {"machines": 5}),
+        ("unstable", "common", "erratic", 0.10, {"trait": {"stability": "unstable"}}),
+        ("erratic", "nuclear", "mutant", 0.08, {"module": "alveary_mutator"}),
+        ("mutant", "virulent", "chimera", 0.06, {"trait": {"stability": "chaotic"}}),
+        ("monastic", "imperial", "ordered", 0.08, {"trait": {"stability": "stable"}}),
+        ("ordered", "hermitic", "immaculate", 0.05, {"trait": {"stability": "ordered"}}),
+        ("relic", "imperial", "eternal", 0.05, {"trait": {"lifespan": "longest"}}),
+        ("ecstatic", "cultivated", "ephemeral", 0.08, {"trait": {"lifespan": "shortest"}}),
+        ("majestic", "gregarious", "fecund", 0.08, {"trait": {"fertility": "4"}}),
+        ("relic", "phantasmal", "primordial", 0.04, {"discovered": 120}),
+        ("stellar", "zenith", "celestial", 0.04, {"discovered": 140, "phase": "dawn_dusk"}),
+        ("primordial", "celestial", "imperatrix", 0.02, {"discovered": 160, "hives_min": 8}),
+        # Chemins de rechange
+        ("noctule", "rock", "shadowed", 0.08, {"phase": "night"}),
+        ("lunar", "ended", "spectral", 0.04, {"phase": "night"}),
+        ("rainy", "river", "ocean", 0.08, {"weather": "rain"}),
+        ("blossom", "sweet", "sugary", 0.12, None),
+        ("gregarious", "rural", "farmerly", 0.10, None),
+        ("canopy", "exotic", "edenic", 0.08, {"biome": "jungle"}),
+        ("summit", "icy", "glacial", 0.08, {"biome": "taiga"}),
+        ("dune", "austere", "desolate", 0.08, {"biome": "desert"}),
+        ("eclipse", "astral", "celestial", 0.03, {"discovered": 140}),
+        ("chimera", "primeval", "primordial", 0.03, {"discovered": 120, "phase": "night"}),
+        ("steppe", "farmerly", "agrarian", 0.08, {"phase": "day"}),
+        ("electric", "ecstatic", "thunder", 0.05, {"weather": "storm"}),
     ]
-    for a, b, result, chance, temp in rows:
-        out.append({"a": a, "b": b, "result": result, "chance": chance, "temp": temp})
+    for a, b, result, chance, cond in rows:
+        # Avant la 1.4, la seule condition possible était la température de la ruche
+        if isinstance(cond, str):
+            cond = {"temp": cond}
+        out.append({"a": a, "b": b, "result": result, "chance": chance, "temp": (cond or {}).get("temp"), "cond": cond or {}})
     for m in out:
+        m.setdefault("cond", {})
         m["chance"] = round(m["chance"] * MUTATION_RATE, 4)
     return out
 
 
-# "temp" : température que doit avoir la ruche pour que la mutation soit possible
+# "cond" : conditions à réunir au moment où la reine meurt ; "temp" est conservé pour l'interface 1.3
 MUTATIONS = _mutations()
+
+MUTATION_CONDITIONS = {
+    "temp", "biome", "phase", "hours", "weather", "module", "automated", "tree",
+    "butterflies", "hives_min", "hives_max", "machines", "discovered", "trait",
+}
 
 
 def _items(category, rows):
@@ -374,6 +553,15 @@ ITEMS = {
         ("comb_fossil", "Rayon fossile", "58574b", 0),
         ("comb_oil", "Rayon huileux", "1a1a14", 0),
         ("comb_mystic", "Rayon arcanique", "5fd3c6", 0),
+        ("comb_nocturnal", "Rayon nocturne", "2c2f5a", 0),
+        ("comb_solar", "Rayon solaire", "ffb300", 0),
+        ("comb_dawn", "Rayon auroral", "ff9e80", 0),
+        ("comb_rain", "Rayon pluvieux", "5c7cfa", 0),
+        ("comb_storm", "Rayon orageux", "455a64", 0),
+        ("comb_floral", "Rayon floral", "f48fb1", 0),
+        ("comb_mechanical", "Rayon mécanique", "9e9e9e", 0),
+        ("comb_chaotic", "Rayon chaotique", "aa00ff", 0),
+        ("comb_royal", "Rayon impérial", "ffc107", 0),
     ]),
     **_items("resource", [
         ("wax", "Cire d'abeille", "fceeac", 1),
@@ -433,6 +621,20 @@ ITEMS = {
         ("papaya", "Papayes", "f08a2a", 10),
         ("dates", "Dattes", "8a4a1a", 10),
         ("maple_syrup", "Sirop d'érable", "c8741a", 10),
+        ("moonstone", "Pierre de lune", "c9d1ff", 30),
+        ("sunstone", "Pierre de soleil", "ffb300", 30),
+        ("stardust", "Poussière d'étoile", "fff6c2", 25),
+        ("dew", "Rosée", "b3e5fc", 6),
+        ("prism", "Prisme", "ff80ab", 60),
+        ("lightning_shard", "Éclat de foudre", "ffee58", 35),
+        ("snowflake", "Flocon éternel", "e1f5fe", 15),
+        ("resin", "Résine", "d89a3a", 6),
+        ("petal", "Pétales", "f48fb1", 5),
+        ("gear", "Engrenage", "bf9b30", 20),
+        ("circuit", "Circuit", "00e5ff", 45),
+        ("chaos_shard", "Fragment de chaos", "aa00ff", 50),
+        ("primordial_essence", "Essence primordiale", "4a148c", 200),
+        ("imperial_jelly", "Gelée impériale", "ffc107", 300),
     ]),
     **_items("consumable", [
         ("labware", "Verrerie de laboratoire", "a8d8ea", 0),
@@ -442,6 +644,8 @@ ITEMS = {
         ("frame_impregnated", "Cadre imprégné", "a6783c", 0),
         ("frame_proven", "Cadre éprouvé", "7a5222", 0),
         ("hive_automation", "Module d'élevage automatique", "b8c4cc", 0),
+        ("hive_lantern", "Lanterne de ruche", "ffd54f", 0),
+        ("hive_shelter", "Abri de ruche", "78909c", 0),
         ("alveary_heater", "Chauffage d'alvéaire", "e2572b", 0),
         ("alveary_fan", "Ventilateur d'alvéaire", "5bb8e8", 0),
         ("alveary_stabiliser", "Stabilisateur", "8f9aa3", 0),
@@ -478,6 +682,15 @@ RECIPES = {
     "comb_fossil": [("honey", 0.5, 6), ("coal", 0.4, 1), ("amber", 0.1, 1)],
     "comb_oil": [("honey", 0.3, 4), ("oil", 1.0, 1)],
     "comb_mystic": [("honey", 0.5, 7), ("wax", 0.5, 1), ("mana", 0.3, 1)],
+    "comb_nocturnal": [("honey", 0.6, 5), ("wax", 0.6, 1), ("moonstone", 0.03, 1)],
+    "comb_solar": [("honey", 0.8, 6), ("wax", 0.6, 1), ("sunstone", 0.03, 1)],
+    "comb_dawn": [("honey", 0.7, 5), ("dew", 0.5, 1), ("wax", 0.3, 1)],
+    "comb_rain": [("honey", 0.6, 4), ("dew", 0.4, 1), ("clay", 0.2, 1)],
+    "comb_storm": [("honey", 0.5, 6), ("energy", 0.2, 1), ("lightning_shard", 0.03, 1)],
+    "comb_floral": [("honey", 0.9, 5), ("petal", 0.6, 1), ("pollen", 0.2, 1)],
+    "comb_mechanical": [("honey", 0.4, 5), ("gear", 0.15, 1), ("iron", 0.1, 1)],
+    "comb_chaotic": [("honey", 0.5, 7), ("dye", 0.3, 1), ("chaos_shard", 0.04, 1)],
+    "comb_royal": [("honey", 1.0, 12), ("royal_jelly", 0.5, 1), ("imperial_jelly", 0.02, 1)],
 }
 # Centrifugation à la main : un rayon par geste (appui maintenu côté interface)
 MANUAL_BATCH = 1
@@ -489,6 +702,8 @@ MODULES = {
     "frame_proven": {"frame": True, "effects": {"production": 2.2}, "desc": "Production ×2,2"},
     # "frame" signifie ici : se monte aussi dans un simple rucher
     "hive_automation": {"frame": True, "effects": {"automation": True}, "desc": "Récolte automatique ; à la mort de la reine, sa princesse est accouplée et réinstallée toute seule"},
+    "hive_lantern": {"frame": True, "effects": {"light": True}, "desc": "Les abeilles travaillent à toute heure, quel que soit leur gène d'activité"},
+    "hive_shelter": {"frame": True, "effects": {"shelter": True}, "desc": "Les abeilles travaillent sous la pluie, l'orage et la neige"},
     "alveary_heater": {"frame": False, "effects": {"temp": 1}, "desc": "Température +1 palier"},
     "alveary_fan": {"frame": False, "effects": {"temp": -1}, "desc": "Température −1 palier"},
     "alveary_stabiliser": {"frame": False, "effects": {"mutation": 0.0}, "desc": "Empêche toute mutation"},
@@ -533,6 +748,8 @@ def _offers():
         {"id": "item:frame_impregnated", "kind": "item", "item": "frame_impregnated", "honey": 120, "items": {"propolis": 5}},
         {"id": "item:frame_proven", "kind": "item", "item": "frame_proven", "honey": 400, "items": {"royal_jelly": 5}},
         {"id": "item:hive_automation", "kind": "item", "item": "hive_automation", "honey": 500, "items": {"wax": 20}},
+        {"id": "item:hive_lantern", "kind": "item", "item": "hive_lantern", "honey": 250, "items": {"wax": 15, "honeydew": 5}},
+        {"id": "item:hive_shelter", "kind": "item", "item": "hive_shelter", "honey": 200, "items": {"wax": 20, "propolis": 5}},
         {"id": "item:alveary_heater", "kind": "item", "item": "alveary_heater", "honey": 300, "items": {"wax": 20}},
         {"id": "item:alveary_fan", "kind": "item", "item": "alveary_fan", "honey": 300, "items": {"wax": 20}},
         {"id": "item:alveary_production", "kind": "item", "item": "alveary_production", "honey": 600, "items": {"honeydew": 10}},
@@ -551,6 +768,103 @@ OFFERS = _offers()
 
 IMPRINT_HONEY_PER_GENE = 50
 SHOWCASE_MAX_ENTRIES = 12
+
+_PHASE_TEXT = {
+    "day": "le jour",
+    "night": "la nuit",
+    "dawn": "à l'aube",
+    "dusk": "au crépuscule",
+    "dawn_dusk": "à l'aube ou au crépuscule",
+}
+_WEATHER_TEXT = {"rain": "sous la pluie", "storm": "pendant un orage", "snow": "sous la neige", "clear": "par beau temps"}
+
+
+def cond_text(cond: dict) -> str:
+    """Conditions d'une mutation, en clair pour le joueur."""
+    parts = []
+    for key, val in cond.items():
+        if key == "temp":
+            parts.append(f"ruche « {TEMP_LABELS[val]} »")
+        elif key == "biome":
+            parts.append(f"biome {BIOMES[val]['label']}")
+        elif key == "phase":
+            parts.append(_PHASE_TEXT[val])
+        elif key == "hours":
+            parts.append(f"entre {val[0]} h et {val[1]} h")
+        elif key == "weather":
+            parts.append(_WEATHER_TEXT[val])
+        elif key == "module":
+            parts.append(f"avec « {ITEMS[val]['label']} » dans la ruche")
+        elif key == "automated":
+            parts.append("dans une ruche automatisée")
+        elif key == "tree":
+            parts.append(f"avec un arbre « {TREE_SPECIES[val]['label']} » planté au jardin")
+        elif key == "butterflies":
+            parts.append(f"après {val} espèces de papillons trouvées")
+        elif key == "hives_min":
+            parts.append(f"avec au moins {val} ruches occupées")
+        elif key == "hives_max":
+            parts.append("si aucune autre ruche n'a de reine")
+        elif key == "machines":
+            parts.append(f"avec au moins {val} centrifugeuses")
+        elif key == "discovered":
+            parts.append(f"après {val} espèces d'abeilles découvertes")
+        elif key == "trait":
+            for chromosome, allele in val.items():
+                parts.append(f"si la reine porte le gène {CHROMOSOMES[chromosome]} « {ALLELES[chromosome][allele]['label']} »")
+    return " · ".join(parts)
+
+
+for _m in MUTATIONS:
+    _m["cond_text"] = cond_text(_m["cond"])
+
+
+# ---- Carnet d'objectifs ---------------------------------------------------
+# Identifiants stockés dans les sauvegardes (objectifs réclamés) : ne jamais les renommer.
+# Une branche est désignée par sa première espèce, dont l'identifiant ne change pas.
+
+
+def _objectives():
+    out = []
+
+    def add(oid, label, kind, target, honey, items=None, branch=None):
+        out.append({"id": oid, "label": label, "kind": kind, "target": target, "branch": branch,
+                    "reward": {"honey": honey, "items": items or {}}})
+
+    species_steps = [
+        (5, 100, {"frame_untreated": 1}),
+        (10, 250, {"frame_untreated": 2}),
+        (20, 500, {"hive_shelter": 1}),
+        (35, 1000, {"hive_lantern": 1}),
+        (50, 2000, {"frame_impregnated": 2}),
+        (75, 3500, {"alveary_mutator": 1}),
+        (100, 5000, {"frame_proven": 2}),
+        (125, 8000, {"alveary_automation": 1}),
+        (150, 12000, {"royal_jelly": 20}),
+        (len(SPECIES), 25000, {"imperial_jelly": 1}),
+    ]
+    for n, honey, items in species_steps:
+        add(f"species:{n}", f"Découvrir {n} espèces d'abeilles", "species", n, honey, items)
+
+    branches: dict[str, list[str]] = {}
+    for sid, spec in SPECIES.items():
+        branches.setdefault(spec["branch"], []).append(sid)
+    for branch, members in branches.items():
+        if len(members) >= 2:
+            add(f"branch:{members[0]}", f"Compléter la branche « {branch} »", "branch", len(members), 150 * len(members), branch=branch)
+
+    for n, honey in ((3, 150), (5, 400), (8, 1000), (12, 2500)):
+        add(f"hives:{n}", f"Posséder {n} ruches", "hives", n, honey)
+    for n, honey in ((5, 100), (10, 300), (20, 800), (len(TREE_SPECIES), 2000)):
+        add(f"trees:{n}", f"Découvrir {n} espèces d'arbres", "trees", n, honey)
+    for n, honey in ((3, 100), (8, 300), (14, 800), (len(BUTTERFLIES), 2000)):
+        add(f"butterflies:{n}", f"Trouver {n} espèces de papillons", "butterflies", n, honey)
+    for n, honey in ((5, 300), (15, 800), (30, 2000)):
+        add(f"genes:{n}", f"Réunir {n} gènes dans la banque génétique", "genes", n, honey, {"labware": 5})
+    return {o["id"]: o for o in out}
+
+
+OBJECTIVES = _objectives()
 
 
 def public_content() -> dict:
@@ -573,4 +887,6 @@ def public_content() -> dict:
         "imprint_honey_per_gene": IMPRINT_HONEY_PER_GENE,
         "showcase_max_entries": SHOWCASE_MAX_ENTRIES,
         "garden": public_garden(),
+        "world": public_world(),
+        "objectives": list(OBJECTIVES.values()),
     }

@@ -14,6 +14,7 @@ from app.db import get_db
 from app.game import content as C
 from app.game import garden as GD
 from app.game import genetics as G
+from app.game import world as W
 from app.game.service import Game, GameError, get_or_create_player
 from app.main import app
 from app.models import Base
@@ -27,11 +28,26 @@ def db():
         yield session
 
 
+def _morning() -> int:
+    """Début d'une matinée sans pluie : les abeilles diurnes travaillent pendant 6 heures de jeu."""
+    t = 6 * W.HOUR_MS
+    while W.weather(t, "normal") != "clear":
+        t += W.DAY_SECONDS * 1000
+    return t
+
+
+MORNING = _morning()
+
+
 @pytest.fixture
 def game(db):
     player = get_or_create_player(db, "test:1", "testeur")
     db.flush()
-    return Game(db, player, rng=random.Random(42))
+    game = Game(db, player, rng=random.Random(42))
+    # La simulation dépend de l'heure et de la météo : les tests partent tous d'un matin ensoleillé
+    real_advance = game.advance
+    game.advance = lambda cycles, start_ms=MORNING: real_advance(cycles, start_ms)
+    return game
 
 
 def _bee(game, bee_type, species):
@@ -46,6 +62,16 @@ def test_content_is_consistent():
             assert G.allele_exists(chromosome, allele)
     for m in C.MUTATIONS:
         assert {m["a"], m["b"], m["result"]} <= set(C.SPECIES)
+        assert set(m["cond"]) <= C.MUTATION_CONDITIONS
+        assert m["cond_text"] or not m["cond"]
+        if "tree" in m["cond"]:
+            assert m["cond"]["tree"] in GD.TREE_SPECIES
+        if "module" in m["cond"]:
+            assert m["cond"]["module"] in C.MODULES
+        for chromosome, allele in m["cond"].get("trait", {}).items():
+            assert G.allele_exists(chromosome, allele)
+    for objective in C.OBJECTIVES.values():
+        assert all(item in C.ITEMS for item in objective["reward"]["items"])
     for comb, outputs in C.RECIPES.items():
         assert C.ITEMS[comb]["category"] == "comb"
         assert all(item == "honey" or item in C.ITEMS for item, _, _ in outputs)
@@ -290,7 +316,8 @@ def test_api_flow(db):
         princess = next(b["id"] for b in state["bees"] if b["type"] == "princess")
         drone = next(b["id"] for b in state["bees"] if b["type"] == "drone")
         state = client.post(f"/api/hives/{hive}/install", json={"princess_id": princess, "drone_id": drone}, headers=alice).json()
-        assert state["hives"][0]["status"] == "working"
+        assert state["hives"][0]["status"] in ("working", "resting", "weather")
+        assert set(state["world"]["weather"]) == set(C.BIOMES)
 
         error = client.post("/api/shop/buy", json={"offer_id": "hive:alveary"}, headers=alice)
         assert error.status_code == 400 and "miel" in error.json()["detail"]
@@ -307,3 +334,71 @@ def test_api_flow(db):
         assert client.delete(f"/api/community/showcases/{showcase['id']}", headers=alice).json() == []
     finally:
         app.dependency_overrides.clear()
+
+
+def test_world_clock_and_working_hours():
+    cycle = 5000
+    day = W.DAY_SECONDS * 1000 // cycle  # 288 cycles par jour de jeu
+    assert W.working_cycles(0, day, cycle, "cathemeral", True, "normal") == day
+    assert W.working_cycles(0, day, cycle, "diurnal", True, "normal") == 14 * day // 24
+    assert W.working_cycles(0, day, cycle, "nocturnal", True, "normal", always_lit=True) == day
+    # Sans abri, la pluie arrête les abeilles ; il ne pleut jamais dans le désert
+    exposed = sum(W.working_cycles(d * day * cycle, day, cycle, "cathemeral", False, "normal") for d in range(30))
+    assert 0.5 * 30 * day < exposed < 30 * day
+    assert sum(W.working_cycles(d * day * cycle, day, cycle, "cathemeral", False, "hot") for d in range(30)) == 30 * day
+    assert {W.weather(h * W.HOUR_MS, "icy") for h in range(0, 24 * 60, 6)} <= {"clear", "snow"}
+
+
+def test_conditional_mutation():
+    rng = random.Random(5)
+    marshy, forest = G.pure_genome("marshy"), G.pure_genome("forest")
+    night = {"phase": "night"}
+    day = {"phase": "day"}
+    assert not any("noctule" in G.breed(marshy, forest, rng, ctx=day)["species"] for _ in range(400))
+    assert any("noctule" in G.breed(marshy, forest, rng, ctx=night)["species"] for _ in range(400))
+    # Sans contexte (ancien appel), aucune mutation à condition n'a lieu
+    assert not any("noctule" in G.breed(marshy, forest, rng)["species"] for _ in range(400))
+
+
+def test_trait_condition_and_stability():
+    rng = random.Random(9)
+    forest, meadows = G.pure_genome("forest"), G.pure_genome("meadows")
+    pure = {**forest, "stability": ["pure", "pure"]}
+    assert not any("common" in G.breed(pure, meadows, rng)["species"] for _ in range(400))
+    chaotic = {**forest, "stability": ["chaotic", "chaotic"]}
+    calm = sum("common" in G.breed(forest, meadows, rng)["species"] for _ in range(2000))
+    wild = sum("common" in G.breed(chaotic, meadows, rng)["species"] for _ in range(2000))
+    assert wild > calm * 1.8
+    # La mutation Ordonnée exige une reine au gène de stabilité « Stable »
+    monastic, imperial = G.pure_genome("monastic"), G.pure_genome("imperial")
+    assert any("ordered" in G.breed(monastic, imperial, rng, ctx={})["species"] for _ in range(600))
+    loose = {**monastic, "stability": ["normal", "normal"]}
+    assert not any("ordered" in G.breed(loose, imperial, rng, ctx={})["species"] for _ in range(600))
+
+
+def test_hive_context_and_status(game):
+    hive = game.hives[0]
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
+    mods = game._mods(hive)
+    night = MORNING - 4 * W.HOUR_MS  # 2 h du matin
+    ctx = game._hive_ctx(hive, mods, night, game._world_ctx())
+    assert ctx["phase"] == "night" and ctx["biome"] == "plains" and ctx["hives_min"] == 1
+    assert game._hive_status(hive, mods, night) == "resting"
+    assert game._hive_status(hive, mods, MORNING) == "working"
+    game.add_item("hive_lantern", 1)
+    game.add_module(hive.id, "hive_lantern")
+    assert game._hive_status(hive, game._mods(hive), night) == "working"
+
+
+def test_objectives(game):
+    with pytest.raises(GameError):
+        game.claim_objective("species:5")
+    for species in ["common", "cultivated", "noble"]:
+        game.discover(G.pure_genome(species))
+    honey = game.p.honey
+    game.claim_objective("species:5")
+    assert game.p.honey == honey + C.OBJECTIVES["species:5"]["reward"]["honey"]
+    assert game.qty("frame_untreated") == 1
+    with pytest.raises(GameError):
+        game.claim_objective("species:5")
+    assert game.state()["objectives"]["species:5"] == {"progress": 5, "claimed": True}

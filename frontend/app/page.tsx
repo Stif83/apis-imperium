@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BeeCard, GenomeIcon, GenomeTable, Honey, ItemIcon, ItemQty, TYPE_LABELS, fmt, speciesName } from '@/components/ui';
+import { BeeCard, GenomeIcon, GenomeTable, Honey, ItemIcon, ItemQty, TYPE_LABELS, WEATHER_ICONS, fmt, speciesName } from '@/components/ui';
 import { useGame } from '@/lib/game';
 import type { Bee, Hive } from '@/lib/types';
 
@@ -83,10 +83,21 @@ function HiveCard({ hive }: { hive: Hive }) {
         </span>
         {hive.status === 'working' && <span className="badge ok">Au travail</span>}
         {hive.status === 'climate' && <span className="badge warn">Climat inadapté</span>}
+        {hive.status === 'resting' && (
+          <span className="badge" title="Ce n'est pas l'heure de travail de cette reine (gène d'activité). Une lanterne la fait travailler à toute heure.">
+            Au repos
+          </span>
+        )}
+        {hive.status === 'weather' && (
+          <span className="badge" title="Cette reine craint les intempéries. Un abri, ou le gène « Résiste aux intempéries », la fait travailler quand même.">
+            À l'abri
+          </span>
+        )}
         {hive.status === 'empty' && <span className="badge">Sans reine</span>}
       </div>
       <div className="muted">
-        {type.label} · <span style={{ color }}>{content.biomes[hive.biome].label}</span> · {content.temp_labels[hive.mods.temp]}
+        {type.label} · <span style={{ color }}>{content.biomes[hive.biome].label}</span> · {content.temp_labels[hive.mods.temp]} ·{' '}
+        {WEATHER_ICONS[state.world.weather[hive.biome]]} {content.world.weathers[state.world.weather[hive.biome]]}
         {hive.mods.automation && ' · automatisée'}
       </div>
 
@@ -218,7 +229,8 @@ export default function ApiaryPage() {
       <p className="muted">
         Accouplez une princesse et un faux-bourdon pour obtenir une reine. Elle produit des rayons pendant sa vie, puis laisse une
         princesse et des faux-bourdons qui héritent de ses gènes — parfois avec une mutation. Chaque espèce a son climat : achetez en
-        boutique des ruches dans d'autres biomes au fur et à mesure.
+        boutique des ruches dans d'autres biomes au fur et à mesure. Certaines mutations n'arrivent qu'à une heure, par un temps ou
+        dans un lieu précis : c'est au moment où la reine meurt que tout se joue (voir l'Apidex).
       </p>
       {state.rescue_available && (
         <div className="notice row between">

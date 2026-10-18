@@ -9,6 +9,21 @@ export const TYPE_LABELS: Record<BeeType, string> = { princess: 'Princesse', dro
 
 export const fmt = (n: number) => n.toLocaleString('fr-FR');
 
+export const PHASE_ICONS: Record<string, string> = { dawn: '🌅', day: '☀️', dusk: '🌇', night: '🌙' };
+export const WEATHER_ICONS: Record<string, string> = { clear: '', rain: '🌧️', storm: '⛈️', snow: '❄️' };
+
+/** Heure du monde, commune à tous les joueurs (une journée de jeu = 24 minutes). */
+export function WorldClock() {
+  const { content, state } = useGame();
+  const { hour, minute, phase } = state.world;
+  const time = `${String(hour).padStart(2, '0')} h ${String(minute).padStart(2, '0')}`;
+  return (
+    <span className="chip" title={`${content.world.phases[phase]} · une journée dure ${content.world.day_seconds / 60} minutes`}>
+      {PHASE_ICONS[phase]} {time}
+    </span>
+  );
+}
+
 export function Honey({ amount }: { amount: number }) {
   return (
     <span className="honey">

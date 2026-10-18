@@ -22,6 +22,8 @@ class Player(Base):
     honey: Mapped[int] = mapped_column(BigInteger, default=0)
     genetics_unlocked: Mapped[bool] = mapped_column(Boolean, default=False)
     last_sim_ms: Mapped[int] = mapped_column(BigInteger)
+    # Objectifs du carnet dont la récompense a été reçue
+    claimed: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -32,7 +32,15 @@ export type Content = {
   chromosomes: Record<string, string>;
   alleles: Record<string, Record<string, Allele>>;
   species: Record<string, Species>;
-  mutations: { a: string; b: string; result: string; chance: number; temp?: string | null }[];
+  mutations: {
+    a: string;
+    b: string;
+    result: string;
+    chance: number;
+    temp?: string | null;
+    cond: Record<string, unknown>;
+    cond_text: string;
+  }[];
   items: Record<string, Item>;
   recipes: Record<string, [string, number, number][]>;
   manual_batch: number;
@@ -51,6 +59,22 @@ export type Content = {
     butterflies: Record<string, { label: string; color: string; secondary: string; chance: number; hosts: string[]; sell: number }>;
     sapling_sell: number;
   };
+  world: {
+    day_seconds: number;
+    phases: Record<string, string>;
+    weathers: Record<string, string>;
+    activity_hours: Record<string, number[]>;
+  };
+  objectives: Objective[];
+};
+
+export type Objective = {
+  id: string;
+  label: string;
+  kind: 'species' | 'branch' | 'hives' | 'trees' | 'butterflies' | 'genes';
+  target: number;
+  branch: string | null;
+  reward: Cost;
 };
 
 export type Plot = {
@@ -72,14 +96,16 @@ export type Hive = {
   queen: Queen | null;
   output: Record<string, number>;
   keep_drones: boolean;
-  mods: { production: number; lifespan: number; mutation: number; automation: boolean; temp: string };
-  status: 'empty' | 'working' | 'climate';
+  mods: { production: number; lifespan: number; mutation: number; automation: boolean; light: boolean; shelter: boolean; temp: string };
+  status: 'empty' | 'working' | 'climate' | 'resting' | 'weather';
 };
 
 export type GameState = {
   player: { id: string; username: string; honey: number; genetics_unlocked: boolean };
   server_time: number;
   cycle_seconds: number;
+  world: { hour: number; minute: number; phase: string; weather: Record<string, string>; next_weather_ms: number };
+  objectives: Record<string, { progress: number; claimed: boolean }>;
   inventory: Record<string, number>;
   bees: Bee[];
   hives: Hive[];

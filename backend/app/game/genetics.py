@@ -73,6 +73,8 @@ def hive_mods(hive_type: str, biome: str, modules: list[str]) -> dict:
         "lifespan": 1.0,
         "mutation": 1.0,
         "automation": False,
+        "light": False,
+        "shelter": False,
     }
     temp = TEMPS.index(BIOMES[biome]["temp"])
     for module in modules:
@@ -80,12 +82,43 @@ def hive_mods(hive_type: str, biome: str, modules: list[str]) -> dict:
         for key in ("production", "lifespan", "mutation"):
             mods[key] *= effects.get(key, 1.0)
         temp += effects.get("temp", 0)
-        mods["automation"] = mods["automation"] or effects.get("automation", False)
+        for flag in ("automation", "light", "shelter"):
+            mods[flag] = mods[flag] or effects.get(flag, False)
     mods["temp"] = TEMPS[max(0, min(len(TEMPS) - 1, temp))]
     return mods
 
 
-def _mutated_template(g1: dict, g2: dict, rng, mutation_mult: float, hive_temp: str, kind: str) -> dict | None:
+def cond_ok(cond: dict, ctx: dict) -> bool:
+    """Vérifie les conditions d'une mutation dans le contexte de la ruche (voir content.MUTATION_CONDITIONS)."""
+    for key, val in cond.items():
+        if key == "trait":
+            queen = ctx.get("queen")
+            if not queen or any(queen.get(c, [None])[0] != a for c, a in val.items()):
+                return False
+            continue
+        if key not in ctx:
+            return False
+        have = ctx[key]
+        if key == "phase":
+            ok = have in ("dawn", "dusk") if val == "dawn_dusk" else have == val
+        elif key == "hours":
+            ok = val[0] <= have < val[1]
+        elif key == "weather":
+            ok = have in ("rain", "storm") if val == "rain" else have == val
+        elif key in ("module", "tree"):
+            ok = val in have
+        elif key in ("butterflies", "hives_min", "machines", "discovered"):
+            ok = have >= val
+        elif key == "hives_max":
+            ok = have <= val
+        else:
+            ok = have == val
+        if not ok:
+            return False
+    return True
+
+
+def _mutated_template(g1: dict, g2: dict, rng, mutation_mult: float, ctx: dict, kind: str) -> dict | None:
     if rng.random() < 0.5:
         a, b = g1["species"][0], g2["species"][1]
     else:
@@ -93,16 +126,21 @@ def _mutated_template(g1: dict, g2: dict, rng, mutation_mult: float, hive_temp: 
     candidates = [m for m in KINDS[kind]["mutations"] if {m["a"], m["b"]} == {a, b}]
     rng.shuffle(candidates)
     for m in candidates:
-        if m.get("temp") and m["temp"] != hive_temp:
+        if not cond_ok(m.get("cond") or {}, ctx):
             continue
         if rng.random() < m["chance"] * mutation_mult:
             return KINDS[kind]["species"][m["result"]]["template"]
     return None
 
 
-def breed(queen: dict, mate: dict, rng, mutation_mult: float = 1.0, hive_temp: str = "normal", kind: str = "bee") -> dict:
-    set1 = _mutated_template(queen, mate, rng, mutation_mult, hive_temp, kind)
-    set2 = _mutated_template(mate, queen, rng, mutation_mult, hive_temp, kind)
+def breed(queen: dict, mate: dict, rng, mutation_mult: float = 1.0, hive_temp: str = "normal", kind: str = "bee",
+          ctx: dict | None = None) -> dict:
+    """Croise deux génomes. `ctx` décrit la ruche au moment de la naissance (conditions de mutation)."""
+    ctx = {**(ctx or {}), "temp": hive_temp, "queen": queen}
+    if kind == "bee" and "stability" in queen:
+        mutation_mult *= value(queen, "stability")
+    set1 = _mutated_template(queen, mate, rng, mutation_mult, ctx, kind)
+    set2 = _mutated_template(mate, queen, rng, mutation_mult, ctx, kind)
     child = {}
     for c in KINDS[kind]["chromosomes"]:
         first = set1[c] if set1 else rng.choice(queen[c])

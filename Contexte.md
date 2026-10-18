@@ -341,6 +341,51 @@ sert 26 arbres et 20 papillons. Non vérifié : l'interface sur le cluster dans 
 À savoir : chaque livraison redémarre aussi PostgreSQL (son image change de numéro même si son
 contenu est identique), soit quelques dizaines de secondes d'interruption du jeu.
 
+## Demande du 2026-10-18 : s'inspirer d'APICO (version 1.4.0, non déployée)
+
+Source : les fichiers de données d'APICO installés sur ce poste (`E:\SteamLibrary\steamapps\common\APICO\json`,
+lisibles sans décompilation). J'en ai repris des **mécaniques**, pas les noms, textes ni images :
+toutes les nouvelles espèces sont inventées pour Apis Imperium.
+
+- **Horloge et météo du monde** (`backend/app/game/world.py`) : une journée de jeu = 24 minutes,
+  communes à tous les joueurs. Météo par tranche de 6 heures de jeu : beau temps, pluie, orage ;
+  neige dans la taïga et la toundra ; jamais de pluie dans le désert. Calculées depuis l'heure
+  réelle : rien de stocké, rien en tâche de fond. Horloge affichée dans l'en-tête, météo sur
+  chaque ruche.
+- **Trois nouveaux chromosomes**, ajoutés automatiquement aux génomes existants :
+  - Activité (diurne, nocturne, crépusculaire, jour et nuit) : une reine ne produit que pendant
+    ses heures (production ×2 pendant ce temps, pour compenser) ; elle vieillit quand même.
+  - Intempéries : sans le gène « Résiste », pas de production sous la pluie ou la neige.
+  - Stabilité : multiplie les chances de mutation de la reine (de ×2,5 « Chaotique » à ×0 « Pure »).
+  Quelques espèces existantes ont reçu des valeurs à thème (marécageuses et aquatiques résistantes,
+  Néant et Ténébreuses nocturnes, Monastiques stables, Nucléaires instables…).
+- **Nouveaux modules** (boutique, montables dans un simple rucher) : Lanterne (travail à toute heure),
+  Abri (travail par tous les temps).
+- **Mutations à condition**, vérifiées au moment où la reine meurt : heure, phase du jour, météo,
+  biome, module, ruche automatisée, arbre planté au jardin, nombre de ruches occupées, nombre de
+  centrifugeuses, nombre de papillons ou d'espèces découverts, gène de la reine. Texte lisible dans
+  l'Apidex (`cond_text`).
+- **168 espèces** (+55, en 16 nouvelles branches : Nocturnes, Solaires, Aurorales, Pluviales, Orageuses,
+  Neigeuses, Terroirs, Florales, Sociales, Recluses, Mécaniques, Chaotiques, Harmonieuses,
+  Temporelles, Célestes, Légendaires), **186 mutations** dont 70 à condition, 9 rayons et 14 ressources.
+  Ultime espèce : Apis Imperatrix (160 espèces découvertes et 8 ruches occupées).
+- **Carnet de l'apiculteur** (nouvel onglet) : 74 objectifs avec récompense (paliers d'espèces,
+  chaque branche complète, ruches, arbres, papillons, gènes). Colonne `players.claimed`, migration `0003`.
+
+Vérifié : 22 tests automatiques (dont horloge, mutations à condition, stabilité, statut des ruches,
+objectifs) ; toutes les espèces sont atteignables depuis la boutique ; le frontend compile ;
+migrations 0001→0003 appliquées sur une base neuve ; dans un navigateur en local (mode dev) :
+Rucher, Carnet, Apidex sans erreur console.
+
+Non vérifié / à savoir :
+- Pas déployé sur le cluster. Le code n'est pas commité.
+- Équilibrage jamais joué : certaines conditions cumulées (orage + nuit, heures précises) peuvent
+  être trop rares. Les chances se règlent dans `content.py`, la fréquence de la pluie dans `world.py`.
+- Les tests figent l'heure sur un matin ensoleillé (`MORNING` dans `test_game.py`), sinon ils
+  dépendraient de l'heure réelle.
+- La production des abeilles diurnes baisse un peu (repos la nuit, arrêt sous la pluie) : environ
+  ×0,85 par rapport à la 1.3 sans abri ni gène de résistance.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

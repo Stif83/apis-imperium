@@ -16,6 +16,7 @@ from ..models import Bee, Discovery, Hive, InventoryItem, Machine, Player, Playe
 from . import content as C
 from . import garden as GD
 from . import genetics as G
+from . import world as W
 
 
 class GameError(Exception):
@@ -288,51 +289,91 @@ class Game:
         if cycles > settings.max_offline_cycles:
             cycles = settings.max_offline_cycles
             self.p.last_sim_ms = now
+            start = now - cycles * cycle_ms
         else:
+            start = self.p.last_sim_ms
             self.p.last_sim_ms += cycles * cycle_ms
-        self.advance(cycles)
+        self.advance(cycles, start)
 
-    def advance(self, cycles: int) -> None:
+    def advance(self, cycles: int, start_ms: int | None = None) -> None:
+        cycle_ms = settings.cycle_seconds * 1000
+        start = start_ms if start_ms is not None else now_ms() - cycles * cycle_ms
+        world = self._world_ctx()
         for hive in self.hives:
-            self._sim_hive(hive, cycles)
+            self._sim_hive(hive, cycles, start, world)
         for plot in self.plots:
             if plot.tree and plot.tree["health"] > 0:
                 plot.tree = {**plot.tree, "health": max(0, plot.tree["health"] - cycles)}
         self._sim_factory(cycles)
 
+    def _world_ctx(self) -> dict:
+        """Partie du contexte de mutation commune à toutes les ruches du joueur."""
+        machine = self.machines.get("centrifuge")
+        return {
+            "tree": {plot.tree["genome"]["species"][0] for plot in self.plots if plot.tree},
+            "butterflies": len(self.found.get("butterfly", ())),
+            "hives_min": sum(1 for h in self.hives if h.queen),
+            "hives_max": sum(1 for h in self.hives if h.queen),
+            "machines": machine.qty if machine else 0,
+        }
+
+    def _hive_ctx(self, hive: Hive, mods: dict, t_ms: int, world: dict) -> dict:
+        biome_temp = C.BIOMES[hive.biome]["temp"]
+        return {
+            **world,
+            "biome": hive.biome,
+            "phase": W.phase(t_ms),
+            "hours": W.hour(t_ms),
+            "weather": W.weather(t_ms, biome_temp),
+            "module": set(hive.modules or []),
+            "automated": mods["automation"],
+            "discovered": len(self.discovered),
+        }
+
     def _make_queen(self, hive: Hive, princess: dict, drone: dict, generation: int, mods: dict) -> None:
         health = max(1, round(G.value(princess, "lifespan") * mods["lifespan"]))
         hive.queen = {"genome": princess, "mate": drone, "health": health, "max_health": health, "generation": generation}
 
-    def _sim_hive(self, hive: Hive, cycles: int) -> None:
+    def _sim_hive(self, hive: Hive, cycles: int, start: int, world: dict) -> None:
         if not hive.queen:
             return
+        cycle_ms = settings.cycle_seconds * 1000
         mods = self._mods(hive)
         auto = mods["automation"]
+        biome_temp = C.BIOMES[hive.biome]["temp"]
         out = dict(hive.output or {})
+        t = start
         while cycles > 0 and hive.queen:
             queen = dict(hive.queen)
             genome, mate = G.normalize(queen["genome"]), G.normalize(queen["mate"])
             if not G.climate_ok(genome, mods["temp"]):
                 break
             n = min(cycles, queen["health"])
-            rate = G.value(genome, "speed") * mods["production"] * settings.production_mult
+            # La reine vieillit à chaque cycle, mais ne produit que pendant ses heures et par un temps qu'elle supporte
+            working = W.working_cycles(
+                t, n, cycle_ms, genome["activity"][0],
+                mods["shelter"] or genome["weatherproof"][0] == "yes", biome_temp, mods["light"],
+            )
+            rate = G.value(genome, "speed") * mods["production"] * settings.production_mult * W.ACTIVE_BONUS
             for item, chance in G.products(genome):
-                made = G.binomial(self.rng, n, min(1.0, chance * rate))
+                made = G.binomial(self.rng, working, min(1.0, chance * rate))
                 if auto:
                     self.add_item(item, made)
                 elif made:
                     out[item] = out.get(item, 0) + made
             queen["health"] -= n
             cycles -= n
+            t += n * cycle_ms
             if queen["health"] > 0:
                 hive.queen = queen
                 break
 
             # La reine meurt et laisse une princesse et des faux-bourdons
             hive.queen = None
-            princess = G.breed(genome, mate, self.rng, mods["mutation"], mods["temp"])
-            drones = [G.breed(genome, mate, self.rng, mods["mutation"], mods["temp"]) for _ in range(G.value(genome, "fertility"))]
+            ctx = self._hive_ctx(hive, mods, t - cycle_ms, world)
+            princess = G.breed(genome, mate, self.rng, mods["mutation"], mods["temp"], ctx=ctx)
+            drones = [G.breed(genome, mate, self.rng, mods["mutation"], mods["temp"], ctx=ctx)
+                      for _ in range(G.value(genome, "fertility"))]
             if auto:
                 self.discover(princess)
                 self.discover(drones[0])
@@ -571,18 +612,62 @@ class Game:
 
     # ---- sérialisation ----------------------------------------------------
 
+    # ---- carnet d'objectifs -----------------------------------------------
+
+    def objective_progress(self, objective: dict) -> int:
+        kind = objective["kind"]
+        if kind == "species":
+            return len(self.discovered)
+        if kind == "branch":
+            return sum(1 for s in self.discovered if s in C.SPECIES and C.SPECIES[s]["branch"] == objective["branch"])
+        if kind == "hives":
+            return len(self.hives)
+        if kind == "trees":
+            return len(self.found.get("tree", ()))
+        if kind == "butterflies":
+            return len(self.found.get("butterfly", ()))
+        if kind == "genes":
+            return len(self.genes)
+        return 0
+
+    def claim_objective(self, objective_id: str) -> None:
+        objective = C.OBJECTIVES.get(objective_id)
+        if objective is None:
+            raise GameError("Objectif inconnu.")
+        claimed = list(self.p.claimed or [])
+        if objective_id in claimed:
+            raise GameError("Récompense déjà reçue.")
+        if self.objective_progress(objective) < objective["target"]:
+            raise GameError("Objectif pas encore atteint.")
+        self.p.claimed = [*claimed, objective_id]
+        self.p.honey += objective["reward"]["honey"]
+        for item, n in objective["reward"]["items"].items():
+            self.add_item(item, n)
+
+    # ---- sérialisation ----------------------------------------------------
+
+    def _hive_status(self, hive: Hive, mods: dict, t_ms: int) -> str:
+        queen = hive.queen
+        if not queen:
+            return "empty"
+        genome = G.normalize(queen["genome"])
+        if not G.climate_ok(genome, mods["temp"]):
+            return "climate"
+        if not mods["light"] and W.hour(t_ms) not in W.ACTIVITY_HOURS[genome["activity"][0]]:
+            return "resting"
+        sheltered = mods["shelter"] or genome["weatherproof"][0] == "yes"
+        if not sheltered and W.weather(t_ms, C.BIOMES[hive.biome]["temp"]) != "clear":
+            return "weather"
+        return "working"
+
     def state(self) -> dict:
         self.db.flush()
+        t = now_ms()
         hives = []
         for hive in self.hives:
             mods = self._mods(hive)
             queen = hive.queen
-            if not queen:
-                status = "empty"
-            elif G.climate_ok(G.normalize(queen["genome"]), mods["temp"]):
-                status = "working"
-            else:
-                status = "climate"
+            status = self._hive_status(hive, mods, t)
             hives.append({
                 "id": hive.id,
                 "name": hive.name,
@@ -607,8 +692,13 @@ class Game:
                 "honey": self.p.honey,
                 "genetics_unlocked": self.p.genetics_unlocked,
             },
-            "server_time": now_ms(),
+            "server_time": t,
             "cycle_seconds": settings.cycle_seconds,
+            "world": W.snapshot(t, C.BIOMES),
+            "objectives": {
+                oid: {"progress": self.objective_progress(o), "claimed": oid in (self.p.claimed or [])}
+                for oid, o in C.OBJECTIVES.items()
+            },
             "inventory": {item: row.qty for item, row in self.inv.items() if row.qty > 0},
             "bees": [
                 {"id": b.id, "type": b.type, "genome": b.genome, "count": b.count, "hive_id": b.hive_id}

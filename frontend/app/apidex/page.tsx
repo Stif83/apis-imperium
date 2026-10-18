@@ -129,7 +129,7 @@ export default function ApidexPage() {
       <Mini id={m.result} />
       <span className="muted">
         {percent(m.chance)}
-        {m.temp && ` · ruche « ${content.temp_labels[m.temp]} »`}
+        {m.cond_text && ` · ${m.cond_text}`}
       </span>
     </div>
   );
@@ -212,7 +212,7 @@ export default function ApidexPage() {
                   ))}
                 </div>
                 <div className="muted">
-                  {['speed', 'lifespan', 'fertility', 'tolerance']
+                  {['speed', 'lifespan', 'fertility', 'tolerance', 'activity', 'weatherproof', 'stability']
                     .map((c) => `${content.chromosomes[c]} : ${alleleLabel(content, c, species.template[c])}`)
                     .join(' · ')}
                 </div>

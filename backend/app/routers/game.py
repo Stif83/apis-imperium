@@ -69,6 +69,16 @@ class ImprintIn(BaseModel):
     genes: dict[str, str]
 
 
+class ClaimIn(BaseModel):
+    objective_id: str
+
+
+@router.post("/objectives/claim")
+def claim_objective(body: ClaimIn, game: Game = Depends(current_game)):
+    game.claim_objective(body.objective_id)
+    return _done(game)
+
+
 @router.get("/content")
 def get_content():
     return content.public_content()

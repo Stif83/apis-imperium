@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { GameProvider, useGame } from '@/lib/game';
-import { Honey } from './ui';
+import { Honey, WorldClock } from './ui';
 
 const TABS = [
   { href: '/', label: 'Rucher' },
@@ -13,6 +13,7 @@ const TABS = [
   { href: '/boutique', label: 'Boutique' },
   { href: '/genetique', label: 'Génétique' },
   { href: '/apidex', label: 'Apidex' },
+  { href: '/carnet', label: 'Carnet' },
   { href: '/jardin', label: 'Jardin' },
   { href: '/communaute', label: 'Communauté' },
 ];
@@ -32,6 +33,7 @@ function Header() {
         ))}
       </nav>
       <div className="account">
+        <WorldClock />
         <Honey amount={state.player.honey} />
         <span className="muted">{auth.username}</span>
         <button onClick={auth.logout}>Quitter</button>
