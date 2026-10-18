@@ -5,6 +5,7 @@ import {
   BIOME_ICONS,
   BeeSheet,
   BeeTile,
+  CostView,
   GenomeIcon,
   GenomeTable,
   Honey,
@@ -43,8 +44,9 @@ function InstallSheet({ hive, onClose }: { hive: Hive; onClose: () => void }) {
   const drones = reserve.filter((b) => b.type === 'drone');
   const [princessId, setPrincessId] = useState(princesses.find((p) => p.fit === 0)?.bee.id ?? '');
   const princess = reserve.find((b) => b.id === princessId);
-  // Par défaut, un faux-bourdon de la même espèce que la princesse
-  const sameSpecies = (id: string) => drones.find((d) => d.genome.species[0] === id)?.id;
+  // Par défaut, un faux-bourdon de la même espèce que la princesse, de race pure si possible
+  const sameSpecies = (id: string) =>
+    (drones.find((d) => d.genome.species[0] === id && d.genome.species[1] === id) ?? drones.find((d) => d.genome.species[0] === id))?.id;
   const [droneId, setDroneId] = useState(() => (princess && sameSpecies(princess.genome.species[0])) ?? drones[0]?.id ?? '');
   const choosePrincess = (id: string) => {
     setPrincessId(id);
@@ -94,15 +96,30 @@ function InstallSheet({ hive, onClose }: { hive: Hive; onClose: () => void }) {
         </div>
 
         <div className="title">2. Le faux-bourdon</div>
+        {princess && princess.genome.species[0] !== princess.genome.species[1] && (
+          <div className="help-text">
+            Cette princesse est hybride : ses descendants risquent de retourner à l'espèce{' '}
+            {content.species[princess.genome.species[1]]?.label}. Pour fixer l'espèce{' '}
+            {content.species[princess.genome.species[0]]?.label}, accouplez-la avec un faux-bourdon de race pure de la même espèce
+            (marqué « Fixe l'espèce »).
+          </div>
+        )}
         <div className="grid tiles">
-          {drones.map((bee) => (
-            <button key={bee.id} className={`bee-tile${bee.id === droneId ? ' selected' : ''}`} onClick={() => setDroneId(bee.id)}>
-              <GenomeIcon genome={bee.genome} type="drone" size={44} />
-              <span className="name">{content.species[bee.genome.species[0]]?.label}</span>
-              <Traits genome={bee.genome} />
-              <span className="count">×{bee.count}</span>
-            </button>
-          ))}
+          {drones.map((bee) => {
+            const fixes =
+              princess &&
+              bee.genome.species[0] === princess.genome.species[0] &&
+              bee.genome.species[1] === princess.genome.species[0];
+            return (
+              <button key={bee.id} className={`bee-tile${bee.id === droneId ? ' selected' : ''}`} onClick={() => setDroneId(bee.id)}>
+                <GenomeIcon genome={bee.genome} type="drone" size={44} />
+                <span className="name">{content.species[bee.genome.species[0]]?.label}</span>
+                <Traits genome={bee.genome} />
+                {fixes && <span className="badge ok">Fixe l'espèce</span>}
+                <span className="count">×{bee.count}</span>
+              </button>
+            );
+          })}
         </div>
 
         <button
@@ -305,6 +322,23 @@ function HiveCard({ hive }: { hive: Hive }) {
                 <span className="muted">Aucun cadre monté. Les cadres s'achètent en boutique.</span>
               )}
             </div>
+            {hive.upgrade_cost && (
+              <div className="upgrade-box">
+                <div>
+                  <b>Faire évoluer en alvéaire</b>
+                  <div className="muted">
+                    Garde la reine, la récolte, les cadres et le biome. Passe à {content.hive_types.alveary.slots} emplacements (jusqu'à{' '}
+                    {content.hive_types.alveary.max_slots}), production ×{content.hive_types.alveary.production}, et accepte tous les modules.
+                  </div>
+                </div>
+                <div className="row">
+                  <CostView cost={hive.upgrade_cost} />
+                  <button className="primary compact" onClick={() => act(`/hives/${hive.id}/upgrade`)}>
+                    Faire évoluer
+                  </button>
+                </div>
+              </div>
+            )}
             {hive.slot_cost !== null && (
               <div>
                 <button className="small" onClick={() => act(`/hives/${hive.id}/expand`)}>
@@ -356,6 +390,11 @@ export default function ApiaryPage() {
         princesse et des faux-bourdons qui héritent de ses gènes, parfois avec une mutation. Chaque espèce a son climat : achetez en
         boutique des ruches dans d'autres biomes. Certaines mutations n'arrivent qu'à une heure, par un temps ou dans un lieu précis :
         tout se joue au moment où la reine meurt (voir l'Apidex).
+        <br />
+        <br />
+        Quand une princesse mute, elle naît de race pure : installez-la avec un faux-bourdon de sa nouvelle espèce pour garder la
+        lignée. Les faux-bourdons mutants, eux, sont souvent hybrides (pastille 🧬) : croisés avec une princesse de la même espèce,
+        ils donnent des descendants de race pure.
       </PageHead>
       {state.rescue_available && (
         <div className="notice row between">

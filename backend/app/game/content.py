@@ -6,6 +6,7 @@ supprime jamais un identifiant existant.
 """
 
 from .garden import BASE_TREES, BUTTERFLIES, STARTER_PLOTS, TREE_SPECIES, public_garden
+from .achievements import public_achievements
 from .world import public_world
 
 TEMPS = ["icy", "cold", "normal", "warm", "hot", "hellish"]
@@ -340,8 +341,9 @@ for _sid, _genes in _TRAITS.items():
 HIVE_SPECIES = ["forest", "meadows", "modest", "tropical", "wintry", "marshy"]
 
 
-# Les chances écrites plus bas sont celles de Forestry ; le jeu les réduit de moitié
-MUTATION_RATE = 0.5
+# Multiplicateur appliqué aux chances écrites plus bas (celles de Forestry).
+# 0.5 en 1.1 à 1.4 : la première mutation (Commune) était trop rare ; retour à 1.0.
+MUTATION_RATE = 1.0
 
 
 def _mutations():
@@ -776,7 +778,6 @@ def _offers():
         {"id": "item:alveary_mutator", "kind": "item", "item": "alveary_mutator", "honey": 800, "items": {"phosphor": 10}},
         {"id": "item:alveary_automation", "kind": "item", "item": "alveary_automation", "honey": 1000, "items": {"wax": 20, "propolis": 20}},
         {"id": "machine:centrifuge", "kind": "machine", "machine": "centrifuge", "honey": 250, "items": {"wax": 10}, "scale": 1.6},
-        {"id": "unlock:genetics", "kind": "unlock", "unlock": "genetics", "honey": 2000, "items": {"wax": 30, "propolis": 15}, "min_species": 6},
         {"id": "item:labware", "kind": "item", "item": "labware", "honey": 20, "requires_unlock": "genetics"},
     ]
     return {o["id"]: o for o in out}
@@ -909,4 +910,5 @@ def public_content() -> dict:
         "world": public_world(),
         "objectives": list(OBJECTIVES.values()),
         "garden_enabled": GARDEN_ENABLED,
+        "achievements": public_achievements(),
     }

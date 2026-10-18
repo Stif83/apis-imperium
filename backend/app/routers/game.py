@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 from ..auth import current_game
 from ..game import content
+from ..game import lab
 from ..game.service import Game
 
 router = APIRouter(prefix="/api")
@@ -69,6 +70,16 @@ class ImprintIn(BaseModel):
     genes: dict[str, str]
 
 
+class SecretIn(BaseModel):
+    code: str = Field(max_length=32)
+
+
+@router.post("/secrets")
+def secret(body: SecretIn, game: Game = Depends(current_game)):
+    game.secret(body.code)
+    return _done(game)
+
+
 class ClaimIn(BaseModel):
     objective_id: str
 
@@ -81,7 +92,24 @@ def claim_objective(body: ClaimIn, game: Game = Depends(current_game)):
 
 @router.get("/content")
 def get_content():
-    return content.public_content()
+    return {**content.public_content(), "lab": lab.public_lab()}
+
+
+class ReplicateIn(BaseModel):
+    chromosome: str
+    allele: str
+
+
+@router.post("/genetics/upgrade")
+def upgrade_lab(game: Game = Depends(current_game)):
+    game.upgrade_lab()
+    return _done(game)
+
+
+@router.post("/genetics/replicate")
+def replicate(body: ReplicateIn, game: Game = Depends(current_game)):
+    game.replicate(body.chromosome, body.allele)
+    return _done(game)
 
 
 @router.get("/state")
@@ -140,6 +168,12 @@ def add_module(hive_id: str, body: ModuleIn, game: Game = Depends(current_game))
 @router.delete("/hives/{hive_id}/modules/{index}")
 def remove_module(hive_id: str, index: int, game: Game = Depends(current_game)):
     game.remove_module(hive_id, index)
+    return _done(game)
+
+
+@router.post("/hives/{hive_id}/upgrade")
+def upgrade_hive(hive_id: str, game: Game = Depends(current_game)):
+    game.upgrade_hive(hive_id)
     return _done(game)
 
 

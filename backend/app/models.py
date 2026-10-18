@@ -21,9 +21,15 @@ class Player(Base):
     username: Mapped[str] = mapped_column(String(255))
     honey: Mapped[int] = mapped_column(BigInteger, default=0)
     genetics_unlocked: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Niveau du laboratoire (0 = pas construit) et travaux en cours : opération, fragments, journal
+    lab_level: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    lab: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     last_sim_ms: Mapped[int] = mapped_column(BigInteger)
     # Objectifs du carnet dont la récompense a été reçue
     claimed: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Compteurs (rayons récoltés, miel gagné…) et succès débloqués {id: horodatage ms}
+    stats: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    achievements: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -108,6 +114,8 @@ class PlayerGene(Base):
     kind: Mapped[str] = mapped_column(String(16), primary_key=True, default="bee")
     chromosome: Mapped[str] = mapped_column(String(32), primary_key=True)
     allele: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # Nombre d'impressions encore possibles avec ce gène
+    doses: Mapped[int] = mapped_column(Integer, default=3, server_default="3")
 
 
 class Showcase(Base):

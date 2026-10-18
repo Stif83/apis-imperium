@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from ..auth import current_player
 from ..db import get_db
 from ..game import content
-from ..models import Bee, Player, Showcase, ShowcaseLike
+from ..game import achievements as A
+from ..game.badges import player_badges
+from ..models import Bee, Discovery, Player, Showcase, ShowcaseLike
 
 router = APIRouter(prefix="/api/community")
 
@@ -21,24 +23,33 @@ def _list(db: Session, me: Player) -> list[dict]:
     likes = dict(db.execute(select(ShowcaseLike.showcase_id, func.count()).group_by(ShowcaseLike.showcase_id)).all())
     mine = set(db.scalars(select(ShowcaseLike.showcase_id).where(ShowcaseLike.player_id == me.id)))
     rows = db.execute(
-        select(Showcase, Player.username)
+        select(Showcase, Player)
         .join(Player, Player.id == Showcase.player_id)
         .order_by(Showcase.created_at.desc())
         .limit(100)
     ).all()
+    # Badges de chaque auteur, calculés une fois par auteur
+    authors = {p.id: p for _, p in rows}
+    found: dict[str, set[str]] = {pid: set() for pid in authors}
+    if authors:
+        query = select(Discovery.player_id, Discovery.species_id).where(Discovery.player_id.in_(authors), Discovery.kind == "bee")
+        for pid, species in db.execute(query):
+            found[pid].add(species)
+    badges = {pid: player_badges(found[pid], set(p.claimed or []), len(p.achievements or {})) for pid, p in authors.items()}
     return [
         {
             "id": s.id,
             "title": s.title,
             "description": s.description,
-            "author": username,
+            "author": author.username,
+            "badges": badges[author.id],
             "mine": s.player_id == me.id,
             "entries": s.entries,
             "likes": likes.get(s.id, 0),
             "liked": s.id in mine,
             "created_at": s.created_at.isoformat() if s.created_at else None,
         }
-        for s, username in rows
+        for s, author in rows
     ]
 
 
@@ -57,6 +68,7 @@ def create_showcase(body: ShowcaseIn, me: Player = Depends(current_player), db: 
     # On enregistre une copie : la vitrine survit à la mort ou à la vente des abeilles
     entries = [{"kind": bees[i].kind, "type": bees[i].type, "genome": bees[i].genome} for i in dict.fromkeys(body.bee_ids)]
     db.add(Showcase(player_id=me.id, title=body.title.strip(), description=body.description.strip(), entries=entries))
+    A.unlock(me, "first_showcase")
     db.flush()
     out = _list(db, me)
     db.commit()

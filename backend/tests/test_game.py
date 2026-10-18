@@ -11,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db import get_db
+from app.game import badges as B
 from app.game import content as C
 from app.game import garden as GD
 from app.game import genetics as G
@@ -97,6 +98,19 @@ def test_mutation_forest_meadows_gives_common():
     assert not any("common" in child["species"] for child in stable)
 
 
+def test_mutated_princess_is_pure():
+    rng = random.Random(11)
+    forest, meadows = G.pure_genome("forest"), G.pure_genome("meadows")
+    princesses = [G.breed(forest, meadows, rng, pure_mutation=True) for _ in range(400)]
+    mutated = [p for p in princesses if "common" in p["species"]]
+    assert mutated and all(p == G.pure_genome("common") for p in mutated)
+    # Environ 28 % des princesses mutent (deux tirages à 15 %)
+    assert 0.2 < len(mutated) / len(princesses) < 0.36
+    # Les faux-bourdons restent hybrides
+    drones = [G.breed(forest, meadows, rng) for _ in range(400)]
+    assert any(set(d["species"]) == {"common", "forest"} or set(d["species"]) == {"common", "meadows"} for d in drones)
+
+
 def test_mutation_requires_hive_temperature():
     rng = random.Random(3)
     modest, cultivated = G.pure_genome("modest"), G.pure_genome("cultivated")
@@ -122,6 +136,30 @@ def test_hives_are_bought_one_by_one_and_renamed(game):
     assert game.p.honey < 1000 - 2 * first  # le prix monte à chaque achat
     game.update_hive(game.hives[0].id, "  Ma ruche  ", None)
     assert game.hives[0].name == "Ma ruche"
+
+
+def test_apiary_upgrades_to_alveary(game):
+    hive = game.hives[0]
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
+    game.add_item("frame_untreated", 1)
+    game.add_module(hive.id, "frame_untreated")
+    queen = dict(hive.queen)
+    with pytest.raises(GameError):
+        game.upgrade_hive(hive.id)  # pas assez de miel
+    game.p.honey = 10_000
+    game.add_item("wax", 100)
+    game.add_item("honeydew", 100)
+    cost = game.upgrade_cost(hive)
+    game.upgrade_hive(hive.id)
+    assert hive.hive_type == "alveary" and hive.slots == C.HIVE_TYPES["alveary"]["slots"]
+    assert hive.name == "Alvéaire Prairie 1"
+    assert hive.queen == queen and hive.modules == ["frame_untreated"]
+    assert game.p.honey == 10_000 - cost["honey"]
+    assert game.upgrade_cost(hive) is None
+    with pytest.raises(GameError):
+        game.upgrade_hive(hive.id)
+    # Le prix d'un alvéaire suivant augmente, comme à l'achat
+    assert game.upgrade_cost(game.hives[1])["honey"] > cost["honey"]
 
 
 def test_automation_module_fits_a_plain_apiary(game):
@@ -219,22 +257,74 @@ def test_shop_prices_scale_and_locks(game):
 
 
 def test_genetics(game):
+    from app.game import lab as LAB
+
     drone = _bee(game, "drone", "forest")
     with pytest.raises(GameError):
         game.extract_gene(drone.id, "fertility")
-    game.p.genetics_unlocked = True
-    game.p.honey = 1000
-    game.add_item("labware", 2)
-    game.extract_gene(drone.id, "fertility")
-    assert ("fertility", "3") in game.genes
-
-    princess = _bee(game, "princess", "meadows")
-    game.imprint(princess.id, {"fertility": "3"})
-    upgraded = _bee(game, "princess", "meadows")
-    assert upgraded.genome["fertility"] == ["3", "3"]
-    assert game.qty("labware") == 0
+    # Niveau 1 : seulement après 15 espèces
+    game.p.honey = 100_000
+    for item, n in {"wax": 100, "propolis": 100, "royal_jelly": 100, "honeydew": 100, "labware": 100}.items():
+        game.add_item(item, n)
     with pytest.raises(GameError):
-        game.imprint(upgraded.id, {"speed": "fastest"})
+        game.upgrade_lab()
+    for species in list(C.SPECIES)[:40]:
+        game.discover(G.pure_genome(species))
+    game.upgrade_lab()
+    assert game.lab_level == 1
+    with pytest.raises(GameError):
+        game.extract_gene(drone.id, "activity")  # niveau 2
+
+    # Fertilité « 3 » : gène intermédiaire, 4 fragments, chaque extraction peut rater
+    game.add_bee("drone", G.pure_genome("forest"), 40)
+    need = LAB.fragments_needed("fertility", "3")
+    assert need == 4
+    t = 1_000_000
+    tries = 0
+    while ("fertility", "3") not in game.genes:
+        game.extract_gene(_bee(game, "drone", "forest").id, "fertility", now=t)
+        with pytest.raises(GameError):
+            game.extract_gene(_bee(game, "drone", "forest").id, "fertility", now=t + 1000)  # occupé
+        t += LAB.EXTRACT_SECONDS * 1000
+        game.lab_tick(t)
+        tries += 1
+    assert tries >= need
+    assert game.gene_rows[("fertility", "3")].doses == LAB.DOSES
+
+    # Impression : niveau 2, ne remplace que la copie active, consomme une dose
+    princess = _bee(game, "princess", "meadows")
+    with pytest.raises(GameError):
+        game.imprint(princess.id, {"fertility": "3"}, now=t)
+    game.upgrade_lab()
+    game.imprint(princess.id, {"fertility": "3"}, now=t)
+    assert not [b for b in game.bees if b.type == "princess" and b.genome["species"][0] == "meadows" and b.hive_id is None]
+    t += LAB.IMPRINT_SECONDS * 1000
+    game.lab_tick(t)
+    upgraded = _bee(game, "princess", "meadows")
+    assert upgraded.genome["fertility"] == ["3", "2"]
+    assert game.gene_rows[("fertility", "3")].doses == LAB.DOSES - 1
+    with pytest.raises(GameError):
+        game.imprint(upgraded.id, {"speed": "fastest"}, now=t)
+
+    # Réplication : +3 doses
+    game.replicate("fertility", "3", now=t)
+    game.lab_tick(t + LAB.REPLICATE_SECONDS * 1000)
+    assert game.gene_rows[("fertility", "3")].doses == 2 * LAB.DOSES - 1
+    state = game.state()
+    assert state["gene_bank"]["fertility"] == {"3": 2 * LAB.DOSES - 1}
+    assert state["lab"]["level"] == 2 and state["lab"]["log"]
+
+
+def test_lab_rarity():
+    from app.game import lab as LAB
+
+    assert LAB.fragments_needed("speed", "normal") == 2
+    assert LAB.fragments_needed("activity", "cathemeral") == 6
+    assert LAB.fragments_needed("species", "forest") == 3
+    assert LAB.fragments_needed("species", "imperatrix") == 8
+    assert LAB.can_extract(1, "speed") and not LAB.can_extract(1, "species") and LAB.can_extract(3, "species")
+    cost = LAB.imprint_cost({"species": "noble"})
+    assert cost["items"]["comb_dripping"] == 5 and cost["items"]["royal_jelly"] == 3
 
 
 def test_garden_content_is_consistent():
@@ -337,6 +427,7 @@ def test_api_flow(db):
         assert created.status_code == 200
         showcase = created.json()[0]
         assert showcase["mine"] and showcase["author"] == "alice"
+        assert showcase["badges"]["species"] == 2 and showcase["badges"]["rank"] is None
 
         seen = client.post(f"/api/community/showcases/{showcase['id']}/like", headers=bob).json()[0]
         assert seen["likes"] == 1 and seen["liked"] and not seen["mine"]
@@ -412,3 +503,55 @@ def test_objectives(game):
     with pytest.raises(GameError):
         game.claim_objective("species:5")
     assert game.state()["objectives"]["species:5"] == {"progress": 5, "claimed": True}
+
+
+def test_badges():
+    empty = B.player_badges(set(), set())
+    assert empty["rank"] is None and empty["badges"] == [] and empty["next_rank"]["label"] == "Apprenti apiculteur"
+    honey = set(B.BRANCHES["Mellifères"])
+    # Bronze : un quart des objectifs de la famille (1 sur 4 pour les ruches, 3 sur 10 pour les espèces)
+    got = B.player_badges(honey | {"noble"}, {"hives:3", "species:5", "species:10", "species:20"})
+    assert got["rank"]["label"] == "Apprenti apiculteur"
+    ids = {b["id"] for b in got["badges"]}
+    assert "branch:forest" in ids and "builder:bronze" in ids and "collector:bronze" in ids
+    # Toutes les ruches réclamées : diamant ; tout découvert : rang ultime
+    hives = {o["id"] for o in C.OBJECTIVES.values() if o["kind"] == "hives"}
+    best = B.player_badges(set(C.SPECIES), hives)
+    assert "builder:diamond" in {b["id"] for b in best["badges"]}
+    assert best["rank"]["label"] == "Apis Imperator" and best["next_rank"] is None
+    assert best["badges"][0]["kind"] == "achievement"
+
+
+def test_achievements(game):
+    from app.game import achievements as A
+
+    honey = game.p.honey
+    hive = game.hives[0]
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
+    assert "first_install" in game.p.achievements
+    assert game.p.honey == honey + A.ACHIEVEMENTS["first_install"][4]
+    game.install(game.hives[1].id, _bee(game, "princess", "meadows").id, _bee(game, "drone", "meadows").id)
+    assert game.p.honey == honey + A.ACHIEVEMENTS["first_install"][4]  # une seule fois
+
+    game.advance(200)
+    game.collect(hive.id)
+    assert "first_harvest" in game.p.achievements and game.p.stats["combs"] > 0
+    game.update_hive(hive.id, "Maya", None)
+    assert "maya" in game.p.achievements
+
+    # Secrets : seuls ceux que l'interface peut déclencher sont acceptés
+    game.secret("konami")
+    assert "konami" in game.p.achievements
+    with pytest.raises(GameError):
+        game.secret("midnight")
+    state = game.state()
+    assert set(state["achievements"]) <= set(A.ACHIEVEMENTS)
+    assert all(a["id"] in A.ACHIEVEMENTS for a in C.public_content()["achievements"])
+
+
+def test_adventurer_badge_needs_every_achievement_for_diamond():
+    from app.game import achievements as A
+
+    assert B.ADVENTURER_STEPS[-1] == len(A.ACHIEVEMENTS)
+    almost = B.player_badges(set(), set(), len(A.ACHIEVEMENTS) - 1)
+    assert "adventurer:gold" in {b["id"] for b in almost["badges"]}

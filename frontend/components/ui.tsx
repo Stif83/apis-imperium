@@ -270,7 +270,7 @@ export function alleleLabel(content: ReturnType<typeof useGame>['content'], chro
 export function GenomeIcon({ genome, type, size }: { genome: Genome; type: BeeType; size?: number }) {
   const { content } = useGame();
   const species = content.species[genome.species[0]];
-  return <BeeIcon color={species?.color ?? '888888'} secondary={species?.secondary ?? 'ffdc16'} type={type} size={size} />;
+  return <BeeIcon species={genome.species[0]} color={species?.color ?? '888888'} secondary={species?.secondary ?? 'ffdc16'} type={type} size={size} />;
 }
 
 export function GenomeTable({ genome }: { genome: Genome }) {

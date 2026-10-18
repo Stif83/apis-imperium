@@ -134,13 +134,20 @@ def _mutated_template(g1: dict, g2: dict, rng, mutation_mult: float, ctx: dict, 
 
 
 def breed(queen: dict, mate: dict, rng, mutation_mult: float = 1.0, hive_temp: str = "normal", kind: str = "bee",
-          ctx: dict | None = None) -> dict:
-    """Croise deux génomes. `ctx` décrit la ruche au moment de la naissance (conditions de mutation)."""
+          ctx: dict | None = None, pure_mutation: bool = False) -> dict:
+    """Croise deux génomes. `ctx` décrit la ruche au moment de la naissance (conditions de mutation).
+
+    Avec `pure_mutation`, un descendant qui mute naît de race pure (les deux copies de chaque gène
+    sont celles de la nouvelle espèce) : c'est le cas des princesses, pour qu'une mutation se fixe.
+    """
     ctx = {**(ctx or {}), "temp": hive_temp, "queen": queen}
     if kind == "bee" and "stability" in queen:
         mutation_mult *= value(queen, "stability")
     set1 = _mutated_template(queen, mate, rng, mutation_mult, ctx, kind)
     set2 = _mutated_template(mate, queen, rng, mutation_mult, ctx, kind)
+    if pure_mutation and (set1 or set2):
+        template = set1 or set2
+        return {c: [template[c], template[c]] for c in KINDS[kind]["chromosomes"]}
     child = {}
     for c in KINDS[kind]["chromosomes"]:
         first = set1[c] if set1 else rng.choice(queen[c])

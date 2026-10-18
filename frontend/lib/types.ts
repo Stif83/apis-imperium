@@ -67,7 +67,20 @@ export type Content = {
   };
   objectives: Objective[];
   garden_enabled: boolean;
+  achievements: Achievement[];
+  lab: {
+    levels: Record<string, { label: string; desc: string; cost: Cost; min_species: number; extract: string[]; imprint: boolean }>;
+    extract_seconds: number;
+    imprint_seconds: number;
+    replicate_seconds: number;
+    extract_fail: number;
+    doses: number;
+    fragments: Record<string, Record<string, number>>;
+    rarity: Record<string, Record<string, 'common' | 'medium' | 'rare'>>;
+  };
 };
+
+export type Achievement = { id: string; label: string; desc: string; icon: string; secret: boolean; honey: number };
 
 export type Objective = {
   id: string;
@@ -93,6 +106,7 @@ export type Hive = {
   biome: string;
   slots: number;
   slot_cost: number | null;
+  upgrade_cost: Cost | null;
   modules: string[];
   queen: Queen | null;
   output: Record<string, number>;
@@ -107,6 +121,16 @@ export type GameState = {
   cycle_seconds: number;
   world: { hour: number; minute: number; phase: string; weather: Record<string, string>; next_weather_ms: number };
   objectives: Record<string, { progress: number; claimed: boolean }>;
+  badges: PlayerBadges;
+  achievements: Record<string, number>;
+  stats: Record<string, number>;
+  lab: {
+    level: number;
+    job: { op: 'extract' | 'imprint' | 'replicate'; chromosome?: string; allele?: string; start_ms: number; ready_ms: number } | null;
+    fragments: Record<string, number>;
+    log: string[];
+  };
+  gene_bank: Record<string, Record<string, number>>;
   inventory: Record<string, number>;
   bees: Bee[];
   hives: Hive[];
@@ -124,11 +148,29 @@ export type GameState = {
   };
 };
 
+export type Badge = {
+  id: string;
+  kind: 'achievement' | 'branch';
+  label: string;
+  desc: string;
+  icon?: string;
+  metal?: 'bronze' | 'silver' | 'gold' | 'diamond';
+  color?: string;
+  secondary?: string;
+};
+export type PlayerBadges = {
+  rank: { id: string; label: string; need: number } | null;
+  next_rank: { label: string; need: number } | null;
+  species: number;
+  badges: Badge[];
+};
+
 export type Showcase = {
   id: string;
   title: string;
   description: string;
   author: string;
+  badges: PlayerBadges;
   mine: boolean;
   entries: { kind: string; type: string; genome: Genome }[];
   likes: number;

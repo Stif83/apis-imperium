@@ -18,13 +18,14 @@ type Game = {
   dismissCelebration: () => void;
 };
 
-export type Discovery = { kind: 'bee' | 'tree' | 'butterfly'; id: string };
+export type Discovery = { kind: 'bee' | 'tree' | 'butterfly' | 'achievement'; id: string };
 
 function discoveries(state: GameState): Set<string> {
   return new Set([
     ...state.discovered.map((id) => `bee:${id}`),
     ...state.garden.found_trees.map((id) => `tree:${id}`),
     ...state.garden.found_butterflies.map((id) => `butterfly:${id}`),
+    ...Object.keys(state.achievements ?? {}).map((id) => `achievement:${id}`),
   ]);
 }
 

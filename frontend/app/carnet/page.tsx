@@ -1,5 +1,6 @@
 'use client';
 
+import { METAL_LABELS, Medal } from '@/components/Badges';
 import { Honey, ItemQty, PageHead, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
 import type { Objective } from '@/lib/types';
@@ -57,6 +58,59 @@ export default function CarnetPage() {
         Chaque palier de découverte et chaque branche complétée rapporte du miel et du matériel. Une pastille rouge sur l'onglet
         signale une récompense à réclamer.
       </PageHead>
+      <h2>Mes badges</h2>
+      <div className="card badges-card">
+        <div className="row between">
+          <span className="rank-chip big">👑 {state.badges.rank?.label ?? 'Pas encore de rang'}</span>
+          {state.badges.next_rank && (
+            <span className="muted">
+              Prochain rang : <b>{state.badges.next_rank.label}</b> à {state.badges.next_rank.need} espèces ({state.badges.species} /{' '}
+              {state.badges.next_rank.need})
+            </span>
+          )}
+        </div>
+        {state.badges.next_rank && (
+          <div className="bar">
+            <div style={{ width: `${(100 * state.badges.species) / state.badges.next_rank.need}%` }} />
+          </div>
+        )}
+        {state.badges.badges.length === 0 ? (
+          <span className="muted">
+            Réclamez des objectifs et complétez des branches de l'Apidex pour gagner des médailles. Elles s'affichent sur vos vitrines.
+          </span>
+        ) : (
+          <div className="medals">
+            {state.badges.badges.map((b) => (
+              <div key={b.id} className="medal">
+                <Medal badge={b} size={40} />
+                <span>{b.label}</span>
+                {b.metal && <small className="muted">{METAL_LABELS[b.metal]}</small>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <h2>
+        Succès · {Object.keys(state.achievements).length} / {content.achievements.length}
+      </h2>
+      <div className="grid achievements">
+        {content.achievements.map((a) => {
+          const got = state.achievements[a.id];
+          const hidden = a.secret && !got;
+          return (
+            <div key={a.id} className={`card achievement${got ? ' got' : ''}`} title={hidden ? 'Succès secret : à vous de le trouver' : a.desc}>
+              <span className="achievement-icon">{hidden ? '❔' : a.icon}</span>
+              <div className="grow">
+                <div className="title">{hidden ? 'Succès secret' : a.label}</div>
+                <div className="muted">{hidden ? '???' : a.desc}</div>
+              </div>
+              {got ? <span className="stamp">Obtenu</span> : <span className="muted small-honey">{hidden ? '?' : `+${a.honey}`}</span>}
+            </div>
+          );
+        })}
+      </div>
+
       {ready.length > 0 && (
         <>
           <h2>À réclamer</h2>

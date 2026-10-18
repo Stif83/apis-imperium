@@ -163,7 +163,7 @@ export default function ApidexPage() {
     const species = content.species[id];
     return (
       <button className="mini" onClick={() => open(id)}>
-        <BeeIcon color={species.color} secondary={species.secondary} type="queen" size={28} unknown={!known.has(id)} />
+        <BeeIcon species={id} color={species.color} secondary={species.secondary} type="queen" size={28} unknown={!known.has(id)} />
         {name(id)}
       </button>
     );
@@ -270,7 +270,7 @@ export default function ApidexPage() {
                             const s = content.species[id];
                             return (
                               <button key={id} className={`branch-bee${known.has(id) ? '' : ' unknown'}`} title={name(id)} onClick={() => open(id)}>
-                                <BeeIcon color={s.color} secondary={s.secondary} type="queen" size={40} unknown={!known.has(id)} />
+                                <BeeIcon species={id} color={s.color} secondary={s.secondary} type="queen" size={44} unknown={!known.has(id)} />
                                 <span>{name(id)}</span>
                               </button>
                             );
@@ -331,7 +331,7 @@ export default function ApidexPage() {
                   <g key={id} className={`tree-node ${mark}`} onClick={() => (id === selected ? setSelected(null) : open(id))}>
                     <title>{label}</title>
                     <rect className="halo" x={x - NODE_W / 2 + 2} y={y - 2} width={NODE_W - 4} height={ICON + 18} rx={6} />
-                    <BeeIcon color={s.color} secondary={s.secondary} type="queen" size={ICON} x={x - ICON / 2} y={y} unknown={!known.has(id)} />
+                    <BeeIcon species={id} color={s.color} secondary={s.secondary} type="queen" size={ICON} x={x - ICON / 2} y={y} unknown={!known.has(id)} />
                     <text x={x} y={y + ICON + 10}>
                       {label.length > 11 ? `${label.slice(0, 10)}…` : label}
                     </text>
@@ -348,7 +348,7 @@ export default function ApidexPage() {
           <div className="sheet wide" role="dialog" aria-label={name(selected)} onClick={(e) => e.stopPropagation()}>
             <div className="row between">
               <div className="bee-head">
-                <BeeIcon color={species.color} secondary={species.secondary} type="queen" size={64} unknown={!known.has(selected)} />
+                <BeeIcon species={selected} color={species.color} secondary={species.secondary} type="queen" size={72} unknown={!known.has(selected)} />
                 <div>
                   <div style={{ font: '600 24px/1.2 var(--display)' }}>{name(selected)}</div>
                   <div className="muted">

@@ -37,7 +37,7 @@ function BeeOffer({ species, offers, qty }: { species: string; offers: Offer[]; 
   const genome = Object.fromEntries(Object.entries(s.template).map(([c, a]) => [c, [a, a]])) as Record<string, [string, string]>;
   return (
     <div className={`card shop-tile${lock ? ' locked' : ''}`}>
-      <BeeIcon color={s.color} secondary={s.secondary} type="princess" size={56} unknown={!!lock} />
+      <BeeIcon species={species} color={s.color} secondary={s.secondary} type="princess" size={60} unknown={!!lock} />
       <div className="title">{lock ? '???' : s.label}</div>
       {!lock && <Traits genome={genome} />}
       {lock ? (

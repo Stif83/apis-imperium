@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { BadgeStrip, RankChip } from '@/components/Badges';
 import { SpecimenIcon, specimenLabel } from '@/components/garden';
 import { PageHead } from '@/components/ui';
 import { useGame } from '@/lib/game';
@@ -106,7 +107,10 @@ export default function CommunityPage() {
             <div className="row between">
               <div>
                 <div className="title">{s.title}</div>
-                <div className="muted">par {s.author}</div>
+                <div className="row" style={{ gap: 6 }}>
+                  <span className="muted">par {s.author}</span>
+                  <RankChip badges={s.badges} />
+                </div>
               </div>
               <div className="row">
                 <button className={s.liked ? 'primary' : ''} aria-pressed={s.liked} onClick={() => update(`/community/showcases/${s.id}/like`, {})}>
@@ -119,6 +123,7 @@ export default function CommunityPage() {
                 )}
               </div>
             </div>
+            <BadgeStrip badges={s.badges} />
             <div className="shelf">
               {s.entries.map((entry, i) => (
                 <span key={i} title={specimenLabel(content, entry.kind, entry.type, entry.genome)}>

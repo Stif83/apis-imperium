@@ -7,20 +7,27 @@ la dernière visite (ce qui donne aussi la progression hors-ligne).
 import random
 import time
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..models import Bee, Discovery, Hive, InventoryItem, Machine, Player, PlayerGene, Plot, _uuid
+from ..models import Bee, Discovery, Hive, InventoryItem, Machine, Player, PlayerGene, Plot, Showcase, ShowcaseLike, _uuid
+from . import achievements as A
+from . import badges as B
 from . import content as C
 from . import garden as GD
 from . import genetics as G
+from . import lab as LAB
 from . import world as W
 
 
 class GameError(Exception):
     pass
+
+
+# Espèces vendues en boutique : les découvrir ne compte pas comme une mutation
+SHOP_SPECIES = {o["species"] for o in C.OFFERS.values() if o["kind"] == "bee"}
 
 
 def now_ms() -> int:
@@ -90,8 +97,9 @@ class Game:
         self.hives = list(db.scalars(select(Hive).where(Hive.player_id == pid).order_by(Hive.position, Hive.id)))
         self.machines = {r.machine_id: r for r in db.scalars(select(Machine).where(Machine.player_id == pid))}
         self.discovered = set(db.scalars(select(Discovery.species_id).where(Discovery.player_id == pid, Discovery.kind == "bee")))
-        self.genes = {
-            (r.chromosome, r.allele)
+        # Banque de gènes : (chromosome, allèle) -> ligne, avec ses doses restantes
+        self.gene_rows = {
+            (r.chromosome, r.allele): r
             for r in db.scalars(select(PlayerGene).where(PlayerGene.player_id == pid, PlayerGene.kind == "bee"))
         }
         for bee in self.bees:
@@ -119,6 +127,11 @@ class Game:
             return
         if item == "honey":
             self.p.honey += n
+            earned = A.bump(self.p, "honey", n)
+            if earned >= 10_000:
+                A.unlock(self.p, "honey_10k")
+            if earned >= 100_000:
+                A.unlock(self.p, "honey_100k")
             return
         row = self.inv.get(item)
         if row is None:
@@ -180,6 +193,8 @@ class Game:
     def discover(self, genome: dict) -> None:
         for species in genome["species"]:
             if species not in self.discovered:
+                if species not in SHOP_SPECIES:
+                    A.unlock(self.p, "first_mutation")
                 self.discovered.add(species)
                 self.db.add(Discovery(player_id=self.p.id, kind="bee", species_id=species))
 
@@ -359,6 +374,8 @@ class Game:
                 made = G.binomial(self.rng, working, min(1.0, chance * rate))
                 if auto:
                     self.add_item(item, made)
+                    if made and C.ITEMS.get(item, {}).get("category") == "comb":
+                        self._count_combs(made)
                 elif made:
                     out[item] = out.get(item, 0) + made
             queen["health"] -= n
@@ -371,7 +388,7 @@ class Game:
             # La reine meurt et laisse une princesse et des faux-bourdons
             hive.queen = None
             ctx = self._hive_ctx(hive, mods, t - cycle_ms, world)
-            princess = G.breed(genome, mate, self.rng, mods["mutation"], mods["temp"], ctx=ctx)
+            princess = G.breed(genome, mate, self.rng, mods["mutation"], mods["temp"], ctx=ctx, pure_mutation=True)
             drones = [G.breed(genome, mate, self.rng, mods["mutation"], mods["temp"], ctx=ctx)
                       for _ in range(G.value(genome, "fertility"))]
             if auto:
@@ -386,6 +403,12 @@ class Game:
                 for drone in drones:
                     self.add_bee("drone", drone, hive_id=hive.id)
         hive.output = out
+
+    def _count_combs(self, n: int) -> None:
+        total = A.bump(self.p, "combs", n)
+        for need, aid in ((100, "combs_100"), (1000, "combs_1000"), (10000, "combs_10000")):
+            if total >= need:
+                A.unlock(self.p, aid)
 
     def _process(self, comb: str, n: int) -> None:
         self.take_item(comb, n)
@@ -418,6 +441,7 @@ class Game:
         self._take_bee(princess)
         self._take_bee(drone)
         self._make_queen(hive, princess_genome, drone_genome, 1, mods)
+        A.unlock(self.p, "first_install")
 
     def eject_queen(self, hive_id: str) -> None:
         hive = self._hive(hive_id)
@@ -428,8 +452,15 @@ class Game:
 
     def collect(self, hive_id: str) -> None:
         hive = self._hive(hive_id)
+        combs = 0
         for item, n in (hive.output or {}).items():
             self.add_item(item, n)
+            if C.ITEMS.get(item, {}).get("category") == "comb":
+                combs += n
+        if hive.output or any(b.hive_id == hive.id for b in self.bees):
+            A.unlock(self.p, "first_harvest")
+        if combs:
+            self._count_combs(combs)
         hive.output = {}
         for bee in [b for b in self.bees if b.hive_id == hive.id]:
             self._drop(bee)
@@ -467,6 +498,31 @@ class Game:
             raise GameError("Cette ruche ne peut plus être agrandie.")
         self.pay({"honey": cost})
         hive.slots += 1
+        if hive.hive_type == "alveary" and hive.slots >= C.HIVE_TYPES["alveary"]["max_slots"]:
+            A.unlock(self.p, "full_alveary")
+
+    def upgrade_cost(self, hive: Hive) -> dict | None:
+        """Prix pour transformer un rucher en alvéaire : celui d'un alvéaire neuf."""
+        if hive.hive_type != "apiary":
+            return None
+        return self.offer_cost(C.OFFERS["hive:alveary"])
+
+    def upgrade_hive(self, hive_id: str) -> None:
+        """Le rucher devient un alvéaire et garde sa reine, sa récolte, ses cadres et son biome."""
+        hive = self._hive(hive_id)
+        cost = self.upgrade_cost(hive)
+        if cost is None:
+            raise GameError("Seul un rucher peut évoluer en alvéaire.")
+        lock = self.offer_lock(C.OFFERS["hive:alveary"])
+        if lock:
+            raise GameError(lock)
+        self.pay(cost)
+        alveary = C.HIVE_TYPES["alveary"]
+        hive.hive_type = "alveary"
+        hive.slots = max(hive.slots, alveary["slots"])
+        old = C.HIVE_TYPES["apiary"]["label"]
+        if hive.name.startswith(f"{old} "):
+            hive.name = f"{alveary['label']} {hive.name[len(old) + 1:]}"[:64]
 
     def update_hive(self, hive_id: str, name: str | None, keep_drones: bool | None) -> None:
         hive = self._hive(hive_id)
@@ -475,6 +531,8 @@ class Game:
             if not name:
                 raise GameError("Le nom ne peut pas être vide.")
             hive.name = name[:64]
+            if name.lower() in A.FAMOUS_BEES:
+                A.unlock(self.p, "maya")
         if keep_drones is not None:
             hive.settings = {**(hive.settings or {}), "keep_drones": keep_drones}
 
@@ -496,10 +554,8 @@ class Game:
         need = offer.get("min_species", 0)
         if len(self.discovered) < need:
             return f"Découvrez {need} espèces ({len(self.discovered)}/{need})."
-        if offer.get("requires_unlock") == "genetics" and not self.p.genetics_unlocked:
+        if offer.get("requires_unlock") == "genetics" and (self.p.lab_level or 0) < 1:
             return "Nécessite le laboratoire de génétique."
-        if offer["kind"] == "unlock" and self.p.genetics_unlocked:
-            return "Déjà débloqué."
         return None
 
     def buy(self, offer_id: str, qty: int = 1, biome: str = "plains") -> None:
@@ -524,6 +580,8 @@ class Game:
             hive = _new_hive(self.p, offer["hive_type"], biome, len(self.hives), same + 1)
             self.db.add(hive)
             self.hives.append(hive)
+            if {h.biome for h in self.hives} >= set(C.BIOMES):
+                A.unlock(self.p, "all_biomes")
         elif kind == "machine":
             machine = self.machines.get(offer["machine"])
             if machine is None:
@@ -531,8 +589,6 @@ class Game:
                 self.db.add(machine)
                 self.machines[offer["machine"]] = machine
             machine.qty += 1
-        elif kind == "unlock":
-            self.p.genetics_unlocked = True
         elif kind == "sapling":
             self.add_specimen("tree", G.pure_genome(offer["species"], "tree"), qty)
         elif kind == "plot":
@@ -550,6 +606,8 @@ class Game:
     def sell_bee(self, bee_id: str, qty: int) -> None:
         bee = self._bee(bee_id)
         price = C.BEE_SELL[bee.type]
+        if bee.type == "drone" and A.bump(self.p, "drones_sold", qty) >= 100:
+            A.unlock(self.p, "drones_100")
         self._take_bee(bee, qty)
         self.p.honey += price * qty
 
@@ -560,6 +618,9 @@ class Game:
         if n <= 0:
             raise GameError("Vous n'avez plus de ce rayon.")
         self._process(comb, n)
+        A.unlock(self.p, "first_manual")
+        if A.bump(self.p, "manual", n) >= 100:
+            A.unlock(self.p, "manual_100")
 
     def rescue_available(self) -> bool:
         if self.p.honey >= C.OFFERS["bee:forest:princess"]["honey"] + C.OFFERS["bee:forest:drone"]["honey"]:
@@ -575,43 +636,148 @@ class Game:
         genome = G.pure_genome("forest")
         self.add_bee("princess", genome)
         self.add_bee("drone", genome)
+        A.unlock(self.p, "rescued")
 
     # ---- génétique --------------------------------------------------------
 
-    def _require_lab(self) -> None:
-        if not self.p.genetics_unlocked:
-            raise GameError("Le laboratoire de génétique n'est pas encore débloqué.")
+    @property
+    def genes(self) -> set[tuple[str, str]]:
+        return set(self.gene_rows)
 
-    def extract_gene(self, bee_id: str, chromosome: str) -> None:
-        self._require_lab()
+    @property
+    def lab_level(self) -> int:
+        return self.p.lab_level or 0
+
+    def _require_lab(self, level: int = 1) -> None:
+        if self.lab_level < level:
+            raise GameError(f"Il faut le laboratoire niveau {level} ({LAB.LEVELS[level]['label']}).")
+
+    def _lab_state(self) -> dict:
+        lab = dict(self.p.lab or {})
+        lab.setdefault("fragments", {})
+        lab.setdefault("log", [])
+        lab.setdefault("job", None)
+        return lab
+
+    def _lab_log(self, lab: dict, text: str) -> None:
+        lab["log"] = [text, *lab["log"]][: LAB.LOG_SIZE]
+
+    def _gene_label(self, chromosome: str, allele: str) -> str:
+        value = C.SPECIES[allele]["label"] if chromosome == "species" else C.ALLELES[chromosome][allele]["label"]
+        return f"{C.CHROMOSOMES[chromosome]} « {value} »"
+
+    def _start_job(self, lab: dict, job: dict, seconds: int, now: int) -> None:
+        if lab["job"]:
+            raise GameError("Le laboratoire est occupé : attendez la fin de l'opération en cours.")
+        lab["job"] = {**job, "start_ms": now, "ready_ms": now + seconds * 1000}
+
+    def lab_tick(self, now: int | None = None) -> None:
+        """Termine l'opération en cours si son temps est écoulé."""
+        lab = self._lab_state()
+        job = lab["job"]
+        if not job or job["ready_ms"] > (now or now_ms()):
+            return
+        lab["job"] = None
+        chromosome, allele = job.get("chromosome"), job.get("allele")
+        if job["op"] == "extract":
+            if self.rng.random() < LAB.EXTRACT_FAIL:
+                self._lab_log(lab, f"Extraction ratée : {self._gene_label(chromosome, allele)}. L'échantillon est perdu.")
+            else:
+                key = f"{chromosome}:{allele}"
+                need = LAB.fragments_needed(chromosome, allele)
+                got = lab["fragments"].get(key, 0) + 1
+                if got >= need:
+                    lab["fragments"].pop(key, None)
+                    self._add_doses(chromosome, allele, LAB.DOSES)
+                    A.unlock(self.p, "first_extract")
+                    self._lab_log(lab, f"Gène complet : {self._gene_label(chromosome, allele)} (+{LAB.DOSES} doses).")
+                else:
+                    lab["fragments"][key] = got
+                    self._lab_log(lab, f"Fragment obtenu : {self._gene_label(chromosome, allele)} ({got}/{need}).")
+        elif job["op"] == "imprint":
+            self.add_bee(job["type"], job["genome"])
+            A.unlock(self.p, "first_imprint")
+            self._lab_log(lab, "Impression terminée : l'abeille est revenue dans la réserve.")
+        elif job["op"] == "replicate":
+            self._add_doses(chromosome, allele, LAB.DOSES)
+            self._lab_log(lab, f"Réplication terminée : {self._gene_label(chromosome, allele)} (+{LAB.DOSES} doses).")
+        self.p.lab = lab
+
+    def _add_doses(self, chromosome: str, allele: str, n: int) -> None:
+        row = self.gene_rows.get((chromosome, allele))
+        if row is None:
+            row = PlayerGene(player_id=self.p.id, kind="bee", chromosome=chromosome, allele=allele, doses=0)
+            self.db.add(row)
+            self.gene_rows[(chromosome, allele)] = row
+        row.doses = (row.doses or 0) + n
+
+    def upgrade_lab(self) -> None:
+        level = self.lab_level + 1
+        if level not in LAB.LEVELS:
+            raise GameError("Le laboratoire est déjà au niveau maximum.")
+        spec = LAB.LEVELS[level]
+        need = spec["min_species"]
+        if len(self.discovered) < need:
+            raise GameError(f"Découvrez {need} espèces ({len(self.discovered)}/{need}).")
+        self.pay(spec["cost"])
+        self.p.lab_level = level
+        self.p.genetics_unlocked = True
+
+    def extract_gene(self, bee_id: str, chromosome: str, now: int | None = None) -> None:
+        now = now or now_ms()
+        self.lab_tick(now)
+        self._require_lab(1)
         if chromosome not in C.CHROMOSOMES:
             raise GameError("Chromosome inconnu.")
+        if not LAB.can_extract(self.lab_level, chromosome):
+            raise GameError("Ce gène demande un laboratoire plus avancé.")
+        lab = self._lab_state()
         bee = self._bee(bee_id)
-        allele = bee.genome[chromosome][0]
-        if (chromosome, allele) in self.genes:
-            raise GameError("Ce gène est déjà dans votre banque.")
+        allele = G.normalize(bee.genome)[chromosome][0]
+        self._start_job(lab, {"op": "extract", "chromosome": chromosome, "allele": allele}, LAB.EXTRACT_SECONDS, now)
         self.take_item("labware", 1)
         self._take_bee(bee)
-        self.genes.add((chromosome, allele))
-        self.db.add(PlayerGene(player_id=self.p.id, kind="bee", chromosome=chromosome, allele=allele))
+        self.p.lab = lab
 
-    def imprint(self, bee_id: str, genes: dict[str, str]) -> None:
-        self._require_lab()
+    def imprint(self, bee_id: str, genes: dict[str, str], now: int | None = None) -> None:
+        now = now or now_ms()
+        self.lab_tick(now)
+        self._require_lab(2)
         if not genes:
             raise GameError("Choisissez au moins un gène.")
         for chromosome, allele in genes.items():
-            if (chromosome, allele) not in self.genes or not G.allele_exists(chromosome, allele):
-                raise GameError("Ce gène n'est pas dans votre banque.")
+            if chromosome not in C.CHROMOSOMES or not G.allele_exists(chromosome, allele):
+                raise GameError("Gène inconnu.")
+            if not LAB.can_imprint(self.lab_level, chromosome):
+                raise GameError("Ce gène demande un laboratoire plus avancé.")
+            row = self.gene_rows.get((chromosome, allele))
+            if row is None or (row.doses or 0) < 1:
+                raise GameError(f"Plus de dose pour {self._gene_label(chromosome, allele)}.")
         bee = self._bee(bee_id)
-        genome = {c: list(a) for c, a in bee.genome.items()}
+        genome = {c: list(a) for c, a in G.normalize(bee.genome).items()}
+        # Seule la copie active change : il faudra élever pour fixer le caractère
         for chromosome, allele in genes.items():
-            genome[chromosome] = [allele, allele]
+            genome[chromosome][0] = allele
         if genome == bee.genome:
             raise GameError("Cette abeille possède déjà ces gènes.")
-        self.pay({"honey": C.IMPRINT_HONEY_PER_GENE * len(genes), "items": {"labware": 1}})
-        bee_type = bee.type
+        lab = self._lab_state()
+        self._start_job(lab, {"op": "imprint", "type": bee.type, "genome": genome}, LAB.IMPRINT_SECONDS, now)
+        self.pay(LAB.imprint_cost(genes))
+        for chromosome, allele in genes.items():
+            self.gene_rows[(chromosome, allele)].doses -= 1
         self._take_bee(bee)
-        self.add_bee(bee_type, genome)
+        self.p.lab = lab
+
+    def replicate(self, chromosome: str, allele: str, now: int | None = None) -> None:
+        now = now or now_ms()
+        self.lab_tick(now)
+        self._require_lab(2)
+        if (chromosome, allele) not in self.gene_rows:
+            raise GameError("Ce gène n'est pas dans votre banque.")
+        lab = self._lab_state()
+        self._start_job(lab, {"op": "replicate", "chromosome": chromosome, "allele": allele}, LAB.REPLICATE_SECONDS, now)
+        self.pay(LAB.replicate_cost(chromosome, allele))
+        self.p.lab = lab
 
     # ---- sérialisation ----------------------------------------------------
 
@@ -663,9 +829,53 @@ class Game:
             return "weather"
         return "working"
 
+    def secret(self, code: str) -> None:
+        """Succès secret déclenché par l'interface (code Konami, logo…)."""
+        if code not in A.CLIENT_SECRETS:
+            raise GameError("Rien à voir ici.")
+        A.unlock(self.p, code)
+
+    def _passive_achievements(self, t: int, statuses: list[tuple[Hive, str]]) -> None:
+        """Succès qui dépendent de l'état du rucher ou du monde, vérifiés à chaque lecture."""
+        for hive, status in statuses:
+            if status != "working":
+                continue
+            weather = W.weather(t, C.BIOMES[hive.biome]["temp"])
+            if weather == "storm":
+                A.unlock(self.p, "storm_worker")
+            if weather == "snow":
+                A.unlock(self.p, "snow_worker")
+            if W.phase(t) == "night":
+                A.unlock(self.p, "night_worker")
+        best = max((h.queen.get("generation", 1) for h in self.hives if h.queen), default=0)
+        if best >= 10:
+            A.unlock(self.p, "generation_10")
+        if best >= 50:
+            A.unlock(self.p, "generation_50")
+        genomes = [b.genome for b in self.bees] + [h.queen["genome"] for h in self.hives if h.queen]
+        if any(g["species"][0] != g["species"][1] for g in genomes):
+            A.unlock(self.p, "hybrid")
+        actives = {g.get("stability", ["normal"])[0] for g in genomes}
+        if "pure" in actives:
+            A.unlock(self.p, "pure_stability")
+        if "chaotic" in actives:
+            A.unlock(self.p, "chaotic_stability")
+        if W.hour(t) == 0:
+            A.unlock(self.p, "midnight")
+        if self.p.honey == 0:
+            A.unlock(self.p, "broke")
+        likes = self.db.scalar(
+            select(func.count()).select_from(ShowcaseLike).join(Showcase, Showcase.id == ShowcaseLike.showcase_id)
+            .where(Showcase.player_id == self.p.id)
+        )
+        if likes >= 10:
+            A.unlock(self.p, "liked_10")
+
     def state(self) -> dict:
         self.db.flush()
         t = now_ms()
+        self.lab_tick(t)
+        self._passive_achievements(t, [(h, self._hive_status(h, self._mods(h), t)) for h in self.hives])
         hives = []
         for hive in self.hives:
             mods = self._mods(hive)
@@ -678,6 +888,7 @@ class Game:
                 "biome": hive.biome,
                 "slots": hive.slots,
                 "slot_cost": self.slot_cost(hive),
+                "upgrade_cost": self.upgrade_cost(hive),
                 "modules": hive.modules or [],
                 "queen": queen,
                 "output": hive.output or {},
@@ -693,11 +904,16 @@ class Game:
                 "id": self.p.id,
                 "username": self.p.username,
                 "honey": self.p.honey,
-                "genetics_unlocked": self.p.genetics_unlocked,
+                "genetics_unlocked": self.lab_level >= 1,
             },
+            "lab": {**self._lab_state(), "level": self.lab_level},
+            "gene_bank": {c: {a: row.doses for (cc, a), row in sorted(self.gene_rows.items()) if cc == c} for c in C.CHROMOSOMES},
             "server_time": t,
             "cycle_seconds": settings.cycle_seconds,
             "world": W.snapshot(t, C.BIOMES),
+            "badges": B.player_badges(self.discovered, set(self.p.claimed or []), len(self.p.achievements or {})),
+            "achievements": dict(self.p.achievements or {}),
+            "stats": dict(self.p.stats or {}),
             "objectives": {
                 oid: {"progress": self.objective_progress(o), "claimed": oid in (self.p.claimed or [])}
                 for oid, o in C.OBJECTIVES.items()

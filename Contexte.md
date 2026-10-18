@@ -442,6 +442,92 @@ avec des vitrines publiées.
   (`install` dans `service.py`). Une reine déjà installée peut toujours tomber en « Climat inadapté »
   si un module d'alvéaire change ensuite la température.
 
+## Demande du 2026-10-18 (5) : badges sur les vitrines
+
+Calculés à la volée (`backend/app/game/badges.py`), rien de stocké en plus :
+
+- **Rang** selon les espèces découvertes : Apprenti apiculteur (5), Apiculteur (20), Éleveur (50),
+  Maître éleveur (100), Grand maître (150), Apis Imperator (toutes).
+- **Médailles de succès** selon les objectifs du Carnet réclamés : Bâtisseur (ruches), Généticien
+  (gènes), Collectionneur (paliers d'espèces), Archiviste (tous objectifs). Bronze, argent, or, diamant
+  par quarts de la famille ; le diamant exige de tout réclamer (Archiviste : 5, 15, 35, 60).
+- **Médaille de branche** aux couleurs de la branche, pour chaque branche complète de l'Apidex.
+
+Affichage : sur chaque vitrine, le rang de l'auteur et ses médailles (8 au plus, puis « +N ») ;
+dans le Carnet, une section « Mes badges » avec la progression vers le rang suivant.
+
+## Demande du 2026-10-18 (6) : nouveaux modèles d'abeilles
+
+Le sprite unique 16×16 est remplacé par un générateur 24×24 (`frontend/components/BeeIcon.tsx`) :
+
+- **Taille** : selon la longévité de l'espèce (éphémères minuscules, longévives grosses), plus un
+  ajustement par branche (Sociales et Énergiques plus petites ; Héroïques, Minérales, Volcaniques,
+  Célestes plus grosses ; Légendaires énormes). Les reines sont un cran plus grandes.
+- **Corps** : abdomen et tête sombre distincte avec un œil ; motif par branche (rayures, rayures fines,
+  deux bandes, taches, bicolore, uni).
+- **Ailes** : normales, grandes, petites, déchirées, en cristal, en feuille, aquatiques, en papillon ;
+  leur taille suit celle du corps.
+- **Particularités par branche** : cornes, flammes, fourrure, aura, masque et yeux luisants,
+  roche, facettes, reflet, os, rivets, coulures, bulles, étincelles, auréole, fleur, grand dard,
+  longues antennes, aigrette dorée.
+- Les couleurs restent celles de l'espèce. Tout se règle dans la table `BRANCH_LOOKS`.
+
+## Demande du 2026-10-18 (7) : succès et easter eggs
+
+- **34 succès** (`backend/app/game/achievements.py`), débloqués une fois, chacun avec une petite
+  récompense en miel et une carte « Succès débloqué ! » : premiers pas, récoltes (100 / 1 000 / 10 000
+  rayons), centrifugation à la main, miel gagné, générations de reine, hybrides, stabilité pure ou
+  chaotique, ruche au travail sous l'orage / la nuit / la neige, tous les biomes, alvéaire au maximum,
+  génétique, vitrine publiée, 10 « j'aime » reçus.
+- **Succès secrets** (cachés dans le Carnet tant qu'ils ne sont pas obtenus) :
+  code Konami (pluie d'abeilles), 10 clics rapides sur l'abeille du logo, page introuvable (abeille
+  perdue), ruche nommée d'après une abeille de dessin animé, minuit heure du jeu, jouer entre 3 h et
+  4 h (heure locale), accepter l'aide de secours, tomber à zéro miel.
+- **Surprises du calendrier** : citrouille sur la tête des abeilles le 31 octobre, bonnet de Noël du
+  20 au 26 décembre, abeilles qui volent à reculons le 1er avril.
+- Nouvelle médaille **Aventurier** (5, 12, 22 succès, puis tous).
+- Base : colonnes `players.stats` et `players.achievements`, migration `0004`. Les secrets que seul le
+  navigateur peut voir passent par `POST /api/secrets` (liste blanche `CLIENT_SECRETS`) : un joueur
+  curieux peut les déclencher à la main, l'enjeu est minime (moins de 100 miel chacun).
+
+## Demande du 2026-10-18 (8) : mutations plus accessibles
+
+Constat : pas de bug, mais obtenir une princesse Commune demandait en moyenne une douzaine de
+générations, puis il fallait la stabiliser sans que le jeu l'explique.
+
+- `MUTATION_RATE` revient à 1.0 (chances de Forestry) : Sylvestre × Des prés passe de 7,5 % à 15 %.
+- Une **princesse qui mute naît de race pure** (`pure_mutation` dans `genetics.breed`) : la lignée
+  est fixée d'emblée. Les faux-bourdons restent hybrides. Environ 28 % des princesses issues de
+  Sylvestre × Des prés sont désormais des Communes pures.
+- Conseils : dans la fenêtre d'installation, explication quand la princesse choisie est hybride et
+  pastille « Fixe l'espèce » sur les faux-bourdons purs de la même espèce (présélectionnés) ;
+  paragraphe ajouté à l'aide du Rucher.
+
+## Demande du 2026-10-18 (9) : génétique plus exigeante
+
+Tout est dans `backend/app/game/lab.py` (réglages en tête de fichier) :
+
+- **Trois niveaux** de laboratoire, construits depuis la page Génétique (l'offre de la boutique est
+  retirée) : Paillasse (15 espèces ; vitesse, longévité, fertilité), Séquenceur (40 espèces ; tous
+  les gènes sauf l'espèce, impression, réplication), Synthétiseur (100 espèces ; gène d'espèce).
+- **Fragments** : un gène s'obtient en 2 (courant), 4 (intermédiaire) ou 6 (rare) fragments, de 3 à 8
+  pour une espèce selon sa rareté. Chaque extraction sacrifie une abeille et échoue dans 30 % des cas.
+- **Impression partielle** : seule la copie active du gène est remplacée ; il faut élever pour fixer.
+- **Temps et ressources** : extraction 2 min, impression 5 min, réplication 4 min, une opération à la
+  fois. Les gènes intermédiaires coûtent de la propolis, les rares de la gelée royale, le gène
+  d'espèce de la gelée royale et 5 rayons de l'espèce.
+- **Doses** : un gène complet donne 3 impressions ; la réplication en ajoute 3 (verrerie, gelée
+  royale, miel selon la rareté).
+- Base : migration `0005` (`players.lab_level`, `players.lab`, `player_genes.doses`). Les comptes qui
+  avaient le laboratoire passent au niveau 1, leurs gènes reçoivent 3 doses.
+
+## Demande du 2026-10-18 (10) : faire évoluer un rucher en alvéaire
+
+Bouton « Faire évoluer » dans les réglages d'un rucher (`upgrade_hive` dans `service.py`,
+`POST /api/hives/{id}/upgrade`). Prix : celui d'un alvéaire neuf, qui augmente avec le nombre
+d'alvéaires possédés. La ruche garde reine, abeilles en attente, récolte, cadres et biome ; elle passe
+à 4 emplacements (8 au plus) et son nom « Rucher … » devient « Alvéaire … ».
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre
