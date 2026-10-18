@@ -66,6 +66,7 @@ export type Content = {
     activity_hours: Record<string, number[]>;
   };
   objectives: Objective[];
+  garden_enabled: boolean;
 };
 
 export type Objective = {

@@ -282,6 +282,11 @@ def test_garden_cycle(game):
 
 
 def test_garden_shop(game):
+    if not C.GARDEN_ENABLED:
+        # Jardin masqué : ni pousses ni parcelles en boutique, et aucune mutation n'en dépend
+        assert not [o for o in C.OFFERS.values() if o["kind"] in ("sapling", "plot")]
+        assert not [m for m in C.MUTATIONS if {"tree", "butterflies"} & set(m["cond"])]
+        return
     game.p.honey = 1000
     game.buy("sapling:spruce", 3)
     assert sum(r.count for r in game.flora if r.genome["species"][0] == "spruce") == 3

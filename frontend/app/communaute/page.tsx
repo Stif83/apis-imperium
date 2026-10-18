@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { SpecimenIcon, specimenLabel } from '@/components/garden';
-import { BeeCard } from '@/components/ui';
+import { PageHead } from '@/components/ui';
 import { useGame } from '@/lib/game';
-import type { Showcase } from '@/lib/types';
+import type { Genome, Showcase } from '@/lib/types';
 
 export default function CommunityPage() {
   const { content, state, call } = useGame();
@@ -29,9 +29,20 @@ export default function CommunityPage() {
     else if (picked.length < content.showcase_max_entries) setPicked([...picked, id]);
   };
 
-  const flora = [
-    ...state.garden.saplings.map((s) => ({ id: s.id, kind: 'tree', genome: s.genome })),
-    ...state.garden.butterflies.map((b) => ({ id: b.id, kind: 'butterfly', genome: { species: [b.species, b.species] as [string, string] } })),
+  // Abeilles, plus pousses et papillons tant que le jardin est ouvert
+  const specimens: { id: string; kind: string; type: string; genome: Genome }[] = [
+    ...state.bees.map((b) => ({ id: b.id, kind: 'bee', type: b.type, genome: b.genome })),
+    ...(content.garden_enabled
+      ? [
+          ...state.garden.saplings.map((s) => ({ id: s.id, kind: 'tree', type: 'tree', genome: s.genome })),
+          ...state.garden.butterflies.map((b) => ({
+            id: b.id,
+            kind: 'butterfly',
+            type: 'butterfly',
+            genome: { species: [b.species, b.species] as [string, string] },
+          })),
+        ]
+      : []),
   ];
 
   const publish = async () => {
@@ -45,34 +56,37 @@ export default function CommunityPage() {
 
   return (
     <>
-      <h1>Communauté</h1>
-      <p className="muted">Exposez vos plus belles abeilles, vos arbres et vos papillons, et découvrez ceux des autres apiculteurs.</p>
-
-      <div className="row">
-        <button className="primary" onClick={() => setCreating(!creating)}>
-          {creating ? 'Annuler' : 'Créer une vitrine'}
-        </button>
-      </div>
+      <PageHead
+        title="Communauté"
+        extra={
+          <button className="primary" style={{ marginLeft: 'auto' }} onClick={() => setCreating(!creating)}>
+            {creating ? 'Annuler' : 'Créer une vitrine'}
+          </button>
+        }
+      >
+        Exposez vos plus belles abeilles et découvrez celles des autres apiculteurs. Une vitrine garde une copie de chaque spécimen :
+        elle reste visible même s'il disparaît de votre réserve.
+      </PageHead>
 
       {creating && (
-        <div className="card" style={{ marginTop: 12 }}>
-          <input placeholder="Titre de la vitrine" maxLength={80} value={title} onChange={(e) => setTitle(e.target.value)} />
-          <textarea placeholder="Description (facultative)" maxLength={1000} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <div className="card">
+          <input placeholder="Titre de la vitrine" aria-label="Titre" maxLength={80} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <textarea
+            placeholder="Description (facultative)"
+            aria-label="Description"
+            maxLength={1000}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
           <div className="muted">
-            Choisissez jusqu'à {content.showcase_max_entries} spécimens ({picked.length} sélectionnés) : abeilles, pousses d'arbres ou
-            papillons. La vitrine en garde une copie : elle reste visible même si le spécimen disparaît.
+            Spécimens choisis : {picked.length} / {content.showcase_max_entries}
           </div>
           <div className="row">
-            {flora.map((f) => (
+            {specimens.map((f) => (
               <button key={f.id} className={`chip pick${picked.includes(f.id) ? ' selected' : ''}`} onClick={() => toggle(f.id)}>
-                <SpecimenIcon kind={f.kind} type={f.kind} genome={f.genome} size={24} />
-                {specimenLabel(content, f.kind, f.kind, f.genome)}
+                <SpecimenIcon kind={f.kind} type={f.type} genome={f.genome} size={24} />
+                {specimenLabel(content, f.kind, f.type, f.genome)}
               </button>
-            ))}
-          </div>
-          <div className="grid">
-            {state.bees.map((b) => (
-              <BeeCard key={b.id} genome={b.genome} type={b.type} selected={picked.includes(b.id)} onClick={() => toggle(b.id)} />
             ))}
           </div>
           <div className="row">
@@ -95,25 +109,24 @@ export default function CommunityPage() {
                 <div className="muted">par {s.author}</div>
               </div>
               <div className="row">
-                <button className={s.liked ? 'primary' : ''} onClick={() => update(`/community/showcases/${s.id}/like`, {})}>
-                  ♥ {s.likes}
+                <button className={s.liked ? 'primary' : ''} aria-pressed={s.liked} onClick={() => update(`/community/showcases/${s.id}/like`, {})}>
+                  {s.liked ? '♥' : '♡'} {s.likes}
                 </button>
                 {s.mine && (
-                  <button className="danger" onClick={() => update(`/community/showcases/${s.id}`, undefined, 'DELETE')}>
+                  <button className="small danger" onClick={() => update(`/community/showcases/${s.id}`, undefined, 'DELETE')}>
                     Supprimer
                   </button>
                 )}
               </div>
             </div>
-            {s.description && <p>{s.description}</p>}
-            <div className="row">
+            <div className="shelf">
               {s.entries.map((entry, i) => (
-                <span key={i} className="chip">
-                  <SpecimenIcon kind={entry.kind} type={entry.type} genome={entry.genome} size={28} />
-                  {specimenLabel(content, entry.kind, entry.type, entry.genome)}
+                <span key={i} title={specimenLabel(content, entry.kind, entry.type, entry.genome)}>
+                  <SpecimenIcon kind={entry.kind} type={entry.type} genome={entry.genome} size={48} />
                 </span>
               ))}
             </div>
+            {s.description && <p className="muted">{s.description}</p>}
           </div>
         ))}
       </div>

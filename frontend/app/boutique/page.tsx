@@ -2,141 +2,231 @@
 
 import { useState, type ReactNode } from 'react';
 import { BeeIcon } from '@/components/BeeIcon';
-import { TreeIcon } from '@/components/garden';
-import { CostView, Honey, ItemIcon, TYPE_LABELS, fmt } from '@/components/ui';
+import { HiveArt } from '@/components/HiveArt';
+import { BIOME_ICONS, CostView, Honey, ItemIcon, PageHead, Traits, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
 import type { Offer } from '@/lib/types';
 
-function OfferCard({ offer }: { offer: Offer }) {
-  const { content, state, act } = useGame();
-  const [qty, setQty] = useState(1);
-  const [biome, setBiome] = useState('plains');
+const TABS = [
+  { id: 'bees', label: 'Abeilles' },
+  { id: 'hives', label: 'Ruches' },
+  { id: 'modules', label: 'Cadres et modules' },
+  { id: 'lab', label: 'Machines et labo' },
+  { id: 'sell', label: 'Vendre' },
+] as const;
+type Tab = (typeof TABS)[number]['id'];
+
+const QUANTITIES = [1, 5, 10];
+
+function Buy({ offer, qty = 1, biome, compact, children }: { offer: Offer; qty?: number; biome?: string; compact?: boolean; children: ReactNode }) {
+  const { act, state } = useGame();
   const { cost, lock } = state.offers[offer.id];
-  const multiple = offer.kind === 'bee' || offer.kind === 'item' || offer.kind === 'sapling';
-
-  let icon: ReactNode = null;
-  let title = offer.id;
-  let desc = '';
-  if (offer.kind === 'bee' && offer.species && offer.type) {
-    const species = content.species[offer.species];
-    icon = <BeeIcon color={species.color} secondary={species.secondary} type={offer.type} size={40} />;
-    title = `${TYPE_LABELS[offer.type]} ${species.label}`;
-    desc = `Climat : ${content.temp_labels[species.temp]}`;
-  } else if (offer.kind === 'item' && offer.item) {
-    icon = <ItemIcon id={offer.item} size={32} />;
-    title = content.items[offer.item].label;
-    desc = content.modules[offer.item]?.desc ?? 'Consommée par le laboratoire de génétique.';
-    if (content.modules[offer.item]) desc += content.modules[offer.item].frame ? ' · Rucher et alvéaire' : ' · Alvéaire uniquement';
-  } else if (offer.kind === 'hive' && offer.hive_type) {
-    const type = content.hive_types[offer.hive_type];
-    icon = <span className="swatch" style={{ background: `#${content.biomes[biome]?.color ?? '888888'}` }} />;
-    title = type.label;
-    desc = type.frames_only
-      ? `${type.slots} emplacements pour cadres.`
-      : `${type.slots} emplacements (extensible à ${type.max_slots}), accepte tous les modules, production ×${type.production}.`;
-  } else if (offer.kind === 'machine' && offer.machine) {
-    title = content.machines[offer.machine].label;
-    desc = content.machines[offer.machine].desc;
-  } else if (offer.kind === 'sapling' && offer.species) {
-    const tree = content.garden.trees[offer.species];
-    icon = <TreeIcon color={tree.color} secondary={tree.secondary} size={40} />;
-    title = `Pousse de ${tree.label}`;
-    desc = `${tree.branch} · ${tree.products.map(([item]) => content.items[item]?.label).join(', ')}`;
-  } else if (offer.kind === 'plot') {
-    title = 'Parcelle de jardin';
-    desc = "Un emplacement de plus pour faire pousser un arbre.";
-  } else if (offer.kind === 'unlock') {
-    title = 'Laboratoire de génétique';
-    desc = "Extraction de gènes et modification d'abeilles (onglet Génétique).";
-  }
-
+  const short = state.player.honey < cost.honey * qty || Object.entries(cost.items).some(([i, n]) => (state.inventory[i] ?? 0) < n * qty);
   return (
-    <div className={`card${lock ? ' locked' : ''}`}>
-      <div className="bee-head">
-        {icon}
-        <div>
-          <div className="title">{title}</div>
-          <div className="muted">{desc}</div>
-        </div>
-      </div>
-      <CostView cost={cost} times={multiple ? qty : 1} />
+    <button className={`primary${compact ? ' compact' : ''}`} disabled={!!lock || short} title={lock ?? undefined} onClick={() => act('/shop/buy', { offer_id: offer.id, qty, biome })}>
+      {children}
+    </button>
+  );
+}
+
+/** Une espèce en vente : une tuile, deux boutons (princesse, faux-bourdon). */
+function BeeOffer({ species, offers, qty }: { species: string; offers: Offer[]; qty: number }) {
+  const { content, state } = useGame();
+  const s = content.species[species];
+  const lock = state.offers[offers[0].id].lock;
+  const genome = Object.fromEntries(Object.entries(s.template).map(([c, a]) => [c, [a, a]])) as Record<string, [string, string]>;
+  return (
+    <div className={`card shop-tile${lock ? ' locked' : ''}`}>
+      <BeeIcon color={s.color} secondary={s.secondary} type="princess" size={56} unknown={!!lock} />
+      <div className="title">{lock ? '???' : s.label}</div>
+      {!lock && <Traits genome={genome} />}
       {lock ? (
-        <div className="muted">🔒 {lock}</div>
+        <span className="muted">🔒 {lock}</span>
       ) : (
-        <div className="actions">
-          {multiple && (
-            <input type="number" min={1} max={100} value={qty} onChange={(e) => setQty(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} />
-          )}
-          {offer.kind === 'hive' && (
-            <select value={biome} onChange={(e) => setBiome(e.target.value)}>
-              {Object.entries(content.biomes).map(([id, b]) => (
-                <option key={id} value={id}>
-                  {b.label} ({content.temp_labels[b.temp]})
-                </option>
-              ))}
-            </select>
-          )}
-          <button className="primary" onClick={() => act('/shop/buy', { offer_id: offer.id, qty, biome })}>
-            Acheter
-          </button>
+        <div className="row" style={{ justifyContent: 'center', gap: 6 }}>
+          {offers.map((offer) => (
+            <Buy key={offer.id} offer={offer} qty={qty} compact>
+              {offer.type === 'princess' ? '♀' : '♂'} <Honey amount={state.offers[offer.id].cost.honey * qty} />
+            </Buy>
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-const SECTIONS: { title: string; match: (o: Offer) => boolean }[] = [
-  { title: 'Abeilles', match: (o) => o.kind === 'bee' },
-  { title: 'Ruches', match: (o) => o.kind === 'hive' },
-  { title: 'Cadres et modules', match: (o) => o.kind === 'item' && o.item !== 'labware' },
-  { title: 'Jardin', match: (o) => o.kind === 'sapling' || o.kind === 'plot' },
-  { title: 'Machines et laboratoire', match: (o) => o.kind === 'machine' || o.kind === 'unlock' || o.item === 'labware' },
-];
+function HiveOffer({ offer }: { offer: Offer }) {
+  const { content, state } = useGame();
+  const [biome, setBiome] = useState('plains');
+  const type = content.hive_types[offer.hive_type!];
+  const { cost } = state.offers[offer.id];
+  return (
+    <div className="card offer">
+      <div className="bee-head">
+        <HiveArt className="" alveary={offer.hive_type === 'alveary'} size={64} />
+        <div>
+          <div className="title">{type.label}</div>
+          <div className="muted">
+            {type.frames_only
+              ? `${type.slots} emplacements pour cadres.`
+              : `${type.slots} à ${type.max_slots} emplacements, tous les modules, production ×${type.production}.`}
+          </div>
+        </div>
+      </div>
+      <div className="row" role="radiogroup" aria-label="Biome">
+        {Object.entries(content.biomes).map(([id, b]) => (
+          <button
+            key={id}
+            role="radio"
+            aria-checked={biome === id}
+            className={`chip pick${biome === id ? ' selected' : ''}`}
+            title={`${b.label} · climat ${content.temp_labels[b.temp]}`}
+            onClick={() => setBiome(id)}
+          >
+            {BIOME_ICONS[id]} {b.label}
+          </button>
+        ))}
+      </div>
+      <div className="row between">
+        <CostView cost={cost} />
+        <Buy offer={offer} biome={biome}>
+          Acheter
+        </Buy>
+      </div>
+    </div>
+  );
+}
+
+function ItemOffer({ offer, qty }: { offer: Offer; qty: number }) {
+  const { content, state } = useGame();
+  const { cost, lock } = state.offers[offer.id];
+  let icon: ReactNode = null;
+  let title = '';
+  let desc = '';
+  let tag = '';
+  if (offer.kind === 'item' && offer.item) {
+    icon = <ItemIcon id={offer.item} size={40} />;
+    title = content.items[offer.item].label;
+    const module = content.modules[offer.item];
+    desc = module?.desc ?? 'Consommée à chaque opération du laboratoire.';
+    if (module) tag = module.frame ? 'Rucher et alvéaire' : 'Alvéaire';
+  } else if (offer.kind === 'machine' && offer.machine) {
+    icon = <span style={{ fontSize: 34 }}>⚙️</span>;
+    title = content.machines[offer.machine].label;
+    desc = content.machines[offer.machine].desc;
+  } else if (offer.kind === 'unlock') {
+    icon = <span style={{ fontSize: 34 }}>🧪</span>;
+    title = 'Laboratoire de génétique';
+    desc = "Extraction et impression de gènes (onglet Génétique).";
+  }
+  const stackable = offer.kind === 'item';
+  return (
+    <div className={`card offer${lock ? ' locked' : ''}`}>
+      <div className="bee-head">
+        {icon}
+        <div>
+          <div className="title">{title}</div>
+          {tag && <span className="badge info">{tag}</span>}
+        </div>
+      </div>
+      <div className="muted">{desc}</div>
+      {lock ? (
+        <span className="muted">🔒 {lock}</span>
+      ) : (
+        <div className="row between">
+          <CostView cost={cost} times={stackable ? qty : 1} />
+          <Buy offer={offer} qty={stackable ? qty : 1}>
+            Acheter{stackable && qty > 1 ? ` ×${qty}` : ''}
+          </Buy>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ShopPage() {
   const { content, state, act } = useGame();
+  const [tab, setTab] = useState<Tab>('bees');
+  const [qty, setQty] = useState(1);
+  const offers = content.offers;
   const sellable = Object.entries(state.inventory).filter(([id]) => (content.items[id]?.sell ?? 0) > 0);
+
+  const beeSpecies = [...new Set(offers.filter((o) => o.kind === 'bee').map((o) => o.species!))];
 
   return (
     <>
-      <h1>Boutique</h1>
-      <p className="muted">Tout se paie en miel, parfois complété par des ressources tirées de vos rayons.</p>
+      <PageHead title="Boutique">
+        Tout se paie en miel, parfois complété par des ressources tirées de vos rayons. Les espèces rares se débloquent au fil de vos
+        découvertes.
+      </PageHead>
+      <div className="row tabs">
+        {TABS.map((t) => (
+          <button key={t.id} className={`tab${tab === t.id ? ' active' : ''}`} onClick={() => setTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+        {(tab === 'bees' || tab === 'modules') && (
+          <span className="row" style={{ marginLeft: 'auto' }} role="radiogroup" aria-label="Quantité">
+            <span className="muted">Quantité</span>
+            {QUANTITIES.map((n) => (
+              <button key={n} role="radio" aria-checked={qty === n} className={`chip pick${qty === n ? ' selected' : ''}`} onClick={() => setQty(n)}>
+                ×{n}
+              </button>
+            ))}
+          </span>
+        )}
+      </div>
 
-      {SECTIONS.map((section) => (
-        <section key={section.title}>
-          <h2>{section.title}</h2>
-          <div className="grid">
-            {content.offers.filter(section.match).map((offer) => (
-              <OfferCard key={offer.id} offer={offer} />
+      {tab === 'bees' && (
+        <div className="grid tiles">
+          {beeSpecies.map((s) => (
+            <BeeOffer key={s} species={s} offers={offers.filter((o) => o.kind === 'bee' && o.species === s)} qty={qty} />
+          ))}
+        </div>
+      )}
+      {tab === 'hives' && (
+        <div className="grid">
+          {offers.filter((o) => o.kind === 'hive').map((o) => (
+            <HiveOffer key={o.id} offer={o} />
+          ))}
+        </div>
+      )}
+      {tab === 'modules' && (
+        <div className="grid">
+          {offers.filter((o) => o.kind === 'item' && o.item !== 'labware').map((o) => (
+            <ItemOffer key={o.id} offer={o} qty={qty} />
+          ))}
+        </div>
+      )}
+      {tab === 'lab' && (
+        <div className="grid">
+          {offers.filter((o) => o.kind === 'machine' || o.kind === 'unlock' || o.item === 'labware').map((o) => (
+            <ItemOffer key={o.id} offer={o} qty={1} />
+          ))}
+        </div>
+      )}
+      {tab === 'sell' && (
+        <>
+          {sellable.length === 0 && <p className="muted">Rien à vendre pour le moment. Centrifugez vos rayons à l'usine.</p>}
+          <div className="grid tiles">
+            {sellable.map(([id, n]) => (
+              <div key={id} className="card shop-tile">
+                <ItemIcon id={id} size={40} />
+                <div className="title">{content.items[id].label}</div>
+                <span className="muted">
+                  ×{fmt(n)} · <Honey amount={content.items[id].sell} /> pièce
+                </span>
+                <div className="stack" style={{ width: '100%' }}>
+                  <button onClick={() => act('/shop/sell', { item_id: id, qty: 1 })}>Vendre 1</button>
+                  <button className="primary" onClick={() => act('/shop/sell', { item_id: id, qty: n })}>
+                    Tout · <Honey amount={content.items[id].sell * n} />
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
-        </section>
-      ))}
-
-      <h2>Vendre des ressources</h2>
-      {sellable.length === 0 && <p className="muted">Rien à vendre pour le moment.</p>}
-      <div className="grid">
-        {sellable.map(([id, qty]) => (
-          <div key={id} className="card">
-            <div className="row between">
-              <span className="row title">
-                <ItemIcon id={id} />
-                {content.items[id].label}
-              </span>
-              <b>×{fmt(qty)}</b>
-            </div>
-            <div className="muted row">
-              <Honey amount={content.items[id].sell} /> l'unité
-            </div>
-            <div className="actions">
-              <button onClick={() => act('/shop/sell', { item_id: id, qty: 1 })}>Vendre 1</button>
-              <button onClick={() => act('/shop/sell', { item_id: id, qty })}>
-                Tout vendre (<Honey amount={content.items[id].sell * qty} />)
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+        </>
+      )}
     </>
   );
 }

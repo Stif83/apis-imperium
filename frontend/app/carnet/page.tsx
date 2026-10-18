@@ -1,6 +1,6 @@
 'use client';
 
-import { Honey, ItemQty, fmt } from '@/components/ui';
+import { Honey, ItemQty, PageHead, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
 import type { Objective } from '@/lib/types';
 
@@ -26,7 +26,7 @@ export default function CarnetPage() {
       <div className="card">
         <div className="row between">
           <span className="title">{o.label}</span>
-          {p.claimed && <span className="badge ok">Reçu</span>}
+          {p.claimed && <span className="stamp">Accompli</span>}
         </div>
         <div className="bar" title={`${fmt(Math.min(p.progress, o.target))} / ${fmt(o.target)}`}>
           <div style={{ width: `${(100 * Math.min(p.progress, o.target)) / o.target}%` }} />
@@ -53,11 +53,10 @@ export default function CarnetPage() {
 
   return (
     <>
-      <h1>Carnet de l'apiculteur</h1>
-      <p className="muted">
-        {claimed} objectifs accomplis sur {content.objectives.length}. Chaque palier de découverte et chaque branche complétée
-        rapporte du miel et du matériel.
-      </p>
+      <PageHead title="Carnet de l'apiculteur" extra={<span className="badge ok">{claimed} / {content.objectives.length} accomplis</span>}>
+        Chaque palier de découverte et chaque branche complétée rapporte du miel et du matériel. Une pastille rouge sur l'onglet
+        signale une récompense à réclamer.
+      </PageHead>
       {ready.length > 0 && (
         <>
           <h2>À réclamer</h2>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { BeeIcon } from '@/components/BeeIcon';
-import { ItemQty, alleleLabel } from '@/components/ui';
+import { ItemQty, PageHead, Traits } from '@/components/ui';
 import { useGame } from '@/lib/game';
 import type { Content } from '@/lib/types';
 
@@ -127,10 +127,8 @@ export default function ApidexPage() {
       <Mini id={m.b} />
       <span className="op">→</span>
       <Mini id={m.result} />
-      <span className="muted">
-        {percent(m.chance)}
-        {m.cond_text && ` · ${m.cond_text}`}
-      </span>
+      <span className="muted">{percent(m.chance)}</span>
+      {m.cond_text && <span className="cond">{m.cond_text}</span>}
     </div>
   );
 
@@ -138,10 +136,10 @@ export default function ApidexPage() {
 
   return (
     <>
-      <h1>Apidex</h1>
-      <p className="muted">
-        {known.size} espèces découvertes sur {allIds.length}. Les espèces encore inconnues restent anonymes.
-      </p>
+      <PageHead title="Apidex" extra={<span className="badge ok">{known.size} / {allIds.length} espèces</span>}>
+        Toutes les espèces et leurs croisements. Les espèces encore inconnues restent anonymes. Certaines mutations demandent une
+        condition (heure, météo, biome, arbre au jardin…) : elle doit être réunie au moment où la reine meurt.
+      </PageHead>
 
       <h2>Arbre des mutations</h2>
       <div className="row" style={{ marginBottom: 8 }}>
@@ -211,11 +209,7 @@ export default function ApidexPage() {
                     </span>
                   ))}
                 </div>
-                <div className="muted">
-                  {['speed', 'lifespan', 'fertility', 'tolerance', 'activity', 'weatherproof', 'stability']
-                    .map((c) => `${content.chromosomes[c]} : ${alleleLabel(content, c, species.template[c])}`)
-                    .join(' · ')}
-                </div>
+                <Traits genome={Object.fromEntries(Object.entries(species.template).map(([c, a]) => [c, [a, a]]))} />
               </>
             ) : (
               <div className="muted">Espèce encore inconnue. Découvrez-la pour connaître ses caractéristiques.</div>

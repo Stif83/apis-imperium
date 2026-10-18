@@ -1,8 +1,8 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useGame } from '@/lib/game';
-import type { BeeType, Cost, Genome } from '@/lib/types';
+import type { Bee, BeeType, Content, Cost, Genome } from '@/lib/types';
 import { BeeIcon } from './BeeIcon';
 
 export const TYPE_LABELS: Record<BeeType, string> = { princess: 'Princesse', drone: 'Faux-bourdon', queen: 'Reine' };
@@ -21,6 +21,169 @@ export function WorldClock() {
     <span className="chip" title={`${content.world.phases[phase]} · une journée dure ${content.world.day_seconds / 60} minutes`}>
       {PHASE_ICONS[phase]} {time}
     </span>
+  );
+}
+
+const THEMES = [
+  { id: 'auto', icon: '🌗', label: "Thème : comme l'appareil" },
+  { id: 'light', icon: '☀️', label: 'Thème : clair' },
+  { id: 'dark', icon: '🌙', label: 'Thème : nuit' },
+] as const;
+
+/** Bascule auto → clair → nuit ; le choix est gardé dans ce navigateur. */
+export function ThemeToggle() {
+  const [theme, setTheme] = useState<string>('auto');
+  useEffect(() => {
+    try {
+      setTheme(localStorage.getItem('apis.theme') ?? 'auto');
+    } catch {
+      /* stockage indisponible */
+    }
+  }, []);
+  const current = THEMES.find((t) => t.id === theme) ?? THEMES[0];
+  const next = () => {
+    const chosen = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length].id;
+    setTheme(chosen);
+    const root = document.documentElement;
+    if (chosen === 'auto') delete root.dataset.theme;
+    else root.dataset.theme = chosen;
+    try {
+      if (chosen === 'auto') localStorage.removeItem('apis.theme');
+      else localStorage.setItem('apis.theme', chosen);
+    } catch {
+      /* stockage indisponible : le choix vaut pour cette visite */
+    }
+  };
+  return (
+    <button className="small" onClick={next} title={`${current.label} (cliquer pour changer)`} aria-label={current.label}>
+      {current.icon}
+    </button>
+  );
+}
+
+export const BIOME_ICONS: Record<string, string> = { plains: '🌼', taiga: '🌲', tundra: '🧊', jungle: '🌴', desert: '🌵' };
+
+/** Titre de page ; l'explication est rangée derrière un bouton « ? ». */
+export function PageHead({ title, children, extra }: { title: ReactNode; children?: ReactNode; extra?: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="page-head">
+        <h1>{title}</h1>
+        {children && (
+          <button className="help-btn" title="Comment ça marche ?" aria-expanded={open} onClick={() => setOpen(!open)}>
+            ?
+          </button>
+        )}
+        {extra}
+      </div>
+      {open && <div className="help-text">{children}</div>}
+    </>
+  );
+}
+
+const ACTIVITY_ICONS: Record<string, string> = { diurnal: '☀️', nocturnal: '🌙', crepuscular: '🌅', cathemeral: '♾️' };
+
+/** Gènes qui méritent d'être vus d'un coup d'œil ; le reste est dans la fiche complète. */
+export function notableTraits(content: Content, genome: Genome): { icon: string; label: string }[] {
+  const label = (c: string) => `${content.chromosomes[c]} : ${alleleLabel(content, c, genome[c]?.[0] ?? '')}`;
+  const out: { icon: string; label: string }[] = [];
+  const active = (c: string): string => genome[c]?.[0] ?? '';
+  if (genome.species[0] !== genome.species[1]) out.push({ icon: '🧬', label: `Hybride de ${content.species[genome.species[1]]?.label}` });
+  if (active('activity')) out.push({ icon: ACTIVITY_ICONS[active('activity')] ?? '☀️', label: label('activity') });
+  if (active('weatherproof') === 'yes') out.push({ icon: '☂️', label: label('weatherproof') });
+  if (['fast', 'faster', 'fastest'].includes(active('speed'))) out.push({ icon: '⚡', label: label('speed') });
+  if (['long', 'longer', 'longest'].includes(active('lifespan'))) out.push({ icon: '⏳', label: label('lifespan') });
+  if (Number(active('fertility')) >= 3) out.push({ icon: `♂${active('fertility')}`, label: label('fertility') });
+  if (['one', 'two'].includes(active('tolerance'))) out.push({ icon: '🌡️', label: label('tolerance') });
+  if (['chaotic', 'erratic', 'unstable'].includes(active('stability'))) out.push({ icon: '🎲', label: label('stability') });
+  if (['stable', 'ordered', 'pure'].includes(active('stability'))) out.push({ icon: '🛡️', label: label('stability') });
+  return out;
+}
+
+export function Traits({ genome }: { genome: Genome }) {
+  const { content } = useGame();
+  return (
+    <span className="traits row" style={{ gap: 3 }}>
+      {notableTraits(content, genome).map((t) => (
+        <span key={t.label} className="trait" title={t.label}>
+          {t.icon}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export type BeeGroup = { key: string; genome: Genome; bees: Bee[]; princesses: number; drones: number };
+
+/** Regroupe les abeilles par espèce (active + inactive) ; chaque génome distinct reste une variante. */
+export function groupBees(bees: Bee[]): BeeGroup[] {
+  const groups = new Map<string, BeeGroup>();
+  for (const bee of bees) {
+    const key = bee.genome.species.join('|');
+    let group = groups.get(key);
+    if (!group) {
+      group = { key, genome: bee.genome, bees: [], princesses: 0, drones: 0 };
+      groups.set(key, group);
+    }
+    group.bees.push(bee);
+    if (bee.type === 'princess') group.princesses += bee.count;
+    else group.drones += bee.count;
+  }
+  return [...groups.values()];
+}
+
+export function BeeTile({ group, onClick }: { group: BeeGroup; onClick: () => void }) {
+  const { content } = useGame();
+  const type: BeeType = group.princesses ? 'princess' : 'drone';
+  const counts = [group.princesses && `♀ ${fmt(group.princesses)}`, group.drones && `♂ ${fmt(group.drones)}`].filter(Boolean).join(' · ');
+  return (
+    <button className="bee-tile" onClick={onClick} title="Voir la fiche">
+      <GenomeIcon genome={group.genome} type={type} size={52} />
+      <span className="name">{content.species[group.genome.species[0]]?.label}</span>
+      <Traits genome={group.genome} />
+      <span className="count">{counts}</span>
+    </button>
+  );
+}
+
+/** Fiche complète d'un groupe d'abeilles : chaque variante avec son génome et ses actions. */
+export function BeeSheet({ group, onClose, actions }: { group: BeeGroup; onClose: () => void; actions?: (bee: Bee) => ReactNode }) {
+  const { content } = useGame();
+  const species = content.species[group.genome.species[0]];
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-label={species?.label} onClick={(e) => e.stopPropagation()}>
+        <div className="row between">
+          <div className="bee-head">
+            <GenomeIcon genome={group.genome} type="queen" size={56} />
+            <div>
+              <div className="card-title" style={{ font: '600 22px/1.2 var(--display)' }}>
+                {speciesName(content, group.genome)}
+              </div>
+              <div className="muted">
+                {species?.branch} · climat {content.temp_labels[species?.temp ?? 'normal']}
+              </div>
+            </div>
+          </div>
+          <button className="help-btn" aria-label="Fermer" onClick={onClose}>
+            ×
+          </button>
+        </div>
+        {group.bees.map((bee) => (
+          <div key={bee.id} className="variant">
+            <div className="row between">
+              <b>
+                {TYPE_LABELS[bee.type]} ×{fmt(bee.count)}
+              </b>
+              <Traits genome={bee.genome} />
+            </div>
+            <GenomeTable genome={bee.genome} />
+            {actions && <div className="actions">{actions(bee)}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

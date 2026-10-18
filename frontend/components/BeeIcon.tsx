@@ -53,7 +53,7 @@ export function BeeIcon({
   for (let y = 0; y < SPRITE.length; y++) {
     for (let x = 0; x < SPRITE[y].length; x++) {
       const fill = palette[SPRITE[y][x]];
-      if (fill) pixels.push(<rect key={`${x}-${y}`} x={x} y={y} width={1.02} height={1.02} fill={unknown ? '#3a3226' : fill} />);
+      if (fill) pixels.push(<rect key={`${x}-${y}`} x={x} y={y} width={1.02} height={1.02} fill={fill} style={unknown ? { fill: 'var(--unknown)' } : undefined} />);
     }
   }
   return (

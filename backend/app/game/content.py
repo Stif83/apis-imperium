@@ -28,6 +28,22 @@ BIOMES = {
 # Ruches offertes au départ ; les autres biomes s'achètent en boutique
 STARTER_BIOMES = ["plains", "plains"]
 
+# Jardin masqué pour l'instant : ses offres et objectifs disparaissent, et les mutations qui
+# dépendaient d'un arbre ou des papillons prennent une condition de remplacement (GARDEN_FALLBACK).
+# Les données du jardin restent en base : repasser à True le rétablit tel quel.
+GARDEN_ENABLED = False
+GARDEN_FALLBACK = {
+    "blossom": {"phase": "day", "weather": "clear"},
+    "resinous": {"biome": "taiga"},
+    "syrupy": {"phase": "dawn_dusk"},
+    "citrus": {"biome": "jungle"},
+    "orchard": {"phase": "day", "hives_min": 3},
+    "sylvan": {"weather": "rain", "phase": "day"},
+    "ebon": {"phase": "night"},
+    "pollinator": {"discovered": 40},
+    "papillon": {"discovered": 60},
+}
+
 CHROMOSOMES = {
     "species": "Espèce",
     "speed": "Vitesse",
@@ -511,6 +527,8 @@ def _mutations():
     for m in out:
         m.setdefault("cond", {})
         m["chance"] = round(m["chance"] * MUTATION_RATE, 4)
+        if not GARDEN_ENABLED and ({"tree", "butterflies"} & set(m["cond"])):
+            m["cond"] = GARDEN_FALLBACK[m["result"]]
     return out
 
 
@@ -740,8 +758,8 @@ def _offers():
         out.append({"id": f"bee:{s}:princess", "kind": "bee", "species": s, "type": "princess", "honey": princess, **extra})
         out.append({"id": f"bee:{s}:drone", "kind": "bee", "species": s, "type": "drone", "honey": drone, **extra})
     out += [
-        *[{"id": f"sapling:{t}", "kind": "sapling", "species": t, "honey": 30} for t in BASE_TREES],
-        {"id": "plot", "kind": "plot", "honey": 150, "scale": 1.5, "free": STARTER_PLOTS},
+        *([{"id": f"sapling:{t}", "kind": "sapling", "species": t, "honey": 30} for t in BASE_TREES] if GARDEN_ENABLED else []),
+        *([{"id": "plot", "kind": "plot", "honey": 150, "scale": 1.5, "free": STARTER_PLOTS}] if GARDEN_ENABLED else []),
         {"id": "hive:apiary", "kind": "hive", "hive_type": "apiary", "honey": 80, "scale": 1.5, "free": len(STARTER_BIOMES)},
         {"id": "hive:alveary", "kind": "hive", "hive_type": "alveary", "honey": 1200, "items": {"wax": 40, "honeydew": 10}, "scale": 1.4},
         {"id": "item:frame_untreated", "kind": "item", "item": "frame_untreated", "honey": 30, "items": {"wax": 3}},
@@ -855,10 +873,11 @@ def _objectives():
 
     for n, honey in ((3, 150), (5, 400), (8, 1000), (12, 2500)):
         add(f"hives:{n}", f"Posséder {n} ruches", "hives", n, honey)
-    for n, honey in ((5, 100), (10, 300), (20, 800), (len(TREE_SPECIES), 2000)):
-        add(f"trees:{n}", f"Découvrir {n} espèces d'arbres", "trees", n, honey)
-    for n, honey in ((3, 100), (8, 300), (14, 800), (len(BUTTERFLIES), 2000)):
-        add(f"butterflies:{n}", f"Trouver {n} espèces de papillons", "butterflies", n, honey)
+    if GARDEN_ENABLED:
+        for n, honey in ((5, 100), (10, 300), (20, 800), (len(TREE_SPECIES), 2000)):
+            add(f"trees:{n}", f"Découvrir {n} espèces d'arbres", "trees", n, honey)
+        for n, honey in ((3, 100), (8, 300), (14, 800), (len(BUTTERFLIES), 2000)):
+            add(f"butterflies:{n}", f"Trouver {n} espèces de papillons", "butterflies", n, honey)
     for n, honey in ((5, 300), (15, 800), (30, 2000)):
         add(f"genes:{n}", f"Réunir {n} gènes dans la banque génétique", "genes", n, honey, {"labware": 5})
     return {o["id"]: o for o in out}
@@ -889,4 +908,5 @@ def public_content() -> dict:
         "garden": public_garden(),
         "world": public_world(),
         "objectives": list(OBJECTIVES.values()),
+        "garden_enabled": GARDEN_ENABLED,
     }

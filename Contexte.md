@@ -386,6 +386,50 @@ Non vérifié / à savoir :
 - La production des abeilles diurnes baisse un peu (repos la nuit, arrêt sous la pluie) : environ
   ×0,85 par rapport à la 1.3 sans abri ni gène de résistance.
 
+## Demande du 2026-10-18 (2) : direction artistique « Prairie douce »
+
+Trois pistes proposées en maquettes (https://claude.ai/artifact/TcrFHC6N5eDptrkQx5cHSv) ; choix : piste A,
+plus tous les changements communs.
+
+- Thème clair et arrondi, polices Fredoka (titres) et Nunito (texte) intégrées au build par
+  `next/font` : téléchargées une fois pendant `npm run build`, aucune requête externe à l'exécution.
+- L'en-tête prend la couleur du ciel selon l'heure du jeu (aube, jour, crépuscule, nuit).
+- Chaque ruche est une scène : ciel du moment, pluie ou neige du biome, abeilles qui volent quand
+  elle travaille, « Zzz » au repos. Statut en pastille, biome et modules en icônes.
+- Réserve regroupée par espèce (tuiles avec ♀/♂ et gènes notables en icônes) ; le génome complet
+  et la vente sont dans une fiche ouverte au clic. Seuls les gènes qui sortent de l'ordinaire
+  apparaissent en pastille (`notableTraits` dans `components/ui.tsx`).
+- Fête : une carte se retourne à chaque nouvelle espèce d'abeille, d'arbre ou de papillon ; « +N rayons »
+  s'envole à la récolte ; tampon « Accompli » dans le Carnet ; pastille rouge sur l'onglet Carnet
+  quand une récompense attend.
+- Textes d'aide derrière un bouton « ? » sur chaque page.
+
+Vérifié dans un navigateur en local : Rucher (nuit + orage), fiche d'abeille, Apidex, sans erreur
+console. Non vérifié à l'œil : Usine, Boutique, Génétique, Jardin, Communauté (seul le thème change).
+
+## Demande du 2026-10-18 (3) : autres pages, jardin masqué, mode nuit
+
+- **Pages refaites** dans le style « Prairie douce » :
+  - Boutique : onglets par section, une tuile par espèce avec boutons ♀ et ♂, choix de quantité
+    (×1, ×5, ×10), biome choisi par icône pour les ruches, onglet « Vendre » en tuiles.
+  - Usine : centrifugeuse dessinée qui tourne quand elle travaille, rayons en tuiles (sorties en
+    icônes, détail au survol), ressources en inventaire à cases.
+  - Génétique : écran de déblocage illustré, banque de gènes compacte, abeilles en tuiles, établi en
+    trois volets (génome, extraction, impression).
+  - Communauté : vitrines en étagère avec de grands sprites.
+- **Jardin masqué** : onglet et page retirés (la page reste dans l'historique git, commit `682c18e`).
+  Côté serveur, `GARDEN_ENABLED = False` dans `content.py` retire pousses, parcelles et objectifs du
+  jardin. Les 9 mutations qui dépendaient d'un arbre ou des papillons prennent une condition de
+  remplacement (`GARDEN_FALLBACK`). Les données du jardin restent en base : pour le rétablir,
+  repasser le drapeau à True et restaurer `frontend/app/jardin/page.tsx` depuis git.
+- **Mode nuit de l'affichage** : thème sombre complet. Par défaut il suit le réglage de l'appareil ;
+  un bouton dans l'en-tête bascule entre automatique, clair et nuit. Le choix est gardé dans le
+  navigateur et appliqué avant le premier affichage (pas de flash blanc).
+
+Vérifié : 22 tests ; build ; dans un navigateur, Boutique, Usine, Génétique (verrouillée et
+débloquée), Rucher, en clair et en nuit, sans erreur console. Non vérifié à l'œil : Communauté
+avec des vitrines publiées.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

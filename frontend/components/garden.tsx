@@ -42,7 +42,7 @@ function Sprite({ rows, palette, size, unknown }: { rows: string[]; palette: Rec
   for (let y = 0; y < rows.length; y++) {
     for (let x = 0; x < rows[y].length; x++) {
       const fill = palette[rows[y][x]];
-      if (fill) pixels.push(<rect key={`${x}-${y}`} x={x} y={y} width={1.02} height={1.02} fill={unknown ? '#3a3226' : fill} />);
+      if (fill) pixels.push(<rect key={`${x}-${y}`} x={x} y={y} width={1.02} height={1.02} fill={fill} style={unknown ? { fill: 'var(--unknown)' } : undefined} />);
     }
   }
   return (
