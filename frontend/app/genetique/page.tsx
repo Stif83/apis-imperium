@@ -48,10 +48,12 @@ export default function GeneticsPage() {
   const [gene, setGene] = useState('speed');
   const [target, setTarget] = useState('');
   const [genes, setGenes] = useState<Record<string, string>>({});
+  const [chain, setChain] = useState(false);
 
   const labware = state.inventory.labware ?? 0;
-  const job = lab.job;
-  const busy = !!job && job.ready_ms > now;
+  // Une opération terminée reste listée jusqu'au prochain rafraîchissement : on ne garde que celles en cours
+  const jobs = lab.jobs.filter((j) => j.ready_ms > now);
+  const busy = jobs.length >= lab.benches;
   const bees = state.bees.filter((b) => b.hive_id === null);
   const canExtract = (c: string) => level >= 1 && (current?.extract ?? []).includes(c);
   const canImprint = (c: string) => level >= 2 && !!current?.imprint && (current?.extract ?? []).includes(c);
@@ -73,20 +75,25 @@ export default function GeneticsPage() {
         </span>
       </span>
       <span className="lab-job">
-        {job && busy ? (
-          <>
+        <span className="muted">
+          Paillasses : {jobs.length} / {lab.benches} occupée{jobs.length > 1 ? 's' : ''}
+        </span>
+        {jobs.map((job, i) => (
+          <span key={i} className="lab-job">
             <span>
-              <b>{OPS[job.op]}</b>
+              <b>
+                {job.chain && '🔁 '}
+                {OPS[job.op]}
+              </b>
               {job.chromosome && job.allele && <span className="muted"> · {geneName(job.chromosome, job.allele)}</span>}
               <span className="muted"> · encore {Math.max(0, Math.ceil((job.ready_ms - now) / 1000))} s</span>
             </span>
             <span className="bar">
               <span style={{ display: 'block', height: '100%', background: 'var(--accent)', width: `${Math.min(100, (100 * (now - job.start_ms)) / (job.ready_ms - job.start_ms))}%` }} />
             </span>
-          </>
-        ) : (
-          <span className="muted">{lab.log[0] ?? 'Paillasse libre.'}</span>
-        )}
+          </span>
+        ))}
+        {jobs.length === 0 && <span className="muted">{lab.log[0] ?? 'Paillasse libre.'}</span>}
       </span>
       <span className="row">
         <span className="chip" title="Verrerie de laboratoire : une par opération">
@@ -148,6 +155,14 @@ export default function GeneticsPage() {
             {content.lab.extract_seconds / 60} min · 1 verrerie
           </span>
         </div>
+        {lab.chain ? (
+          <label className="row muted">
+            <input type="checkbox" checked={chain} onChange={(e) => setChain(e.target.checked)} />
+            🔁 En chaîne : la paillasse reprend une abeille de la même pile jusqu'au gène complet (ou plus d'abeille ou de verrerie)
+          </label>
+        ) : (
+          <span className="muted">L'extraction en chaîne s'obtient avec le passeur d'échantillons (onglet Laboratoire).</span>
+        )}
         {rows.length === 0 && <p className="muted">Aucune abeille en réserve.</p>}
         <div className="bee-rows">
           {rows.map(({ bee, allele, need, got, doses }) => (
@@ -172,9 +187,9 @@ export default function GeneticsPage() {
               <button
                 className="primary compact"
                 disabled={busy || labware < 1}
-                onClick={() => act('/genetics/extract', { bee_id: bee.id, chromosome: chosen })}
+                onClick={() => act('/genetics/extract', { bee_id: bee.id, chromosome: chosen, chain: lab.chain && chain })}
               >
-                Extraire
+                {lab.chain && chain ? 'Extraire en chaîne' : 'Extraire'}
               </button>
             </div>
           ))}
@@ -361,6 +376,38 @@ export default function GeneticsPage() {
           );
         })}
       </div>
+      {level >= 1 && (
+        <>
+          <h2>Équipement</h2>
+          <div className="lab-ladder">
+            {(['lab_bench', 'lab_chain'] as const).map((id) => {
+              const offer = state.offers[`machine:${id}`];
+              const owned = state.machines[id] ?? 0;
+              return (
+                <div key={id} className="card lab-step">
+                  <div className="row between">
+                    <span className="title">
+                      {id === 'lab_bench' ? '🧪' : '🔁'} {content.machines[id].label}
+                    </span>
+                    {owned > 0 && <span className="badge ok">{id === 'lab_bench' ? `×${owned}` : 'Installé'}</span>}
+                  </div>
+                  <span className="muted">{content.machines[id].desc}</span>
+                  {offer.lock ? (
+                    <span className="muted">{offer.lock}</span>
+                  ) : (
+                    <>
+                      <CostView cost={offer.cost} />
+                      <button className="primary" onClick={() => act('/shop/buy', { offer_id: `machine:${id}` })}>
+                        Acheter
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
       <h2>Journal</h2>
       {lab.log.length === 0 && <p className="muted">Aucune opération pour l'instant.</p>}
       <div className="bee-rows">
@@ -378,7 +425,8 @@ export default function GeneticsPage() {
       <PageHead title="Génétique">
         Le laboratoire se construit en trois niveaux. <b>Extraire</b> sacrifie une abeille et donne un fragment de son gène actif ;
         il faut réunir 2 à 8 fragments selon la rareté, et une extraction sur trois échoue. Un gène complet offre {content.lab.doses}{' '}
-        doses. <b>Imprimer</b> (niveau 2) remplace la copie active d'un gène et consomme une dose. Une seule opération à la fois.
+        doses. <b>Imprimer</b> (niveau 2) remplace la copie active d'un gène et consomme une dose. Chaque paillasse mène une
+        opération à la fois : achetez-en d'autres pour travailler en parallèle.
       </PageHead>
       {status}
       <div className="row tabs">

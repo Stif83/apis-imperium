@@ -576,3 +576,70 @@ def test_automation_reuses_the_installed_drone(game):
     game.update_hive(hive.id, None, None, reuse_drone=False)
     game.advance(hive.queen["health"])
     assert _bee(game, "drone", "meadows").count == stock - 1
+
+
+def _lab_ready(game):
+    game.p.honey = 1_000_000
+    for item, n in {"wax": 500, "propolis": 500, "royal_jelly": 100, "labware": 100}.items():
+        game.add_item(item, n)
+    for species in list(C.SPECIES)[:20]:
+        game.discover(G.pure_genome(species))
+    game.upgrade_lab()
+
+
+def test_lab_benches_run_in_parallel(game):
+    from app.game import lab as LAB
+
+    _lab_ready(game)
+    game.add_bee("drone", G.pure_genome("forest"), 10)
+    t = 1_000_000
+    game.extract_gene(_bee(game, "drone", "forest").id, "fertility", now=t)
+    with pytest.raises(GameError):
+        game.extract_gene(_bee(game, "drone", "forest").id, "speed", now=t)
+    game.buy("machine:lab_bench")
+    game.extract_gene(_bee(game, "drone", "forest").id, "speed", now=t)
+    assert len(game._lab_state()["jobs"]) == 2 and game.lab_benches == 2
+    game.lab_tick(t + LAB.EXTRACT_SECONDS * 1000)
+    assert game._lab_state()["jobs"] == []
+    # Prix croissant, quatre paillasses en plus au maximum
+    for _ in range(3):
+        game.buy("machine:lab_bench")
+    assert game.lab_benches == 5
+    with pytest.raises(GameError):
+        game.buy("machine:lab_bench")
+
+    # Une sauvegarde d'avant les paillasses (un seul « job ») reste lisible
+    game.p.lab = {"fragments": {}, "log": [], "job": {"op": "replicate", "chromosome": "speed", "allele": "slowest",
+                                                      "start_ms": t, "ready_ms": t + 1}}
+    game.lab_tick(t + 10)
+    assert ("speed", "slowest") in game.genes
+
+
+def test_chain_extraction(game):
+    from app.game import lab as LAB
+
+    _lab_ready(game)
+    game.add_bee("drone", G.pure_genome("forest"), 30)
+    t = 1_000_000
+    with pytest.raises(GameError):
+        game.extract_gene(_bee(game, "drone", "forest").id, "fertility", now=t, chain=True)
+    game.buy("machine:lab_chain")
+    with pytest.raises(GameError):
+        game.buy("machine:lab_chain")
+    stock = _bee(game, "drone", "forest").count
+    labware = game.qty("labware")
+    game.extract_gene(_bee(game, "drone", "forest").id, "fertility", now=t, chain=True)
+    # Tout se déroule hors ligne : une seule lecture, longtemps après
+    game.lab_tick(t + 100 * LAB.EXTRACT_SECONDS * 1000)
+    assert game.gene_rows[("fertility", "3")].doses == LAB.DOSES
+    used = stock - _bee(game, "drone", "forest").count
+    assert used >= LAB.fragments_needed("fertility", "3")
+    assert game.qty("labware") == labware - used
+    assert game._lab_state()["jobs"] == []
+
+    # Sans verrerie, la chaîne s'arrête d'elle-même
+    game.take_item("labware", game.qty("labware") - 1)
+    game.extract_gene(_bee(game, "drone", "forest").id, "speed", now=t, chain=True)
+    game.lab_tick(t + 100 * LAB.EXTRACT_SECONDS * 1000)
+    lab = game._lab_state()
+    assert lab["jobs"] == [] and lab["log"][0].startswith("Chaîne arrêtée (plus de verrerie)")

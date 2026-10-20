@@ -582,6 +582,8 @@ class Game:
             return f"Découvrez {need} espèces ({len(self.discovered)}/{need})."
         if offer.get("requires_unlock") == "genetics" and (self.p.lab_level or 0) < 1:
             return "Nécessite le laboratoire de génétique."
+        if offer["kind"] == "machine" and "max" in offer and self._machine_qty(offer["machine"]) >= offer["max"]:
+            return "Maximum atteint."
         return None
 
     def buy(self, offer_id: str, qty: int = 1, biome: str = "plains") -> None:
@@ -682,8 +684,18 @@ class Game:
         lab = dict(self.p.lab or {})
         lab.setdefault("fragments", {})
         lab.setdefault("log", [])
-        lab.setdefault("job", None)
+        # Avant les paillasses supplémentaires, une seule opération à la fois
+        old = lab.pop("job", None)
+        lab["jobs"] = list(lab.get("jobs") or ([old] if old else []))
         return lab
+
+    def _machine_qty(self, machine_id: str) -> int:
+        machine = self.machines.get(machine_id)
+        return machine.qty if machine else 0
+
+    @property
+    def lab_benches(self) -> int:
+        return 1 + self._machine_qty("lab_bench")
 
     def _lab_log(self, lab: dict, text: str) -> None:
         lab["log"] = [text, *lab["log"]][: LAB.LOG_SIZE]
@@ -693,19 +705,27 @@ class Game:
         return f"{C.CHROMOSOMES[chromosome]} « {value} »"
 
     def _start_job(self, lab: dict, job: dict, seconds: int, now: int) -> None:
-        if lab["job"]:
-            raise GameError("Le laboratoire est occupé : attendez la fin de l'opération en cours.")
-        lab["job"] = {**job, "start_ms": now, "ready_ms": now + seconds * 1000}
+        if len(lab["jobs"]) >= self.lab_benches:
+            raise GameError("Toutes les paillasses sont occupées : attendez la fin d'une opération.")
+        lab["jobs"].append({**job, "start_ms": now, "ready_ms": now + seconds * 1000})
 
     def lab_tick(self, now: int | None = None) -> None:
-        """Termine l'opération en cours si son temps est écoulé."""
+        """Termine, dans l'ordre, les opérations dont le temps est écoulé (et relance les chaînes)."""
+        now = now or now_ms()
         lab = self._lab_state()
-        job = lab["job"]
-        if not job or job["ready_ms"] > (now or now_ms()):
-            return
-        lab["job"] = None
+        done = False
+        while due := [j for j in lab["jobs"] if j["ready_ms"] <= now]:
+            job = min(due, key=lambda j: j["ready_ms"])
+            lab["jobs"].remove(job)
+            self._finish_job(lab, job)
+            done = True
+        if done:
+            self.p.lab = lab
+
+    def _finish_job(self, lab: dict, job: dict) -> None:
         chromosome, allele = job.get("chromosome"), job.get("allele")
         if job["op"] == "extract":
+            complete = False
             if self.rng.random() < LAB.EXTRACT_FAIL:
                 self._lab_log(lab, f"Extraction ratée : {self._gene_label(chromosome, allele)}. L'échantillon est perdu.")
             else:
@@ -713,6 +733,7 @@ class Game:
                 need = LAB.fragments_needed(chromosome, allele)
                 got = lab["fragments"].get(key, 0) + 1
                 if got >= need:
+                    complete = True
                     lab["fragments"].pop(key, None)
                     self._add_doses(chromosome, allele, LAB.DOSES)
                     A.unlock(self.p, "first_extract")
@@ -720,6 +741,8 @@ class Game:
                 else:
                     lab["fragments"][key] = got
                     self._lab_log(lab, f"Fragment obtenu : {self._gene_label(chromosome, allele)} ({got}/{need}).")
+            if job.get("chain") and not complete:
+                self._chain_next(lab, job)
         elif job["op"] == "imprint":
             self.add_bee(job["type"], job["genome"])
             A.unlock(self.p, "first_imprint")
@@ -727,7 +750,19 @@ class Game:
         elif job["op"] == "replicate":
             self._add_doses(chromosome, allele, LAB.DOSES)
             self._lab_log(lab, f"Réplication terminée : {self._gene_label(chromosome, allele)} (+{LAB.DOSES} doses).")
-        self.p.lab = lab
+
+    def _chain_next(self, lab: dict, job: dict) -> None:
+        """Extraction en chaîne : la paillasse reprend une abeille identique dès que la précédente est traitée."""
+        bee = next((b for b in self.bees if b.hive_id is None and b.type == job["bee_type"]
+                    and b.genome_hash == job["bee_hash"] and b.count > 0), None)
+        if bee is None or self.qty("labware") < 1:
+            reason = "plus d'abeille identique en réserve" if bee is None else "plus de verrerie"
+            self._lab_log(lab, f"Chaîne arrêtée ({reason}) : {self._gene_label(job['chromosome'], job['allele'])}.")
+            return
+        self.take_item("labware", 1)
+        self._take_bee(bee)
+        start = job["ready_ms"]
+        lab["jobs"].append({**job, "start_ms": start, "ready_ms": start + LAB.EXTRACT_SECONDS * 1000})
 
     def _add_doses(self, chromosome: str, allele: str, n: int) -> None:
         row = self.gene_rows.get((chromosome, allele))
@@ -749,7 +784,7 @@ class Game:
         self.p.lab_level = level
         self.p.genetics_unlocked = True
 
-    def extract_gene(self, bee_id: str, chromosome: str, now: int | None = None) -> None:
+    def extract_gene(self, bee_id: str, chromosome: str, now: int | None = None, chain: bool = False) -> None:
         now = now or now_ms()
         self.lab_tick(now)
         self._require_lab(1)
@@ -757,10 +792,15 @@ class Game:
             raise GameError("Chromosome inconnu.")
         if not LAB.can_extract(self.lab_level, chromosome):
             raise GameError("Ce gène demande un laboratoire plus avancé.")
+        if chain and not self._machine_qty("lab_chain"):
+            raise GameError("L'extraction en chaîne demande le passeur d'échantillons.")
         lab = self._lab_state()
         bee = self._bee(bee_id)
         allele = G.normalize(bee.genome)[chromosome][0]
-        self._start_job(lab, {"op": "extract", "chromosome": chromosome, "allele": allele}, LAB.EXTRACT_SECONDS, now)
+        job = {"op": "extract", "chromosome": chromosome, "allele": allele}
+        if chain:
+            job.update(chain=True, bee_type=bee.type, bee_hash=bee.genome_hash)
+        self._start_job(lab, job, LAB.EXTRACT_SECONDS, now)
         self.take_item("labware", 1)
         self._take_bee(bee)
         self.p.lab = lab
@@ -934,7 +974,7 @@ class Game:
                 "honey": self.p.honey,
                 "genetics_unlocked": self.lab_level >= 1,
             },
-            "lab": {**self._lab_state(), "level": self.lab_level},
+            "lab": {**self._lab_state(), "level": self.lab_level, "benches": self.lab_benches, "chain": self._machine_qty("lab_chain") > 0},
             "gene_bank": {c: {a: row.doses for (cc, a), row in sorted(self.gene_rows.items()) if cc == c} for c in C.CHROMOSOMES},
             "server_time": t,
             "cycle_seconds": settings.cycle_seconds,

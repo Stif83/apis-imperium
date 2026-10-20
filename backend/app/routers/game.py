@@ -64,6 +64,7 @@ class SellSpecimenIn(BaseModel):
 class ExtractIn(BaseModel):
     bee_id: str
     chromosome: str
+    chain: bool = False
 
 
 class ImprintIn(BaseModel):
@@ -216,7 +217,7 @@ def sell_specimen(body: SellSpecimenIn, game: Game = Depends(current_game)):
 
 @router.post("/genetics/extract")
 def extract(body: ExtractIn, game: Game = Depends(current_game)):
-    game.extract_gene(body.bee_id, body.chromosome)
+    game.extract_gene(body.bee_id, body.chromosome, chain=body.chain)
     return _done(game)
 
 

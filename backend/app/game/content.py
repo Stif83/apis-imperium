@@ -742,6 +742,9 @@ SLOT_SCALE = 1.5
 
 MACHINES = {
     "centrifuge": {"label": "Centrifugeuse automatique", "desc": "Traite 1 rayon par cycle, sans intervention."},
+    "lab_bench": {"label": "Paillasse supplémentaire", "desc": "Une opération de plus en même temps au laboratoire."},
+    "lab_chain": {"label": "Passeur d'échantillons",
+                  "desc": "Extraction en chaîne : la paillasse reprend une abeille de la même pile jusqu'au gène complet."},
 }
 
 BEE_SELL = {"drone": 2, "princess": 10}
@@ -779,6 +782,10 @@ def _offers():
         {"id": "item:alveary_automation", "kind": "item", "item": "alveary_automation", "honey": 1000, "items": {"wax": 20, "propolis": 20}},
         {"id": "machine:centrifuge", "kind": "machine", "machine": "centrifuge", "honey": 250, "items": {"wax": 10}, "scale": 1.6},
         {"id": "item:labware", "kind": "item", "item": "labware", "honey": 20, "requires_unlock": "genetics"},
+        {"id": "machine:lab_bench", "kind": "machine", "machine": "lab_bench", "honey": 1500, "items": {"wax": 20, "propolis": 10},
+         "scale": 1.8, "max": 4, "requires_unlock": "genetics"},
+        {"id": "machine:lab_chain", "kind": "machine", "machine": "lab_chain", "honey": 4000, "items": {"propolis": 20, "royal_jelly": 5},
+         "max": 1, "requires_unlock": "genetics"},
     ]
     return {o["id"]: o for o in out}
 

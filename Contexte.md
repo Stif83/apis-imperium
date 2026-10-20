@@ -556,6 +556,19 @@ d'alvéaires possédés. La ruche garde reine, abeilles en attente, récolte, ca
 - Vérifié : 29 tests, types du frontend, pods prêts en 1.4.1, page d'accueil en 200, l'API sert
   168 espèces et 33 recettes. Non vérifié : l'interface dans un navigateur.
 
+## Déploiement 1.4.2 (2026-10-20)
+
+- Laboratoire : paillasses supplémentaires (machine `lab_bench`, 4 au plus, 1 500 miel ×1,8 par achat
+  + 20 cire + 10 propolis). Chaque paillasse mène une opération ; `lab.job` devient la liste `lab.jobs`
+  (une ancienne sauvegarde est convertie à la lecture, pas de migration).
+- Passeur d'échantillons (machine `lab_chain`, achat unique, 4 000 miel + 20 propolis + 5 gelée royale) :
+  extraction en chaîne sur la même pile d'abeilles, jusqu'au gène complet ou à court d'abeilles ou de
+  verrerie. Les extractions enchaînées hors ligne sont rattrapées dans l'ordre par `lab_tick`.
+- Images backend et frontend 1.4.2 ; PostgreSQL inchangé (1.3.0). Sauvegarde :
+  `dist/sauvegardes/apisimperium-avant-1.4.2-20261020.sql`.
+- Vérifié : 31 tests, types du frontend, pods prêts en 1.4.2, page d'accueil en 200, l'API sert les
+  machines `lab_bench` et `lab_chain`. Non vérifié : l'interface dans un navigateur.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

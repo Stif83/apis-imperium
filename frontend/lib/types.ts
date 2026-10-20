@@ -129,7 +129,10 @@ export type GameState = {
   stats: Record<string, number>;
   lab: {
     level: number;
-    job: { op: 'extract' | 'imprint' | 'replicate'; chromosome?: string; allele?: string; start_ms: number; ready_ms: number } | null;
+    /** Une opération par paillasse occupée ; chain = extraction en chaîne */
+    jobs: { op: 'extract' | 'imprint' | 'replicate'; chromosome?: string; allele?: string; chain?: boolean; start_ms: number; ready_ms: number }[];
+    benches: number;
+    chain: boolean;
     fragments: Record<string, number>;
     log: string[];
   };
