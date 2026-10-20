@@ -249,6 +249,11 @@ def test_shop_prices_scale_and_locks(game):
     first = game.offer_cost(C.OFFERS["hive:apiary"])["honey"]
     game.buy("hive:apiary")
     assert game.offer_cost(C.OFFERS["hive:apiary"])["honey"] > first
+    # Les ressources demandées suivent la même hausse que le miel
+    game.p.honey = 10_000
+    game.add_item("wax", 100)
+    game.buy("machine:centrifuge")
+    assert game.offer_cost(C.OFFERS["machine:centrifuge"]) == {"honey": 400, "items": {"wax": 16}}
     with pytest.raises(GameError):
         game.buy("bee:steadfast:princess")
     game.p.honey = 0
@@ -643,3 +648,34 @@ def test_chain_extraction(game):
     game.lab_tick(t + 100 * LAB.EXTRACT_SECONDS * 1000)
     lab = game._lab_state()
     assert lab["jobs"] == [] and lab["log"][0].startswith("Chaîne arrêtée (plus de verrerie)")
+
+
+def test_modules_wear_out(game):
+    game.p.honey = 10_000
+    game.add_item("wax", 100)
+    game.buy("item:hive_automation")
+    game.buy("item:frame_untreated", 2)
+    hive = game.hives[0]
+    game.add_module(hive.id, "hive_automation")
+    game.add_module(hive.id, "frame_untreated")
+    assert game.state()["hives"][0]["wear"] == [100, 5]
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
+
+    # Deux générations, puis on démonte le cadre : il garde son usure
+    for _ in range(2):
+        game.advance(hive.queen["health"])
+    assert hive.queen["generation"] == 3
+    assert game._wear(hive) == [98, 3]
+    game.remove_module(hive.id, 1)
+    assert game.p.worn_modules == {"frame_untreated": [3]}
+    # Le cadre entamé repasse en premier, le neuf reste en réserve
+    game.add_module(hive.id, "frame_untreated")
+    assert game._wear(hive) == [98, 3] and not game.p.worn_modules
+    assert game.qty("frame_untreated") == 1
+
+    # Trois générations de plus : le cadre est usé et disparaît, l'automatisation continue
+    for _ in range(3):
+        game.advance(hive.queen["health"])
+    assert hive.modules == ["hive_automation"] and game._wear(hive) == [95]
+    assert hive.queen is not None
+    assert game.qty("frame_untreated") == 1

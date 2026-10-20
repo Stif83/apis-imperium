@@ -44,7 +44,8 @@ export type Content = {
   items: Record<string, Item>;
   recipes: Record<string, [string, number, number][]>;
   manual_batch: number;
-  modules: Record<string, { frame: boolean; desc: string }>;
+  /** uses : générations avant usure (absent = inusable) */
+  modules: Record<string, { frame: boolean; desc: string; uses?: number }>;
   hive_types: Record<string, { label: string; slots: number; max_slots: number; frames_only: boolean; production: number }>;
   machines: Record<string, { label: string; desc: string }>;
   offers: Offer[];
@@ -108,6 +109,8 @@ export type Hive = {
   slot_cost: number | null;
   upgrade_cost: Cost | null;
   modules: string[];
+  /** Générations restantes de chaque module monté (null = inusable) */
+  wear: (number | null)[];
   queen: Queen | null;
   output: Record<string, number>;
   keep_drones: boolean;
@@ -138,6 +141,8 @@ export type GameState = {
   };
   gene_bank: Record<string, Record<string, number>>;
   inventory: Record<string, number>;
+  /** Exemplaires démontés entamés : générations restantes */
+  worn_modules: Record<string, number[]>;
   bees: Bee[];
   hives: Hive[];
   machines: Record<string, number>;

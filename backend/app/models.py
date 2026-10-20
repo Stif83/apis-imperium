@@ -30,6 +30,8 @@ class Player(Base):
     # Compteurs (rayons récoltés, miel gagné…) et succès débloqués {id: horodatage ms}
     stats: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     achievements: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Modules démontés avant d'être usés : {module: [générations restantes, ...]}, pris en premier au remontage
+    worn_modules: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -410,7 +410,30 @@ class Game:
                 self.add_bee("princess", princess, hive_id=hive.id)
                 for drone in drones:
                     self.add_bee("drone", drone, hive_id=hive.id)
+            if self._wear_modules(hive):
+                mods = self._mods(hive)
+                auto = mods["automation"]
         hive.output = out
+
+    def _wear(self, hive: Hive) -> list[int | None]:
+        """Générations restantes de chaque module monté, dans l'ordre de hive.modules (None = inusable)."""
+        modules = hive.modules or []
+        wear = list((hive.settings or {}).get("wear") or [])[: len(modules)]
+        # Modules montés avant l'usure : ils démarrent neufs
+        return wear + [C.MODULES.get(m, {}).get("uses") for m in modules[len(wear):]]
+
+    def _set_wear(self, hive: Hive, wear: list[int | None]) -> None:
+        hive.settings = {**(hive.settings or {}), "wear": wear}
+
+    def _wear_modules(self, hive: Hive) -> bool:
+        """Une génération de plus pour chaque module usable ; ceux arrivés à zéro disparaissent."""
+        modules, wear = list(hive.modules or []), self._wear(hive)
+        if all(w is None for w in wear):
+            return False
+        kept = [(m, None if w is None else w - 1) for m, w in zip(modules, wear) if w is None or w > 1]
+        hive.modules = [m for m, _ in kept]
+        self._set_wear(hive, [w for _, w in kept])
+        return len(kept) < len(modules)
 
     def _line_drone(self, hive: Hive) -> Bee | None:
         """Pile de réserve du faux-bourdon installé dans la ruche, si on doit la réutiliser et qu'elle existe encore."""
@@ -491,16 +514,30 @@ class Game:
             raise GameError("Plus d'emplacement libre dans cette ruche.")
         if C.HIVE_TYPES[hive.hive_type]["frames_only"] and not C.MODULES[module]["frame"]:
             raise GameError("Ce module ne se monte que dans un alvéaire.")
+        wear = self._wear(hive)
         self.take_item(module, 1)
+        # Un exemplaire démonté entamé repart avec son usure : on l'utilise en premier
+        worn = dict(self.p.worn_modules or {})
+        spare = sorted(worn.get(module, []))
+        uses = spare.pop(0) if spare else C.MODULES[module].get("uses")
+        worn[module] = spare
+        self.p.worn_modules = {m: v for m, v in worn.items() if v}
         hive.modules = [*(hive.modules or []), module]
+        self._set_wear(hive, [*wear, uses])
 
     def remove_module(self, hive_id: str, index: int) -> None:
         hive = self._hive(hive_id)
-        modules = list(hive.modules or [])
+        modules, wear = list(hive.modules or []), self._wear(hive)
         if not 0 <= index < len(modules):
             raise GameError("Emplacement vide.")
-        self.add_item(modules.pop(index), 1)
+        module, uses = modules.pop(index), wear.pop(index)
+        self.add_item(module, 1)
+        if uses is not None and uses < C.MODULES[module]["uses"]:
+            worn = dict(self.p.worn_modules or {})
+            worn[module] = [*worn.get(module, []), uses]
+            self.p.worn_modules = worn
         hive.modules = modules
+        self._set_wear(hive, wear)
 
     def slot_cost(self, hive: Hive) -> int | None:
         spec = C.HIVE_TYPES[hive.hive_type]
@@ -573,8 +610,10 @@ class Game:
             owned = machine.qty if machine else 0
         elif offer["kind"] == "plot":
             owned = len(self.plots) - offer.get("free", 0)
-        honey = round(offer["honey"] * offer.get("scale", 1) ** max(0, owned))
-        return {"honey": honey, "items": dict(offer.get("items", {}))}
+        # Le miel et les ressources augmentent ensemble à chaque exemplaire possédé
+        factor = offer.get("scale", 1) ** max(0, owned)
+        items = {item: round(n * factor) for item, n in offer.get("items", {}).items()}
+        return {"honey": round(offer["honey"] * factor), "items": items}
 
     def offer_lock(self, offer: dict) -> str | None:
         need = offer.get("min_species", 0)
@@ -956,6 +995,7 @@ class Game:
                 "slot_cost": self.slot_cost(hive),
                 "upgrade_cost": self.upgrade_cost(hive),
                 "modules": hive.modules or [],
+                "wear": self._wear(hive),
                 "queen": queen,
                 "output": hive.output or {},
                 "keep_drones": bool((hive.settings or {}).get("keep_drones")),
@@ -987,6 +1027,7 @@ class Game:
                 for oid, o in C.OBJECTIVES.items()
             },
             "inventory": {item: row.qty for item, row in self.inv.items() if row.qty > 0},
+            "worn_modules": self.p.worn_modules or {},
             "bees": [
                 {"id": b.id, "type": b.type, "genome": b.genome, "count": b.count, "hive_id": b.hive_id}
                 for b in self.bees

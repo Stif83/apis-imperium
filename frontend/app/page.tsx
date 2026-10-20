@@ -307,17 +307,26 @@ function HiveCard({ hive }: { hive: Hive }) {
                 <span key={i} className="slot filled" title={content.modules[m]?.desc}>
                   <ItemIcon id={m} size={14} />
                   {content.items[m]?.label ?? m}
-                  <button className="small" title="Démonter" onClick={() => act(`/hives/${hive.id}/modules/${i}`, undefined, 'DELETE')}>
+                  {hive.wear[i] != null && (
+                    <span className={`badge${hive.wear[i]! <= 1 ? ' warn' : ''}`} title="Générations restantes avant usure">
+                      {hive.wear[i]}/{content.modules[m]?.uses} gén.
+                    </span>
+                  )}
+                  <button className="small" title="Démonter (il garde son usure)" onClick={() => act(`/hives/${hive.id}/modules/${i}`, undefined, 'DELETE')}>
                     ×
                   </button>
                 </span>
               ))}
               {hive.modules.length < hive.slots &&
-                fittable.map((m) => (
-                  <button key={m} className="small" title={content.modules[m].desc} onClick={() => act(`/hives/${hive.id}/modules`, { module_id: m })}>
-                    + {content.items[m].label} (×{state.inventory[m]})
-                  </button>
-                ))}
+                fittable.map((m) => {
+                  const spare = state.worn_modules[m] ?? [];
+                  return (
+                    <button key={m} className="small" title={content.modules[m].desc} onClick={() => act(`/hives/${hive.id}/modules`, { module_id: m })}>
+                      + {content.items[m].label} (×{state.inventory[m]})
+                      {spare.length > 0 && ` · entamé : ${Math.min(...spare)} gén.`}
+                    </button>
+                  );
+                })}
               {hive.modules.length === 0 && fittable.length === 0 && (
                 <span className="muted">Aucun cadre monté. Les cadres s'achètent en boutique.</span>
               )}

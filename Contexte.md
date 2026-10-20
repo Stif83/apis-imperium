@@ -558,8 +558,8 @@ d'alvéaires possédés. La ruche garde reine, abeilles en attente, récolte, ca
 
 ## Déploiement 1.4.2 (2026-10-20)
 
-- Laboratoire : paillasses supplémentaires (machine `lab_bench`, 4 au plus, 1 500 miel ×1,8 par achat
-  + 20 cire + 10 propolis). Chaque paillasse mène une opération ; `lab.job` devient la liste `lab.jobs`
+- Laboratoire : paillasses supplémentaires (machine `lab_bench`, 4 au plus, 1 500 miel
+  + 20 cire + 10 propolis, le tout ×1,8 par achat). Chaque paillasse mène une opération ; `lab.job` devient la liste `lab.jobs`
   (une ancienne sauvegarde est convertie à la lecture, pas de migration).
 - Passeur d'échantillons (machine `lab_chain`, achat unique, 4 000 miel + 20 propolis + 5 gelée royale) :
   extraction en chaîne sur la même pile d'abeilles, jusqu'au gène complet ou à court d'abeilles ou de
@@ -568,6 +568,35 @@ d'alvéaires possédés. La ruche garde reine, abeilles en attente, récolte, ca
   `dist/sauvegardes/apisimperium-avant-1.4.2-20261020.sql`.
 - Vérifié : 31 tests, types du frontend, pods prêts en 1.4.2, page d'accueil en 200, l'API sert les
   machines `lab_bench` et `lab_chain`. Non vérifié : l'interface dans un navigateur.
+
+## Demande du 2026-10-20 : hausse des prix sur les ressources
+
+- `offer_cost` : le coefficient de hausse (`scale`) s'applique maintenant aux ressources demandées,
+  plus seulement au miel (arrondi à l'unité). Concerne les paillasses (×1,8), centrifugeuses (×1,6) et
+  alvéaires, y compris l'évolution d'un rucher (×1,4). Le rucher ne demande que du miel.
+
+## Demande du 2026-10-20 : durée de vie des cadres et modules
+
+- `MODULES[...]["uses"]` : générations (morts de reine) avant usure. 5 pour les trois cadres de production,
+  le module de production d'alvéaire et le Mutateur ; 100 pour le module d'élevage automatique ; 300 pour
+  le module d'automatisation d'alvéaire (même effet que le module d'élevage, d'où cette durabilité pour
+  justifier son prix). Lanterne, abri, chauffage, ventilateur, stabilisateur, accélération : inusables.
+- Usure des modules montés : `hive.settings["wear"]`, aligné sur `hive.modules` ; un module monté avant
+  cette version démarre neuf. Un module arrivé à zéro disparaît ; si c'était l'automatisation, la
+  génération suivante repasse en manuel.
+- Un module démonté entamé garde son usure (`players.worn_modules`, migration 0006) et repasse en premier
+  au remontage : impossible de remettre un cadre à neuf en le démontant.
+
+## Déploiement 1.4.3 (2026-10-20)
+
+- Contenu : hausse des prix sur les ressources et durée de vie des cadres et modules (voir les deux
+  sections ci-dessus).
+- Images backend et frontend 1.4.3 ; PostgreSQL inchangé (1.3.0). Sauvegarde :
+  `dist/sauvegardes/apisimperium-avant-1.4.3-20261020.sql`. Migration 0005 → 0006 appliquée au
+  démarrage du backend.
+- Vérifié : 32 tests, migration sur une base vide, types du frontend, pods prêts en 1.4.3, page
+  d'accueil en 200, l'API sert la durée de vie des sept modules concernés. Non vérifié : l'interface
+  dans un navigateur.
 
 ## Questions pour toi
 

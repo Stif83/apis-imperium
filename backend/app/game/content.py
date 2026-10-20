@@ -715,22 +715,24 @@ RECIPES = {
 # Centrifugation à la main : un rayon par geste (appui maintenu côté interface)
 MANUAL_BATCH = 1
 
-# Effets : production / lifespan / mutation sont des multiplicateurs, temp un décalage
+# Effets : production / lifespan / mutation sont des multiplicateurs, temp un décalage.
+# "uses" : nombre de générations (morts de reine) avant que le module s'use et disparaisse ; absent = inusable.
 MODULES = {
-    "frame_untreated": {"frame": True, "effects": {"production": 1.4}, "desc": "Production ×1,4"},
-    "frame_impregnated": {"frame": True, "effects": {"production": 1.8}, "desc": "Production ×1,8"},
-    "frame_proven": {"frame": True, "effects": {"production": 2.2}, "desc": "Production ×2,2"},
+    "frame_untreated": {"frame": True, "effects": {"production": 1.4}, "desc": "Production ×1,4", "uses": 5},
+    "frame_impregnated": {"frame": True, "effects": {"production": 1.8}, "desc": "Production ×1,8", "uses": 5},
+    "frame_proven": {"frame": True, "effects": {"production": 2.2}, "desc": "Production ×2,2", "uses": 5},
     # "frame" signifie ici : se monte aussi dans un simple rucher
-    "hive_automation": {"frame": True, "effects": {"automation": True}, "desc": "Récolte automatique ; à la mort de la reine, sa princesse est accouplée et réinstallée toute seule"},
+    "hive_automation": {"frame": True, "effects": {"automation": True}, "desc": "Récolte automatique ; à la mort de la reine, sa princesse est accouplée et réinstallée toute seule", "uses": 100},
     "hive_lantern": {"frame": True, "effects": {"light": True}, "desc": "Les abeilles travaillent à toute heure, quel que soit leur gène d'activité"},
     "hive_shelter": {"frame": True, "effects": {"shelter": True}, "desc": "Les abeilles travaillent sous la pluie, l'orage et la neige"},
     "alveary_heater": {"frame": False, "effects": {"temp": 1}, "desc": "Température +1 palier"},
     "alveary_fan": {"frame": False, "effects": {"temp": -1}, "desc": "Température −1 palier"},
     "alveary_stabiliser": {"frame": False, "effects": {"mutation": 0.0}, "desc": "Empêche toute mutation"},
-    "alveary_mutator": {"frame": False, "effects": {"mutation": 2.0}, "desc": "Chance de mutation ×2"},
-    "alveary_production": {"frame": False, "effects": {"production": 1.5}, "desc": "Production ×1,5"},
+    "alveary_mutator": {"frame": False, "effects": {"mutation": 2.0}, "desc": "Chance de mutation ×2", "uses": 5},
+    "alveary_production": {"frame": False, "effects": {"production": 1.5}, "desc": "Production ×1,5", "uses": 5},
     "alveary_lifespan": {"frame": False, "effects": {"lifespan": 0.6}, "desc": "Durée de vie ×0,6 (générations plus rapides)"},
-    "alveary_automation": {"frame": False, "effects": {"automation": True}, "desc": "Récolte et renouvellement de la reine automatiques"},
+    # Même effet que le module d'élevage, mais trois fois plus durable : il justifie son prix
+    "alveary_automation": {"frame": False, "effects": {"automation": True}, "desc": "Récolte et renouvellement de la reine automatiques, très durable", "uses": 300},
 }
 
 HIVE_TYPES = {

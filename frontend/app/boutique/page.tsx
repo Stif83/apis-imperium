@@ -109,6 +109,7 @@ function ItemOffer({ offer, qty }: { offer: Offer; qty: number }) {
     title = content.items[offer.item].label;
     const module = content.modules[offer.item];
     desc = module?.desc ?? 'Consommée à chaque opération du laboratoire.';
+    if (module?.uses) desc += ` · s'use en ${module.uses} générations`;
     if (module) tag = module.frame ? 'Rucher et alvéaire' : 'Alvéaire';
   } else if (offer.kind === 'machine' && offer.machine) {
     icon = <span style={{ fontSize: 34 }}>⚙️</span>;
