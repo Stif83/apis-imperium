@@ -43,6 +43,7 @@ class ModuleIn(BaseModel):
 class HiveIn(BaseModel):
     name: str | None = None
     keep_drones: bool | None = None
+    reuse_drone: bool | None = None
 
 
 class ProcessIn(BaseModel):
@@ -185,7 +186,7 @@ def expand(hive_id: str, game: Game = Depends(current_game)):
 
 @router.post("/hives/{hive_id}")
 def update_hive(hive_id: str, body: HiveIn, game: Game = Depends(current_game)):
-    game.update_hive(hive_id, body.name, body.keep_drones)
+    game.update_hive(hive_id, body.name, body.keep_drones, body.reuse_drone)
     return _done(game)
 
 

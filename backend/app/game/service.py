@@ -394,15 +394,31 @@ class Game:
             if auto:
                 self.discover(princess)
                 self.discover(drones[0])
-                self._make_queen(hive, princess, drones[0], queen.get("generation", 1) + 1, mods)
+                # Tant qu'il en reste en réserve, le faux-bourdon installé repart avec la nouvelle reine :
+                # la lignée se rapproche génération après génération de son espèce
+                stock = self._line_drone(hive)
+                if stock:
+                    mate, spare = stock.genome, drones
+                    self._take_bee(stock)
+                else:
+                    mate, spare = drones[0], drones[1:]
+                self._make_queen(hive, princess, mate, queen.get("generation", 1) + 1, mods)
                 if (hive.settings or {}).get("keep_drones"):
-                    for drone in drones[1:]:
+                    for drone in spare:
                         self.add_bee("drone", drone)
             else:
                 self.add_bee("princess", princess, hive_id=hive.id)
                 for drone in drones:
                     self.add_bee("drone", drone, hive_id=hive.id)
         hive.output = out
+
+    def _line_drone(self, hive: Hive) -> Bee | None:
+        """Pile de réserve du faux-bourdon installé dans la ruche, si on doit la réutiliser et qu'elle existe encore."""
+        opts = hive.settings or {}
+        line = opts.get("line_drone")
+        if not line or not opts.get("reuse_drone", True):
+            return None
+        return next((b for b in self.bees if b.type == "drone" and b.hive_id is None and b.genome_hash == line and b.count > 0), None)
 
     def _count_combs(self, n: int) -> None:
         total = A.bump(self.p, "combs", n)
@@ -438,6 +454,7 @@ class Game:
         if not G.climate_ok(G.normalize(princess.genome), mods["temp"]):
             raise GameError(f"Cette princesse ne supporte pas le climat de cette ruche ({C.TEMP_LABELS[mods['temp']]}).")
         princess_genome, drone_genome = princess.genome, drone.genome
+        hive.settings = {**(hive.settings or {}), "line_drone": drone.genome_hash}
         self._take_bee(princess)
         self._take_bee(drone)
         self._make_queen(hive, princess_genome, drone_genome, 1, mods)
@@ -524,7 +541,14 @@ class Game:
         if hive.name.startswith(f"{old} "):
             hive.name = f"{alveary['label']} {hive.name[len(old) + 1:]}"[:64]
 
-    def update_hive(self, hive_id: str, name: str | None, keep_drones: bool | None) -> None:
+    def _line_drone_state(self, hive: Hive) -> dict | None:
+        line = (hive.settings or {}).get("line_drone")
+        if not line:
+            return None
+        stock = next((b for b in self.bees if b.type == "drone" and b.hive_id is None and b.genome_hash == line), None)
+        return {"genome": stock.genome, "count": stock.count} if stock else {"genome": None, "count": 0}
+
+    def update_hive(self, hive_id: str, name: str | None, keep_drones: bool | None, reuse_drone: bool | None = None) -> None:
         hive = self._hive(hive_id)
         if name is not None:
             name = name.strip()
@@ -535,6 +559,8 @@ class Game:
                 A.unlock(self.p, "maya")
         if keep_drones is not None:
             hive.settings = {**(hive.settings or {}), "keep_drones": keep_drones}
+        if reuse_drone is not None:
+            hive.settings = {**(hive.settings or {}), "reuse_drone": reuse_drone}
 
     # ---- boutique et usine ------------------------------------------------
 
@@ -893,6 +919,8 @@ class Game:
                 "queen": queen,
                 "output": hive.output or {},
                 "keep_drones": bool((hive.settings or {}).get("keep_drones")),
+                "reuse_drone": bool((hive.settings or {}).get("reuse_drone", True)),
+                "line_drone": self._line_drone_state(hive),
                 "mods": mods,
                 "status": status,
             })

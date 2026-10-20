@@ -111,6 +111,9 @@ export type Hive = {
   queen: Queen | null;
   output: Record<string, number>;
   keep_drones: boolean;
+  reuse_drone: boolean;
+  /** Réserve du faux-bourdon installé ; genome est nul quand la réserve est épuisée */
+  line_drone: { genome: Genome | null; count: number } | null;
   mods: { production: number; lifespan: number; mutation: number; automation: boolean; light: boolean; shelter: boolean; temp: string };
   status: 'empty' | 'working' | 'climate' | 'resting' | 'weather';
 };

@@ -474,7 +474,7 @@ Le sprite unique 16×16 est remplacé par un générateur 24×24 (`frontend/comp
 
 ## Demande du 2026-10-18 (7) : succès et easter eggs
 
-- **34 succès** (`backend/app/game/achievements.py`), débloqués une fois, chacun avec une petite
+- **33 succès** (`backend/app/game/achievements.py`), débloqués une fois, chacun avec une petite
   récompense en miel et une carte « Succès débloqué ! » : premiers pas, récoltes (100 / 1 000 / 10 000
   rayons), centrifugation à la main, miel gagné, générations de reine, hybrides, stabilité pure ou
   chaotique, ruche au travail sous l'orage / la nuit / la neige, tous les biomes, alvéaire au maximum,
@@ -527,6 +527,34 @@ Bouton « Faire évoluer » dans les réglages d'un rucher (`upgrade_hive` dans 
 `POST /api/hives/{id}/upgrade`). Prix : celui d'un alvéaire neuf, qui augmente avec le nombre
 d'alvéaires possédés. La ruche garde reine, abeilles en attente, récolte, cadres et biome ; elle passe
 à 4 emplacements (8 au plus) et son nom « Rucher … » devient « Alvéaire … ».
+
+## Déploiement 1.4.0 (2026-10-18)
+
+- Images construites (`build-images.ps1 -Tag 1.4.0`, archive de 286 Mo) et poussées dans le registre
+  interne (`push-images.py`, jeton de la session kubectl).
+- Sauvegarde avant déploiement : `dist/sauvegardes/apisimperium-avant-1.4.0-20261018-1851.sql`
+  (`pg_dump`, hors git). Pour restaurer : `psql` dans le pod `postgres-0` avec ce fichier.
+- `kustomization.yaml` : backend et frontend en 1.4.0 ; **PostgreSQL laissé en 1.3.0** (image identique)
+  pour ne pas le redémarrer. Le pod `postgres-0` n'a pas redémarré.
+- Migrations 0003 → 0005 appliquées au démarrage du backend ; `alembic_version` = 0005. Le compte
+  `nathan` est intact (miel conservé) et passe au laboratoire niveau 1, car il l'avait débloqué.
+- Vérifié : pods prêts, page d'accueil en 200, l'API sert 168 espèces, 186 mutations, 33 succès.
+  Non vérifié : l'interface dans un navigateur sur le cluster (certificat du routeur).
+- À noter : avant ce déploiement, l'ancien backend affichait 11 redémarrages en 8 jours (le dernier
+  30 minutes plus tôt). Cause non recherchée ; à surveiller sur le nouveau pod.
+
+## Déploiement 1.4.1 (2026-10-20)
+
+- Apidex : onglet « Rayons » (ce que chaque rayon donne à la centrifugeuse, abeilles qui le produisent,
+  rayon anonyme tant qu'aucune de ses abeilles n'est connue) et section « Récolte » dans la fiche d'espèce.
+- Élevage automatique : la ruche retient le faux-bourdon installé (`settings.line_drone`, hash du génome).
+  À chaque mort de reine, un exemplaire est pris dans la réserve pour féconder la nouvelle princesse,
+  tant qu'il en reste ; sinon, comme avant, un faux-bourdon de la portée. Case « Réinjecter le
+  faux-bourdon installé » (`settings.reuse_drone`, cochée par défaut). Pas de migration.
+- Images backend et frontend 1.4.1 (archive de 169 Mo) ; PostgreSQL laissé en 1.3.0, `postgres-0`
+  n'a pas redémarré. Sauvegarde : `dist/sauvegardes/apisimperium-avant-1.4.1-20261020-1816.sql`.
+- Vérifié : 29 tests, types du frontend, pods prêts en 1.4.1, page d'accueil en 200, l'API sert
+  168 espèces et 33 recettes. Non vérifié : l'interface dans un navigateur.
 
 ## Questions pour toi
 

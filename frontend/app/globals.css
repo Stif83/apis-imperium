@@ -420,6 +420,7 @@ button.primary .honey-drop { background: var(--accent-ink); box-shadow: none; }
 .branch-bee span { overflow-wrap: anywhere; }
 .branch-bee.unknown { color: var(--muted); }
 .branch-bee:hover { box-shadow: 0 0 0 2px var(--accent); }
+.comb-out { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .branch-from { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 13px; }
 .sheet.wide { width: min(760px, 100%); }
 .sheet .title { font: 600 17px/1.25 var(--display); }

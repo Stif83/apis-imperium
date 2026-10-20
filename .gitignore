@@ -5,3 +5,6 @@ __pycache__/
 *.db
 .env
 dist/
+
+# Réglages Claude Code personnels
+.claude/settings.local.json

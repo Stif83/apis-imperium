@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { BeeIcon } from '@/components/BeeIcon';
-import { ItemQty, PageHead, Traits } from '@/components/ui';
+import { Honey, ItemIcon, ItemQty, PageHead, Traits } from '@/components/ui';
 import { useGame } from '@/lib/game';
 import type { Content } from '@/lib/types';
 
@@ -107,7 +107,7 @@ const FILTERS = [
 
 export default function ApidexPage() {
   const { content, state } = useGame();
-  const [view, setView] = useState<'branches' | 'tree'>('branches');
+  const [view, setView] = useState<'branches' | 'combs' | 'tree'>('branches');
   const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>('all');
   const [selected, setSelected] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false);
@@ -119,6 +119,18 @@ export default function ApidexPage() {
   const allIds = Object.keys(content.species);
   // Une espèce inconnue reste anonyme partout : ni nom, ni couleurs
   const name = (id: string) => (known.has(id) ? content.species[id].label : '???');
+
+  // Rayon -> espèces qui le produisent ; un rayon reste inconnu tant qu'aucune de ses abeilles ne l'est
+  const producers = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const [id, s] of Object.entries(content.species)) for (const [item] of s.products) (map[item] ??= []).push(id);
+    return map;
+  }, [content]);
+  const combKnown = (comb: string) => (producers[comb] ?? []).some((id) => known.has(id));
+  const combs = useMemo(() => {
+    const rank = (comb: string) => Math.min(99, ...(producers[comb] ?? []).map((id) => tiers[id]));
+    return Object.keys(content.recipes).sort((a, b) => rank(a) - rank(b));
+  }, [content, producers, tiers]);
 
   const parentsOf = (id: string) => content.mutations.filter((m) => m.result === id);
   const childrenOf = (id: string) => content.mutations.filter((m) => m.a === id || m.b === id);
@@ -169,6 +181,34 @@ export default function ApidexPage() {
     );
   };
 
+  const BranchBee = ({ id }: { id: string }) => {
+    const s = content.species[id];
+    return (
+      <button className={`branch-bee${known.has(id) ? '' : ' unknown'}`} title={name(id)} onClick={() => open(id)}>
+        <BeeIcon species={id} color={s.color} secondary={s.secondary} type="queen" size={44} unknown={!known.has(id)} />
+        <span>{name(id)}</span>
+      </button>
+    );
+  };
+
+  /** Ce que donne un rayon à la centrifugeuse. */
+  const Outputs = ({ comb }: { comb: string }) => (
+    <div className="comb-out">
+      {content.recipes[comb].map(([out, chance, qty]) => (
+        <span key={out} className="row" style={{ gap: 4 }}>
+          {out === 'honey' ? (
+            <span className="chip">
+              <Honey amount={qty} /> miel
+            </span>
+          ) : (
+            <ItemQty id={out} qty={qty} />
+          )}
+          <span className="muted">{percent(chance)}</span>
+        </span>
+      ))}
+    </div>
+  );
+
   const Family = ({ m }: { m: Mutation }) => (
     <div className="family">
       <Mini id={m.a} />
@@ -203,17 +243,24 @@ export default function ApidexPage() {
             <span className="badge">
               {complete} / {branches.length} branches
             </span>
+            <span className="badge">
+              {combs.filter(combKnown).length} / {combs.length} rayons
+            </span>
           </span>
         }
       >
         Toutes les espèces, rangées par branche, de la plus accessible à la plus rare. Les espèces encore inconnues restent anonymes.
         Cliquez sur une abeille pour voir comment l'obtenir et ce qu'elle peut donner. Certaines mutations demandent une condition
-        (heure, météo, biome…) : elle doit être réunie au moment où la reine meurt.
+        (heure, météo, biome…) : elle doit être réunie au moment où la reine meurt. L'onglet Rayons détaille ce que chaque rayon
+        donne à la centrifugeuse.
       </PageHead>
 
       <div className="row tabs">
         <button className={`tab${view === 'branches' ? ' active' : ''}`} onClick={() => setView('branches')}>
           Branches
+        </button>
+        <button className={`tab${view === 'combs' ? ' active' : ''}`} onClick={() => setView('combs')}>
+          Rayons
         </button>
         <button className={`tab${view === 'tree' ? ' active' : ''}`} onClick={() => setView('tree')}>
           Arbre des mutations
@@ -266,15 +313,9 @@ export default function ApidexPage() {
                           <div style={{ width: `${(100 * n) / b.ids.length}%` }} />
                         </div>
                         <div className="branch-bees">
-                          {b.ids.map((id) => {
-                            const s = content.species[id];
-                            return (
-                              <button key={id} className={`branch-bee${known.has(id) ? '' : ' unknown'}`} title={name(id)} onClick={() => open(id)}>
-                                <BeeIcon species={id} color={s.color} secondary={s.secondary} type="queen" size={44} unknown={!known.has(id)} />
-                                <span>{name(id)}</span>
-                              </button>
-                            );
-                          })}
+                          {b.ids.map((id) => (
+                            <BranchBee key={id} id={id} />
+                          ))}
                         </div>
                         {b.parents.length > 0 && (
                           <div className="muted branch-from">
@@ -293,6 +334,41 @@ export default function ApidexPage() {
             </section>
           ))}
         </>
+      )}
+
+      {view === 'combs' && (
+        <div className="branch-grid">
+          {combs.map((comb) => {
+            const seen = combKnown(comb);
+            const item = content.items[comb];
+            return (
+              <div key={comb} className="branch-card">
+                <div className="branch-band" style={{ background: seen ? `#${item.color}` : 'var(--border)' }} />
+                <div className="row">
+                  {seen ? (
+                    <ItemIcon id={comb} size={36} />
+                  ) : (
+                    <svg className="item-icon" width={36} height={36} viewBox="0 0 16 16" aria-hidden>
+                      <polygon points="8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5" fill="var(--border)" />
+                    </svg>
+                  )}
+                  <span className="title">{seen ? item.label : 'Rayon inconnu'}</span>
+                </div>
+                {seen ? (
+                  <Outputs comb={comb} />
+                ) : (
+                  <div className="muted">Découvrez une abeille qui le produit pour connaître son contenu.</div>
+                )}
+                <div className="muted">Produit par :</div>
+                <div className="branch-bees">
+                  {(producers[comb] ?? []).map((id) => (
+                    <BranchBee key={id} id={id} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {view === 'tree' && (
@@ -361,14 +437,24 @@ export default function ApidexPage() {
               </button>
             </div>
             {known.has(selected) && (
-              <div className="row">
-                <Traits genome={Object.fromEntries(Object.entries(species.template).map(([c, a]) => [c, [a, a]]))} />
+              <>
+                <div className="row">
+                  <Traits genome={Object.fromEntries(Object.entries(species.template).map(([c, a]) => [c, [a, a]]))} />
+                </div>
+                <div className="title">Récolte</div>
                 {species.products.map(([item, chance]) => (
-                  <span key={item} className="row muted" style={{ gap: 4 }}>
-                    <ItemQty id={item} /> {percent(chance)}
-                  </span>
+                  <div key={item} className="family">
+                    <ItemQty id={item} />
+                    <span className="muted">{percent(chance)} par cycle</span>
+                    {content.recipes[item] && (
+                      <>
+                        <span className="op">→</span>
+                        <Outputs comb={item} />
+                      </>
+                    )}
+                  </div>
                 ))}
-              </div>
+              </>
             )}
 
             <div className="title">Comment l'obtenir</div>

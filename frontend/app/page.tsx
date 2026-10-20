@@ -352,6 +352,20 @@ function HiveCard({ hive }: { hive: Hive }) {
                 Conserver les faux-bourdons en surplus
               </label>
             )}
+            {hive.mods.automation && (
+              <label className="row muted">
+                <input type="checkbox" checked={hive.reuse_drone} onChange={(e) => act(`/hives/${hive.id}`, { reuse_drone: e.target.checked })} />
+                Réinjecter le faux-bourdon installé tant qu'il en reste en réserve
+                {hive.line_drone &&
+                  (hive.line_drone.genome ? (
+                    <span className="badge">
+                      {speciesName(content, hive.line_drone.genome)} ×{hive.line_drone.count}
+                    </span>
+                  ) : (
+                    <span className="badge">réserve épuisée</span>
+                  ))}
+              </label>
+            )}
             {queen && (
               <>
                 <div className="muted">

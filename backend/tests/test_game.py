@@ -555,3 +555,24 @@ def test_adventurer_badge_needs_every_achievement_for_diamond():
     assert B.ADVENTURER_STEPS[-1] == len(A.ACHIEVEMENTS)
     almost = B.player_badges(set(), set(), len(A.ACHIEVEMENTS) - 1)
     assert "adventurer:gold" in {b["id"] for b in almost["badges"]}
+
+
+def test_automation_reuses_the_installed_drone(game):
+    game.p.honey = 5000
+    game.add_item("wax", 50)
+    game.buy("item:hive_automation")
+    hive = game.hives[0]
+    game.add_module(hive.id, "hive_automation")
+    game.add_bee("drone", G.pure_genome("meadows"), 9)
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "meadows").id)
+    stock = _bee(game, "drone", "meadows").count
+    # La première reine meurt : le faux-bourdon de réserve repart avec la nouvelle
+    game.advance(hive.queen["health"])
+    assert hive.queen["mate"] == G.pure_genome("meadows")
+    assert _bee(game, "drone", "meadows").count == stock - 1
+    assert game.state()["hives"][0]["line_drone"]["count"] == stock - 1
+
+    # Désactivé, la réserve n'est plus touchée
+    game.update_hive(hive.id, None, None, reuse_drone=False)
+    game.advance(hive.queen["health"])
+    assert _bee(game, "drone", "meadows").count == stock - 1
