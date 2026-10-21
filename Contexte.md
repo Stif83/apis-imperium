@@ -640,6 +640,18 @@ d'alvéaires possédés. La ruche garde reine, abeilles en attente, récolte, ca
   (retouches). Backend toujours en 1.4.3, PostgreSQL en 1.3.0, aucune migration. Vérifié : pods
   prêts, fiches en 200 ; interface vérifiée sur la pile locale en mode dev, pas sur le cluster.
 
+## Demande du 2026-10-21 (4) : refonte de la page Génétique
+
+- Mise en page en deux colonnes : à droite, un panneau fixe (niveau du labo, une case par paillasse avec
+  opération, temps restant et barre, verrerie, journal) ; sur mobile il passe en haut, sans le journal.
+- Extraire : une carte par valeur du gène choisi (rareté, progression des fragments, doses en banque,
+  abeilles qui la portent, faux-bourdons d'abord) au lieu d'une ligne par pile ; case « En chaîne »
+  visible quand le passeur est installé. Un message dit quand une paillasse se libère si toutes sont prises.
+- Imprimer : abeilles en vignettes, gènes de la banque en pastilles, aperçu « actuel → nouveau », coût.
+- Banque : une carte par chromosome qui réunit gènes complets (doses, réplication) et fragments en cours.
+- L'onglet « Laboratoire » devient « Améliorer » (niveaux et équipement). Aucun changement côté serveur.
+- Vérifié sur la pile locale en mode dev (deux paillasses, passeur, chaîne en cours), bureau et mobile.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

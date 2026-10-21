@@ -545,15 +545,57 @@ html.avril .bee-icon { transform: scaleX(-1); }
 
 .upgrade-box { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--panel-2); }
 
-/* ---------- génétique : bandeau, étapes, lignes ---------- */
-.lab-status {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px;
-  background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 14px; margin-bottom: 4px;
+/* ---------- génétique : page en deux colonnes, panneau des paillasses ---------- */
+.lab-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.lab-aside { display: grid; gap: 12px; position: sticky; top: 76px; }
+@media (max-width: 980px) {
+  .lab-layout { grid-template-columns: 1fr; }
+  .lab-aside { position: static; order: -1; }
+  .lab-journal { display: none; }
 }
-@media (max-width: 720px) { .lab-status { grid-template-columns: 1fr; } }
 .lab-level { display: flex; align-items: center; gap: 8px; }
 .lab-level > span:last-child { display: grid; gap: 3px; }
-.lab-job { display: grid; gap: 6px; min-width: 0; }
+.bench { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--panel-2); }
+.bench.free { opacity: 0.7; }
+.bench-icon { font-size: 20px; width: 26px; text-align: center; }
+.bench .grow { display: grid; gap: 3px; }
+.bench-gene { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bench .bar, .gene-progress .bar { display: block; height: 6px; background: var(--panel); }
+.bench .bar > span, .gene-progress .bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.bench-time { font-weight: 800; font-size: 13px; white-space: nowrap; }
+.lab-log { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }
+.lab-log li:first-child { font-weight: 700; }
+.lab-hint {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+  padding: 10px 12px; border-radius: 12px; background: var(--panel-2); font-size: 14px;
+}
+.allele-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+.allele-card { gap: 8px; }
+.allele-card.rare { box-shadow: 0 0 0 2px #c9a227, var(--shadow); }
+.badge.rarity.common { background: var(--panel-2); }
+.badge.rarity.medium { background: var(--info-bg); color: var(--info); }
+.badge.rarity.rare, .badge.rarity.species { background: #fff1c2; color: #8a6400; }
+.gene-progress { display: inline-flex; align-items: center; gap: 8px; min-width: 140px; }
+.gene-progress .bar { flex: 1; min-width: 70px; }
+.gene-progress .bar { background: var(--panel-2); }
+.gene-progress .bar > span { background: var(--ok); }
+.allele-bees { display: grid; gap: 4px; max-height: 220px; overflow: auto; }
+.allele-bee { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 10px; background: var(--panel-2); font-size: 14px; }
+.bee-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; max-height: 62vh; overflow: auto; padding: 3px; }
+.bee-tile-pick {
+  display: grid; justify-items: center; gap: 2px; padding: 8px 4px; text-align: center;
+  border: 0; border-radius: 12px; background: var(--panel); box-shadow: var(--shadow); font-size: 13px; line-height: 1.2;
+}
+.bee-tile-pick .muted { font-size: 12px; font-weight: 400; }
+.bee-tile-pick.selected { box-shadow: 0 0 0 3px var(--accent), var(--shadow); }
+.imprint-row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--panel-2); }
+.imprint-row > .row { grid-column: 1 / -1; }
+.imprint-label { font-weight: 700; color: var(--muted); }
+.bank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.bank-card { gap: 6px; }
+.bank-card.empty { opacity: 0.6; }
+.bank-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 10px; background: var(--panel-2); flex-wrap: wrap; }
+.bank-row.pending { background: transparent; box-shadow: inset 0 0 0 2px var(--panel-2); }
 .step { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-top: 6px; }
 .step-n {
   width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center;
