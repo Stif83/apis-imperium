@@ -238,7 +238,7 @@ Fait :
   lit les clés publiques par le réseau interne (`keycloak-service.keycloak.svc:8080`).
 - La production n'a plus que trois images (postgres, backend, frontend). `build-images.ps1`
   n'exporte plus celle de Keycloak, qui ne sert qu'au développement local (`docker compose`).
-  L'ancien manifeste est conservé dans `deploy/okd-keycloak-autonome/` au cas où.
+  L'ancien manifeste (`deploy/okd-keycloak-autonome/`) a été supprimé le 2026-10-21 : il reste dans l'historique git.
 
 Vérifié sur le cluster : connexion par le realm `okd`, jeton, lecture de l'état et installation
 d'une reine ; jeton altéré refusé. Le compte temporaire créé pour ce test a été supprimé.
