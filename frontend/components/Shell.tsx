@@ -14,6 +14,7 @@ const TABS = [
   { href: '/', label: 'Rucher' },
   { href: '/usine', label: 'Usine' },
   { href: '/boutique', label: 'Boutique' },
+  { href: '/comptoir', label: 'Comptoir' },
   { href: '/genetique', label: 'Génétique' },
   { href: '/apidex', label: 'Apidex' },
   { href: '/carnet', label: 'Carnet' },

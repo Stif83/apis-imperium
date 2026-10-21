@@ -35,6 +35,9 @@ class Player(Base):
     # Trophées : {id: nombre de paliers réclamés} ; pedigree : {espèce: meilleur niveau certifié}
     trophies: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     pedigree: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Comptoir : tableau des commandes (voir game/orders.py) et points de réputation
+    orders: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    reputation: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

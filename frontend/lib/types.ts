@@ -83,6 +83,26 @@ export type Content = {
     list: Trophy[];
     pedigree: Record<string, { label: string; icon: string; desc: string }>;
   };
+  orders: {
+    guilds: Record<string, { label: string; icon: string; desc: string }>;
+    levels: { need: number; label: string }[];
+    lifetime_ms: number;
+    refill_ms: number;
+  };
+};
+
+export type Order = {
+  id: string;
+  guild: string;
+  kind: 'goods' | 'bee' | 'pedigree';
+  prestige: boolean;
+  items?: Record<string, number>;
+  bee?: { species: string; type: BeeType; alleles: Record<string, string> };
+  pedigree?: { species: string; level: number };
+  reward: Cost;
+  rep: number;
+  created_ms: number;
+  expires_ms: number;
 };
 
 export type Metal = 'bronze' | 'silver' | 'gold' | 'diamond';
@@ -136,6 +156,12 @@ export type GameState = {
   trophies: Record<string, { progress: number; claimed: number }>;
   /** Meilleur niveau de pedigree certifié par espèce (1 Pure à 4 Champion) */
   pedigree: Record<string, number>;
+  orders: {
+    slots: { order: Order | null; ready_ms: number }[];
+    prestige: { week: string; done: boolean; order: Order | null } | null;
+    reputation: number;
+    level: number;
+  };
   badges: PlayerBadges;
   achievements: Record<string, number>;
   stats: Record<string, number>;

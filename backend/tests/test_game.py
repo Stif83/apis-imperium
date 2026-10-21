@@ -722,3 +722,72 @@ def test_modules_wear_out(game):
     assert hive.modules == ["hive_automation"] and game._wear(hive) == [95]
     assert hive.queen is not None
     assert game.qty("frame_untreated") == 1
+
+
+def test_orders_board_and_delivery(game):
+    from app.game import orders as O
+
+    for species in list(C.SPECIES)[:12]:
+        game.discover(G.pure_genome(species))
+    t = 1_700_000_000_000
+    board = game.orders_board(t)
+    assert len(board["slots"]) == O.BASE_SLOTS and all(s["order"] for s in board["slots"])
+    assert board["prestige"] is None  # le prestige arrive avec le premier niveau de réputation
+    # Toute ressource demandée vient d'une espèce découverte
+    pool = O.producible(game.discovered)
+    for slot in board["slots"]:
+        assert set(slot["order"].get("items", {})) <= pool
+    assert game.orders_board(t) == board  # relire ne change rien
+
+    # Livrer une commande de ressources
+    goods = O.generate(__import__("random").Random(1), game._orders_ctx(), t)
+    goods = {**goods, "kind": "goods", "items": {"wax": 5}, "id": "o99", "expires_ms": t + O.ORDER_LIFETIME}
+    goods.pop("bee", None), goods.pop("pedigree", None)
+    board["slots"][0] = {"order": goods, "ready_ms": t}
+    game.p.orders = {**board, "slots": board["slots"]}
+    with pytest.raises(GameError):
+        game.deliver_order("o99", now=t)  # pas de cire
+    game.add_item("wax", 5)
+    honey = game.p.honey
+    game.deliver_order("o99", now=t)
+    assert game.qty("wax") == 0 and game.p.honey == honey + goods["reward"]["honey"]
+    assert game.p.reputation == goods["rep"] and game.p.stats["orders"] == 1
+    # La place se libère, un nouveau client arrive un peu plus tard
+    assert game.orders_board(t)["slots"][0]["order"] is None
+    assert game.orders_board(t + O.REFILL_DELAY)["slots"][0]["order"]
+
+    # Une commande échue est remplacée
+    later = game.orders_board(t + O.ORDER_LIFETIME + O.REFILL_DELAY)
+    assert all(s["order"]["created_ms"] > t for s in later["slots"])
+
+
+def test_orders_bee_discard_and_prestige(game):
+    from app.game import orders as O
+
+    t = 1_700_000_000_000
+    board = game.orders_board(t)
+    want = {"species": "forest", "type": "drone", "alleles": {"speed": "fast"}}
+    board["slots"][1] = {"order": {"id": "b1", "guild": "court", "kind": "bee", "bee": want, "created_ms": t,
+                                   "expires_ms": t + O.ORDER_LIFETIME, "prestige": False,
+                                   "reward": {"honey": 300, "items": {}}, "rep": 120}, "ready_ms": t}
+    game.p.orders = {**board, "slots": board["slots"]}
+    plain = _bee(game, "drone", "forest")
+    with pytest.raises(GameError):
+        game.deliver_order("b1", plain.id, now=t)  # vitesse « Très lente » : ne convient pas
+    fast = {**G.pure_genome("forest"), "speed": ["fast", "slowest"]}
+    game.add_bee("drone", fast)
+    good = next(b for b in game.bees if b.genome == fast)
+    game.deliver_order("b1", good.id, now=t)
+    assert good not in game.bees  # l'abeille est livrée
+    # Réputation 120 : premier niveau, la commande de prestige de la semaine apparaît
+    assert O.level_of(game.p.reputation) == 1
+    prestige = game.orders_board(t)["prestige"]
+    assert prestige["order"]["prestige"] and prestige["week"] == O.week_key(t)
+    with pytest.raises(GameError):
+        game.discard_order(prestige["order"]["id"], now=t)
+    # Refuser une commande ordinaire libère sa place
+    other = game.orders_board(t)["slots"][0]["order"]["id"]
+    game.discard_order(other, now=t)
+    assert game.orders_board(t)["slots"][0]["order"] is None
+    state = game.state()
+    assert state["orders"]["level"] == 1 and state["trophies"]["trader"]["progress"] == 1

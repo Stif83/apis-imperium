@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from ..auth import current_game
 from ..game import content
 from ..game import lab
+from ..game import orders
 from ..game import trophies
 from ..game.service import Game
 
@@ -93,6 +94,23 @@ def claim_trophy(body: TrophyIn, game: Game = Depends(current_game)):
     return _done(game)
 
 
+class OrderIn(BaseModel):
+    order_id: str
+    bee_id: str | None = None
+
+
+@router.post("/orders/deliver")
+def deliver_order(body: OrderIn, game: Game = Depends(current_game)):
+    game.deliver_order(body.order_id, body.bee_id)
+    return _done(game)
+
+
+@router.post("/orders/discard")
+def discard_order(body: OrderIn, game: Game = Depends(current_game)):
+    game.discard_order(body.order_id)
+    return _done(game)
+
+
 class CertifyIn(BaseModel):
     bee_id: str
 
@@ -105,7 +123,7 @@ def certify(body: CertifyIn, game: Game = Depends(current_game)):
 
 @router.get("/content")
 def get_content():
-    return {**content.public_content(), "lab": lab.public_lab(), "trophies": trophies.public_trophies()}
+    return {**content.public_content(), "lab": lab.public_lab(), "trophies": trophies.public_trophies(), "orders": orders.public_orders()}
 
 
 class ReplicateIn(BaseModel):

@@ -678,6 +678,26 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
 - Vérifié : 33 tests ; conversion d'un joueur créé en 1.4.6 puis passé en 1.5.0 (migration appliquée,
   objectifs en attente payés une fois) ; Carnet, certification, réclamation dans un navigateur sur la pile locale.
 
+## Demande du 2026-10-21 (6) : fin de partie, étape 2 (1.6.0) : Comptoir et réputation
+
+- `game/orders.py` : cinq guildes (Herboristerie du Val, Forge des Trois Enclumes, Monastère de
+  Saint-Ambroise, Cour impériale, Guilde des Explorateurs), chacune avec ses ressources et ses gènes favoris.
+  Trois sortes de commandes : ressources, abeille aux gènes imposés (livrée, donc consommée), pedigree minimum
+  (simple vérification). Tirage reproductible (graine = joueur + numéro de commande).
+- Faisabilité : les ressources demandées sont tirées de ce que produisent les espèces découvertes (produits et
+  centrifugation) ; les gènes imposés sont des valeurs recherchées (`WANTED`), meilleures que celles de
+  l'espèce, que le joueur possède déjà (abeille ou banque), ou la plus accessible à partir du niveau 3. Au
+  niveau 0, seulement des faux-bourdons (un débutant ne doit pas livrer sa seule princesse), et plutôt une
+  espèce déjà en réserve.
+- Tableau : 3 places, 4 au niveau 2, 5 au niveau 4 ; une commande reste 8 h ; une place libérée (livraison ou
+  refus) se remplit 20 min plus tard. Commande de prestige hebdomadaire (semaine ISO, fin lundi minuit UTC)
+  dès le niveau 1 : trois ressources et une abeille à trois gènes, 150 de réputation, ne se refuse pas.
+- Réputation : 0, 100, 300, 700, 1500, 3000 points (Inconnu → Fournisseur impérial). Trophées « Négociant »,
+  « Renommée », « Prestige » (catégorie Comptoir).
+- Migration 0008 : `players.orders` (JSON), `players.reputation` (entier). Routes `POST /api/orders/deliver`
+  et `/api/orders/discard`. Nouvelle page `/comptoir` (onglet entre Boutique et Génétique).
+- Vérifié : 35 tests ; page et livraison dans un navigateur sur la pile locale en mode dev.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

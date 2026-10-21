@@ -650,3 +650,19 @@ html.avril .bee-icon { transform: scaleX(-1); }
 .pedigree-icon { font-size: 20px; }
 @media (max-width: 640px) { .pedigree-step { grid-template-columns: 28px minmax(0, 1fr); } .pedigree-step .muted { grid-column: 2; } }
 button.primary-soft { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+/* ---------- comptoir : commandes des guildes ---------- */
+.reputation-card { gap: 8px; margin-bottom: 4px; }
+.order-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.order-card { gap: 10px; }
+.order-card.ready { box-shadow: 0 0 0 2px var(--ok), var(--shadow); }
+.order-card.prestige { background: linear-gradient(120deg, #fff4cc, var(--panel) 60%); box-shadow: 0 0 0 2px #e0b23a, var(--shadow); }
+.order-card.empty { justify-content: center; align-items: center; min-height: 120px; border: 2px dashed var(--border); box-shadow: none; background: transparent; }
+.order-guild { display: inline-flex; align-items: center; gap: 8px; }
+.order-guild-icon { font-size: 22px; }
+.order-needs { display: grid; gap: 6px; }
+.order-need { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 12px; background: var(--panel-2); }
+.order-bee { display: grid; gap: 8px; padding: 8px 10px; border-radius: 12px; background: var(--panel-2); }
+.order-foot { border-top: 1px solid var(--panel-2); padding-top: 8px; }
+.ok-text { color: var(--ok); font-weight: 800; }
+.rep-chip { background: var(--info-bg); color: var(--info); }

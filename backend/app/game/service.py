@@ -19,6 +19,7 @@ from . import content as C
 from . import garden as GD
 from . import genetics as G
 from . import lab as LAB
+from . import orders as O
 from . import trophies as T
 from . import world as W
 
@@ -924,8 +925,10 @@ class Game:
             return len({h.biome for h in self.hives})
         if metric == "genes":
             return len(self.genes)
-        if metric in ("combs", "honey", "manual", "drones_sold", "extracts", "imprints", "generation"):
+        if metric in ("combs", "honey", "manual", "drones_sold", "extracts", "imprints", "generation", "orders", "prestige_orders"):
             return stats.get(metric, 0)
+        if metric == "reputation_level":
+            return O.level_of(self.p.reputation or 0)
         if metric.startswith("events:"):
             return sum(1 for e in T.EVENT_SETS[metric[7:]] if e in events)
         if metric.startswith("event:"):
@@ -977,6 +980,117 @@ class Game:
                 self.add_item(item, n)
         got[trophy_id] = reached
         self.p.trophies = got
+
+    # ---- comptoir -----------------------------------------------------------
+
+    def _orders_ctx(self) -> dict:
+        """Ce que le joueur peut déjà fournir : espèces découvertes, allèles possédés, pedigree."""
+        alleles: dict[str, set[str]] = {}
+        for bee in self.bees:
+            for c, pair in G.normalize(bee.genome).items():
+                alleles.setdefault(c, set()).update(pair)
+        for c, a in self.genes:
+            alleles.setdefault(c, set()).add(a)
+        return {
+            "discovered": self.discovered & set(C.SPECIES),
+            "reserve": {G.normalize(b.genome)["species"][0] for b in self.bees if b.hive_id is None},
+            "alleles": alleles,
+            "pedigree": {**(self.p.pedigree or {})},
+            "level": O.level_of(self.p.reputation or 0),
+        }
+
+    def orders_board(self, now: int | None = None) -> dict:
+        """Tableau des commandes, complété à la lecture : commandes échues remplacées, places libres pourvues."""
+        now = now or now_ms()
+        data = dict(self.p.orders or {})
+        counter = data.get("counter", 0)
+        slots = [dict(s) for s in data.get("slots") or []]
+        level = O.level_of(self.p.reputation or 0)
+        while len(slots) < O.slots_for(level):
+            slots.append({"order": None, "ready_ms": now})
+        ctx = None
+        for i, slot in enumerate(slots):
+            order = slot.get("order")
+            if order and order["expires_ms"] <= now:
+                slot = {"order": None, "ready_ms": order["expires_ms"]}
+            if not slot.get("order") and slot["ready_ms"] <= now:
+                ctx = ctx or self._orders_ctx()
+                counter += 1
+                order = O.generate(random.Random(f"{self.p.id}:{counter}"), ctx, now)
+                if order:
+                    slot = {"order": {**order, "id": f"o{counter}", "expires_ms": now + O.ORDER_LIFETIME}, "ready_ms": now}
+            slots[i] = slot
+        prestige = data.get("prestige")
+        week = O.week_key(now)
+        if level >= 1 and (not prestige or prestige.get("week") != week):
+            ctx = ctx or self._orders_ctx()
+            order = O.generate(random.Random(f"{self.p.id}:{week}"), ctx, now, prestige=True)
+            prestige = {"week": week, "done": False, "order": order and {**order, "id": f"p{week}", "expires_ms": O.week_end(now)}}
+        new = {"counter": counter, "slots": slots, "prestige": prestige}
+        if new != self.p.orders:
+            self.p.orders = new
+        return new
+
+    def _find_order(self, board: dict, order_id: str) -> tuple[dict, int | None]:
+        for i, slot in enumerate(board["slots"]):
+            if slot.get("order") and slot["order"]["id"] == order_id:
+                return slot["order"], i
+        prestige = board.get("prestige")
+        if prestige and prestige.get("order") and prestige["order"]["id"] == order_id and not prestige.get("done"):
+            return prestige["order"], None
+        raise GameError("Cette commande n'est plus disponible.")
+
+    def _bee_fits(self, bee: Bee, want: dict) -> bool:
+        genome = G.normalize(bee.genome)
+        return (
+            bee.type == want["type"]
+            and genome["species"][0] == want["species"]
+            and all(genome[c][0] == a for c, a in want["alleles"].items())
+        )
+
+    def deliver_order(self, order_id: str, bee_id: str | None = None, now: int | None = None) -> None:
+        now = now or now_ms()
+        board = self.orders_board(now)
+        order, index = self._find_order(board, order_id)
+        # Tout vérifier avant de prendre quoi que ce soit
+        for item, n in (order.get("items") or {}).items():
+            if self.qty(item) < n:
+                raise GameError(f"Il manque : {C.ITEMS[item]['label']} ×{n - self.qty(item)}")
+        bee = None
+        if order.get("bee"):
+            if not bee_id:
+                raise GameError("Choisissez l'abeille à livrer.")
+            bee = self._bee(bee_id)
+            if not self._bee_fits(bee, order["bee"]):
+                raise GameError("Cette abeille ne correspond pas à la commande.")
+        if order.get("pedigree"):
+            want = order["pedigree"]
+            if (self.p.pedigree or {}).get(want["species"], 0) < want["level"]:
+                raise GameError("Le pedigree demandé n'est pas encore certifié.")
+        for item, n in (order.get("items") or {}).items():
+            self.take_item(item, n)
+        if bee:
+            self._take_bee(bee)
+        self.p.honey += order["reward"]["honey"]
+        for item, n in order["reward"]["items"].items():
+            self.add_item(item, n)
+        self.p.reputation = (self.p.reputation or 0) + order["rep"]
+        A.bump(self.p, "orders")
+        if index is None:
+            A.bump(self.p, "prestige_orders")
+            board["prestige"] = {**board["prestige"], "done": True}
+        else:
+            board["slots"][index] = {"order": None, "ready_ms": now + O.REFILL_DELAY}
+        self.p.orders = {**board, "slots": [dict(s) for s in board["slots"]]}
+
+    def discard_order(self, order_id: str, now: int | None = None) -> None:
+        now = now or now_ms()
+        board = self.orders_board(now)
+        order, index = self._find_order(board, order_id)
+        if index is None:
+            raise GameError("La commande de prestige ne se refuse pas : elle repart à la fin de la semaine.")
+        board["slots"][index] = {"order": None, "ready_ms": now + O.REFILL_DELAY}
+        self.p.orders = {**board, "slots": [dict(s) for s in board["slots"]]}
 
     def certify(self, bee_id: str) -> int:
         """Présente une abeille au jury : son niveau de pedigree devient acquis pour l'espèce s'il est meilleur."""
@@ -1104,6 +1218,11 @@ class Game:
                 for tid, trophy in T.TROPHIES.items()
             },
             "pedigree": dict(self.p.pedigree or {}),
+            "orders": {
+                **self.orders_board(t),
+                "reputation": self.p.reputation or 0,
+                "level": O.level_of(self.p.reputation or 0),
+            },
             "inventory": {item: row.qty for item, row in self.inv.items() if row.qty > 0},
             "worn_modules": self.p.worn_modules or {},
             "bees": [

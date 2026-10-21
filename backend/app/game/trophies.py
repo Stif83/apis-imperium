@@ -23,6 +23,7 @@ CATEGORIES = {
     "breeding": "Élevage",
     "lab": "Laboratoire",
     "pedigree": "Pedigree",
+    "trade": "Comptoir",
     "community": "Communauté",
     "secret": "Secrets",
 }
@@ -104,6 +105,13 @@ def _trophies() -> list[dict]:
            [(1, 500, None), (5, 2000, None), (20, 6000, {"royal_jelly": 15}), (60, 20000, {"imperial_jelly": 2})]),
         _t("pedigree_champion", "pedigree", "Champions", "💎", "Espèces certifiées « Champion »", "pedigree:4",
            [(1, 1500, None), (3, 4000, None), (10, 10000, {"royal_jelly": 25}), (25, 30000, {"imperial_jelly": 3})]),
+        # Comptoir
+        _t("trader", "trade", "Négociant", "📦", "Commandes livrées", "orders",
+           [(1, 50, None), (10, 400, None), (50, 2000, {"royal_jelly": 5}), (200, 8000, {"imperial_jelly": 1})]),
+        _t("renown", "trade", "Renommée", "🎖️", "Niveau de réputation au Comptoir", "reputation_level",
+           [(1, 200, None), (2, 600, None), (4, 3000, None), (5, 10000, {"imperial_jelly": 1})]),
+        _t("prestige", "trade", "Prestige", "🏆", "Commandes de prestige honorées", "prestige_orders",
+           [(1, 500, None), (5, 3000, None), (15, 10000, None), (40, 30000, {"imperial_jelly": 2})]),
         # Communauté
         _t("curator", "community", "Vernissage", "🖼️", "Vitrines publiées", "showcases", [(1, 50, None)], metals=["silver"]),
         _t("loved", "community", "Coup de cœur", "💛", "« J'aime » reçus sur vos vitrines", "likes",
