@@ -80,8 +80,15 @@ def test_content_is_consistent():
         assert all(item in C.ITEMS for item in offer.get("items", {}))
     assert set(C.MODULES) == {i for i, item in C.ITEMS.items() if item["category"] == "module"}
     # Toute espèce est soit achetable, soit obtenable par mutation
+    # (ou sauvage : rapportée d'une expédition dans sa région)
+    from app.game import expeditions as X
+
     reachable = {o["species"] for o in C.OFFERS.values() if o["kind"] == "bee"} | {m["result"] for m in C.MUTATIONS}
-    assert reachable == set(C.SPECIES)
+    wild = {r["wild"] for r in X.REGIONS.values()}
+    assert reachable | wild == set(C.SPECIES)
+    assert all(C.SPECIES[w].get("wild") in X.REGIONS for w in wild)
+    for region in X.REGIONS.values():
+        assert all(item in C.ITEMS for item, _, _ in region["loot"]) and all(item in C.ITEMS for item, _ in region["rare"])
 
 
 def test_pure_breeding_stays_pure():
@@ -856,3 +863,61 @@ def test_greenhouse_and_observatory_effects(game):
     assert game._mods(hive)["mutation"] == pytest.approx(base * PR.OBSERVATORY_MUTATION)
     with pytest.raises(GameError):
         game.contribute("observatory", "honey", 1)  # projet achevé
+
+
+def test_expedition_scores():
+    from app.game import expeditions as X
+
+    jungle, abyss = X.REGIONS["jungle"], X.REGIONS["abyss"]
+    forest = G.pure_genome("forest")  # tempéré, craint la pluie, diurne, longévité courte
+    s = X.bee_score(forest, jungle)
+    assert s["climate"] == 0 and s["weather"] == 0 and s["dark"] == 20 and s["total"] < 40
+    liana = G.pure_genome("liana")  # sauvage de la jungle : chaud, résiste à la pluie
+    assert X.bee_score(liana, jungle)["total"] >= 90
+    benthic = G.pure_genome("benthic")
+    assert X.bee_score(benthic, abyss)["total"] >= 90
+    assert X.team_chance([100]) == 0.8 and X.team_chance([100, 100, 100]) == 0.95
+    assert X.team_chance([0]) == 0
+
+
+def test_expedition_flow(game):
+    from app.game import expeditions as X
+
+    t = 1_700_000_000_000
+    drone = _bee(game, "drone", "forest")
+    with pytest.raises(GameError):
+        game.launch_expedition("jungle", [drone.id], now=t)  # pas encore de poste
+    _give_stage(game, "outpost")
+    with pytest.raises(GameError):
+        game.launch_expedition("abyss", [drone.id], now=t)  # région lointaine : étape 2
+    game.add_bee("drone", G.pure_genome("liana"), 3)
+    liana = next(b for b in game.bees if b.genome == G.pure_genome("liana"))
+    game.launch_expedition("jungle", [liana.id, liana.id], now=t)
+    assert liana.count == 1
+    team = game.p.expeditions["teams"][0]
+    assert team["chance"] >= 0.9 and team["end_ms"] == t + 30 * X.MINUTE
+    with pytest.raises(GameError):
+        game.launch_expedition("glacier", [drone.id], now=t)  # une seule équipe à l'étape 1
+    game.expeditions_tick(t + 29 * X.MINUTE)
+    assert game.p.expeditions["teams"]  # pas encore rentrée
+    game.expeditions_tick(t + 30 * X.MINUTE)
+    report = game.p.expeditions["log"][0]
+    assert not game.p.expeditions["teams"] and game.p.stats["expeditions"] == 1
+    returned = 2 - len(report["lost"])
+    assert liana.count == 1 + returned
+    for item, n in report["loot"].items():
+        assert game.qty(item) >= n
+
+
+def test_expedition_outcomes():
+    from app.game import expeditions as X
+
+    team = {"region": "jungle", "chance": 1.0, "bees": [{}, {}]}
+    # Réussites répétées : butin toujours, fragment et sauvage de temps en temps
+    results = [X.resolve(team, __import__("random").Random(i), 3) for i in range(200)]
+    assert all(r["success"] and r["loot"] and not r["lost"] for r in results)
+    assert any(r["wild"] == "liana" for r in results) and any(r["fragment"] == ["weatherproof", "yes"] for r in results)
+    # Échecs : maigre butin, des abeilles parfois perdues
+    fails = [X.resolve({**team, "chance": 0.0}, __import__("random").Random(i), 1) for i in range(200)]
+    assert all(not r["success"] and sum(r["loot"].values()) >= 1 for r in fails)
+    assert any(r["lost"] for r in fails) and any(not r["lost"] for r in fails)

@@ -718,6 +718,25 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
   mutations possibles sur les ruches.
 - Vérifié : 37 tests ; pages et don dans un navigateur sur la pile locale en mode dev.
 
+## Demande du 2026-10-21 (8) : fin de partie, étape 4 (1.8.0) : expéditions et espèces sauvages
+
+- Troisième grand projet, le Poste d'expédition : 1) une équipe, régions proches ; 2) deux équipes, régions
+  lointaines ; 3) trois équipes, butin ×1,5, plus d'espèces sauvages (20 % au lieu de 12 %).
+- `game/expeditions.py` : six régions (proches : Jungle profonde 30 min, Banquise éternelle 45 min, Désert de
+  verre 1 h ; lointaines : Caldeira 1 h 30, Fosse abyssale 2 h, Ciel nocturne 2 h, en temps réel). Chaque abeille
+  est notée sur 100 (climat toléré 40, pluie 20, obscurité 20, endurance selon la longévité 20) ; chance de
+  l'équipe 1 − Π(1 − 0,8 × note), plafonnée à 95 %. Les abeilles quittent la réserve au départ et y reviennent
+  au retour ; en cas d'échec, chacune a 25 % de risque d'être perdue, et le butin se réduit à une consolation.
+- Au retour (résolu à la lecture, `expeditions_tick`) : butin de la région, trouvailles rares, 30 % de chance
+  d'un fragment de gène rare (ajouté au laboratoire, comme une extraction), et une espèce sauvage (une princesse
+  et un faux-bourdon). Carnet de route des 8 derniers retours.
+- Six espèces sauvages, branche « Sauvages » (Lianeuse, Banquisienne, Mirage, Ignée, Benthique, Noctiluque) :
+  champ `wild` dans `SPECIES`, ni boutique ni mutation ; rangées au palier 7 dans l'Apidex, fiche et lore
+  adaptés. 174 espèces en tout.
+- Trophées « Explorateur » et « Pionnier » (catégorie Expéditions). Migration 0010 : `players.expeditions`.
+  Route `POST /api/expeditions/launch`. Nouvelle page `/expeditions` (onglet après Projets).
+- Vérifié : 40 tests ; page, préparation d'équipe et départ dans un navigateur sur la pile locale en mode dev.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

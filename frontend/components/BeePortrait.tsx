@@ -73,6 +73,7 @@ const ANATOMY: Record<string, Anatomy> = {
   Harmonieuses: A({ eyes: 'gem', antennae: 'feather' }),
   Temporelles: A({ eyes: 'gem', body: 'segmented' }),
   Légendaires: A({ head: 'big', eyes: 'gem', antennae: 'feather', thorax: 'mane' }),
+  Sauvages: A({ head: 'long', eyes: 'big', antennae: 'antlers', body: 'segmented', thorax: 'mane', legs: 'long' }),
 };
 
 function hash(x: number, y: number, seed: number) {

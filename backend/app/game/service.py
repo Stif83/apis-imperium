@@ -21,6 +21,7 @@ from . import genetics as G
 from . import lab as LAB
 from . import orders as O
 from . import projects as PR
+from . import expeditions as X
 from . import trophies as T
 from . import world as W
 
@@ -675,6 +676,87 @@ class Game:
         projects[project_id] = entry
         self.p.projects = projects
 
+    # ---- expéditions -------------------------------------------------------
+
+    def _expeditions(self) -> dict:
+        data = dict(self.p.expeditions or {})
+        data.setdefault("teams", [])
+        data.setdefault("log", [])
+        data.setdefault("counter", 0)
+        return data
+
+    def launch_expedition(self, region_id: str, bee_ids: list[str], now: int | None = None) -> None:
+        now = now or now_ms()
+        self.expeditions_tick(now)
+        stage = self.project_stage("outpost")
+        if stage < 1:
+            raise GameError("Il faut d'abord construire le Poste d'expédition (Grands projets).")
+        region = X.REGIONS.get(region_id)
+        if region is None:
+            raise GameError("Région inconnue.")
+        if region["tier"] > X.TIERS[stage]:
+            raise GameError("Cette région demande un poste plus avancé.")
+        data = self._expeditions()
+        if len(data["teams"]) >= X.SLOTS[stage]:
+            raise GameError("Toutes les équipes sont déjà parties.")
+        if not 1 <= len(bee_ids) <= X.TEAM_MAX:
+            raise GameError(f"Une équipe compte 1 à {X.TEAM_MAX} abeilles.")
+        bees = [self._bee(i) for i in bee_ids]
+        for bee in set(bees):
+            if bees.count(bee) > bee.count:
+                raise GameError("Pas assez d'abeilles de ce type en réserve.")
+        members = [{"type": b.type, "genome": G.normalize(b.genome)} for b in bees]
+        scores = [X.bee_score(m["genome"], region)["total"] for m in members]
+        for bee in bees:
+            self._take_bee(bee)
+        data["counter"] += 1
+        data["teams"].append({
+            "id": f"e{data['counter']}", "region": region_id, "bees": members, "scores": scores,
+            "chance": X.team_chance(scores), "start_ms": now, "end_ms": now + region["minutes"] * X.MINUTE,
+        })
+        self.p.expeditions = data
+
+    def expeditions_tick(self, now: int | None = None) -> None:
+        """Ramène les équipes dont le voyage est fini : butin, fragment, espèce sauvage, abeilles."""
+        now = now or now_ms()
+        data = self._expeditions()
+        due = [t for t in data["teams"] if t["end_ms"] <= now]
+        if not due:
+            return
+        stage = max(1, self.project_stage("outpost"))
+        for team in sorted(due, key=lambda t: t["end_ms"]):
+            data["teams"].remove(team)
+            result = X.resolve(team, random.Random(f"{self.p.id}:{team['id']}"), stage)
+            for item, n in result["loot"].items():
+                self.add_item(item, n)
+            for i, member in enumerate(team["bees"]):
+                if i not in result["lost"]:
+                    self.add_bee(member["type"], member["genome"])
+            if result["fragment"]:
+                self._add_fragment(*result["fragment"])
+            if result["wild"]:
+                genome = G.pure_genome(result["wild"])
+                self.add_bee("princess", genome)
+                self.add_bee("drone", genome)
+            A.bump(self.p, "expeditions")
+            report = {"id": team["id"], "region": team["region"], "end_ms": team["end_ms"], "chance": team["chance"],
+                      "bees": [m["genome"]["species"][0] for m in team["bees"]], **result}
+            data["log"] = [report, *data["log"]][: X.LOG_SIZE]
+        self.p.expeditions = data
+
+    def _add_fragment(self, chromosome: str, allele: str) -> None:
+        """Un fragment de gène rapporté d'expédition, comme une extraction réussie."""
+        lab = self._lab_state()
+        key = f"{chromosome}:{allele}"
+        got = lab["fragments"].get(key, 0) + 1
+        if got >= LAB.fragments_needed(chromosome, allele):
+            lab["fragments"].pop(key, None)
+            self._add_doses(chromosome, allele, LAB.DOSES)
+            self._lab_log(lab, f"Gène complet grâce à une expédition : {self._gene_label(chromosome, allele)}.")
+        else:
+            lab["fragments"][key] = got
+        self.p.lab = lab
+
     def _forecast(self, t: int) -> list[dict]:
         """Météo des prochaines périodes, par biome (Observatoire)."""
         period = W.HOUR_MS * W.WEATHER_HOURS
@@ -1024,6 +1106,10 @@ class Game:
             return len(self.genes)
         if metric in ("combs", "honey", "manual", "drones_sold", "extracts", "imprints", "generation", "orders", "prestige_orders"):
             return stats.get(metric, 0)
+        if metric == "expeditions":
+            return stats.get("expeditions", 0)
+        if metric == "wild_species":
+            return sum(1 for s in T.WILD if s in self.discovered)
         if metric == "project_stages":
             return sum(p.get("stage", 0) for p in (self.p.projects or {}).values())
         if metric == "reputation_level":
@@ -1269,6 +1355,7 @@ class Game:
         self.db.flush()
         t = now_ms()
         self.lab_tick(t)
+        self.expeditions_tick(t)
         self._passive_achievements(t, [(h, self._hive_status(h, self._mods(h), t)) for h in self.hives])
         self._ensure_trophies()
         observatory = self.project_stage("observatory")
@@ -1324,6 +1411,7 @@ class Game:
             "projects": {pid: {"stage": self.project_stage(pid), "given": (self.p.projects or {}).get(pid, {}).get("given", {})}
                          for pid in PR.PROJECTS},
             "forecast": self._forecast(t) if observatory >= 1 else None,
+            "expeditions": {**self._expeditions(), "stage": self.project_stage("outpost")},
             "orders": {
                 **self.orders_board(t),
                 "reputation": self.p.reputation or 0,

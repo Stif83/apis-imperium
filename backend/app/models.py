@@ -40,6 +40,8 @@ class Player(Base):
     reputation: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     # Grands projets : {projet: {"stage": étapes achevées, "given": {objet ou "honey": quantité}}}
     projects: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Expéditions en cours et derniers retours (voir game/expeditions.py)
+    expeditions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

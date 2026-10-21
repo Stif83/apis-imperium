@@ -132,6 +132,8 @@ def _species(rows):
             "dominant": extra.get("dominant", True),
             "temp": temp,
             "products": products,
+            # Espèce sauvage : ni boutique ni mutation, elle se trouve en expédition dans cette région
+            **({"wild": extra["wild"]} if "wild" in extra else {}),
             "template": {
                 "species": sid,
                 "speed": speed,
@@ -319,6 +321,13 @@ SPECIES = _species([
     ("fecund", "Féconde", "Temporelles", "aed581", "normal", "normal", "short", [("comb_honey", 0.40), ("pollen", 0.10)], {"secondary": "fff176", "fertility": "4"}),
     ("primordial", "Primordiale", "Légendaires", "4a148c", "normal", "slow", "longest", [("comb_royal", 0.30), ("primordial_essence", 0.02)], {"secondary": "ffd54f", "stability": "stable", "dominant": False}),
     ("celestial", "Céleste", "Légendaires", "e8eaf6", "normal", "normal", "longest", [("comb_royal", 0.30), ("stardust", 0.10), ("sunstone", 0.05)], {"secondary": "ffd700", "activity": "cathemeral", "dominant": False}),
+    # 1.8 : espèces sauvages, rapportées d'expédition (voir game/expeditions.py)
+    ("liana", "Lianeuse", "Sauvages", "3d8b37", "warm", "normal", "long", [("comb_silky", 0.35), ("fruit", 0.15)], {"secondary": "c6e377", "weatherproof": "yes", "wild": "jungle", "dominant": False}),
+    ("floe", "Banquisienne", "Sauvages", "dff6ff", "icy", "slow", "longer", [("comb_frozen", 0.40), ("snowflake", 0.08)], {"secondary": "5fb3e0", "tolerance": "one", "weatherproof": "yes", "wild": "glacier"}),
+    ("mirage", "Mirage", "Sauvages", "f2d38a", "hot", "fast", "normal", [("comb_parched", 0.35), ("quartz", 0.10), ("prism", 0.01)], {"secondary": "9ee6ff", "tolerance": "one", "wild": "glass_desert", "dominant": False}),
+    ("igneous", "Ignée", "Sauvages", "c2361b", "hellish", "normal", "long", [("comb_simmering", 0.45), ("phosphor", 0.15), ("sunstone", 0.02)], {"secondary": "ffb300", "wild": "volcano", "dominant": False}),
+    ("benthic", "Benthique", "Sauvages", "1a3a5c", "cold", "slow", "longer", [("comb_water", 0.40), ("dye", 0.15), ("sapphire", 0.01)], {"secondary": "4dd0e1", "activity": "nocturnal", "weatherproof": "yes", "wild": "abyss"}),
+    ("noctiluca", "Noctiluque", "Sauvages", "241a4a", "cold", "normal", "long", [("comb_nocturnal", 0.40), ("stardust", 0.08), ("moonstone", 0.02)], {"secondary": "9effe2", "activity": "nocturnal", "wild": "night_sky", "dominant": False}),
     ("imperatrix", "Apis Imperatrix", "Légendaires", "ffc107", "normal", "fast", "longest", [("comb_royal", 0.50), ("imperial_jelly", 0.05)], {"secondary": "7f0000", "activity": "cathemeral", "weatherproof": "yes", "stability": "stable", "fertility": "4", "tolerance": "two", "dominant": False}),
 ])
 

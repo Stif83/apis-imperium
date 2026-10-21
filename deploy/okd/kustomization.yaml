@@ -20,7 +20,7 @@ images:
     newTag: "1.3.0"
   - name: apiculteur/backend
     newName: image-registry.openshift-image-registry.svc:5000/apps-apisimperium/backend
-    newTag: "1.7.0"
+    newTag: "1.8.0"
   - name: apiculteur/frontend
     newName: image-registry.openshift-image-registry.svc:5000/apps-apisimperium/frontend
-    newTag: "1.7.0"
+    newTag: "1.8.0"

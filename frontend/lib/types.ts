@@ -12,6 +12,8 @@ export type Species = {
   temp: string;
   products: [string, number][];
   template: Record<string, string>;
+  /** Espèce sauvage : région d'expédition où on la trouve */
+  wild?: string;
 };
 export type Item = { label: string; category: 'comb' | 'resource' | 'consumable' | 'module'; color: string; sell: number };
 export type Offer = {
@@ -94,6 +96,41 @@ export type Content = {
     greenhouse_temps: Record<string, string[]>;
     greenhouse_slots: Record<string, number>;
   };
+  expeditions: {
+    regions: Record<string, Region>;
+    team_max: number;
+    slots: Record<string, number>;
+    tiers: Record<string, number>;
+    loss_chance: number;
+  };
+};
+
+export type Region = {
+  label: string;
+  icon: string;
+  desc: string;
+  tier: number;
+  temp: string;
+  wet: boolean;
+  dark: boolean;
+  minutes: number;
+  loot: [string, number, number][];
+  rare: string[];
+  gene: [string, string];
+  wild: string;
+};
+
+export type ExpeditionReport = {
+  id: string;
+  region: string;
+  end_ms: number;
+  chance: number;
+  bees: string[];
+  success: boolean;
+  loot: Record<string, number>;
+  lost: number[];
+  fragment: [string, string] | null;
+  wild: string | null;
 };
 
 export type Project = {
@@ -175,6 +212,11 @@ export type GameState = {
   projects: Record<string, { stage: number; given: Record<string, number> }>;
   /** Météo des prochaines périodes par biome (Observatoire construit) */
   forecast: { in_ms: number; weather: Record<string, string> }[] | null;
+  expeditions: {
+    stage: number;
+    teams: { id: string; region: string; bees: { type: BeeType; genome: Genome }[]; scores: number[]; chance: number; start_ms: number; end_ms: number }[];
+    log: ExpeditionReport[];
+  };
   orders: {
     slots: { order: Order | null; ready_ms: number }[];
     prestige: { week: string; done: boolean; order: Order | null } | null;

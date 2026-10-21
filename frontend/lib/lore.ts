@@ -430,6 +430,20 @@ export const LORE: Record<string, string> = {
   fecund:
     "La Féconde donne naissance à tant de petits que sa ruche déborde chaque printemps. Elle partage son pollen avec toutes les ruches voisines.",
 
+  // Sauvages
+  liana:
+    "La Lianeuse vit accrochée aux lianes de la jungle profonde, où il pleut sans fin. Elle n'avait jamais vu une ruche avant qu'une équipe ne la ramène.",
+  floe:
+    "La Banquisienne dérive sur les plaques de glace de la banquise éternelle. Elle se nourrit de fleurs de givre et ne craint ni le vent ni la neige.",
+  mirage:
+    "On ne voit la Mirage qu'à travers les reflets du désert de verre. Les explorateurs qui la rapportent jurent parfois en avoir vu trois, pour une seule capturée.",
+  igneous:
+    "L'Ignée niche dans les fissures de la caldeira, là où la roche brille encore. Elle traverse les flammes sans y laisser une aile.",
+  benthic:
+    "La Benthique vit dans les grottes noyées de la fosse abyssale. Elle ne connaît que le noir et le bruit des vagues, et luit faiblement pour retrouver ses sœurs.",
+  noctiluca:
+    "La Noctiluque danse au sommet des montagnes, au plus près des étoiles. Ses ailes laissent une traînée de lumière que les bergers prennent pour des comètes.",
+
   // Légendaires
   primordial:
     "La Primordiale existait avant toutes les autres abeilles. Les légendes disent que chaque espèce descend d'elle, et qu'elle en garde l'essence au fond de ses rayons.",

@@ -106,15 +106,6 @@ export default function ProjectsPage() {
             </div>
           );
         })}
-        <div className="card project-card soon">
-          <span className="project-title">
-            <span className="project-icon">🧭</span>
-            <span>
-              <span className="title">Poste d'expédition</span>
-              <span className="muted project-desc">Bientôt : envoyer des abeilles explorer volcans, banquises et abysses.</span>
-            </span>
-          </span>
-        </div>
       </div>
     </>
   );

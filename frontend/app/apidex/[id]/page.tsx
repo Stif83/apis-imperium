@@ -65,7 +65,9 @@ export default function BeePage() {
           {known && (
             <div className="row">
               <span className="chip">🌡️ Climat {content.temp_labels[species.temp].toLowerCase()}</span>
-              <span className="chip">{tiers[id] === 0 ? '🛒 Espèce de base' : `🧬 Palier ${tiers[id]}`}</span>
+              <span className="chip">
+                {species.wild ? '🧭 Espèce sauvage' : tiers[id] === 0 ? '🛒 Espèce de base' : `🧬 Palier ${tiers[id]}`}
+              </span>
               {certified > 0 && (
                 <span className="chip" title="Meilleur pedigree certifié pour cette espèce">
                   {content.trophies.pedigree[String(certified)].icon} Pedigree {content.trophies.pedigree[String(certified)].label}
@@ -163,9 +165,11 @@ export default function BeePage() {
               <div className="card stack">
                 <p>On ne sait encore rien de cette abeille. Obtenez-la une première fois pour lire sa fiche.</p>
                 <p className="muted">
-                  {parents.length
-                    ? `Elle naît d'une mutation : ${parents.length} croisement${parents.length > 1 ? 's' : ''} possible${parents.length > 1 ? 's' : ''}.`
-                    : "C'est une espèce de base : elle s'achète en boutique."}
+                  {species.wild
+                    ? `C'est une espèce sauvage : une expédition peut la rapporter de la région « ${content.expeditions.regions[species.wild]?.label} ».`
+                    : parents.length
+                      ? `Elle naît d'une mutation : ${parents.length} croisement${parents.length > 1 ? 's' : ''} possible${parents.length > 1 ? 's' : ''}.`
+                      : "C'est une espèce de base : elle s'achète en boutique."}
                 </p>
                 {parents.length > 0 && (
                   <div>
@@ -194,7 +198,13 @@ export default function BeePage() {
         <div className="stack">
           <div className="card stack">
             <div className="title">Comment l'obtenir</div>
-            {parents.length === 0 && <div className="muted">Espèce de base : elle s'achète en boutique.</div>}
+            {parents.length === 0 && (
+              <div className="muted">
+                {species.wild
+                  ? `Espèce sauvage : on la trouve en expédition, dans la région « ${content.expeditions.regions[species.wild]?.label} ».`
+                  : "Espèce de base : elle s'achète en boutique."}
+              </div>
+            )}
             {parents.map((m, i) => (
               <Family key={i} m={m} wide />
             ))}

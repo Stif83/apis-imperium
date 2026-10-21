@@ -35,6 +35,20 @@ PROJECTS = {
     },
 }
 
+PROJECTS["outpost"] = {
+    "label": "Poste d'expédition",
+    "icon": "🧭",
+    "desc": "Un camp au bord du monde connu, d'où partent les équipes d'abeilles exploratrices.",
+    "stages": [
+        {"label": "Camp de base", "effect": "Une équipe en expédition à la fois, vers les régions proches.",
+         "cost": {"honey": 8000, "items": {"wax": 250, "propolis": 60, "honeydew": 60, "silk": 30}}},
+        {"label": "Relais", "effect": "Deux équipes à la fois ; les régions lointaines s'ouvrent.",
+         "cost": {"honey": 20000, "items": {"iron": 60, "coal": 80, "ice_shard": 40, "fuel": 20}}},
+        {"label": "Grand poste", "effect": "Trois équipes à la fois, butin ×1,5 et plus d'espèces sauvages.",
+         "cost": {"honey": 50000, "items": {"gold": 20, "amber": 10, "energy": 40, "royal_jelly": 30}}},
+    ],
+}
+
 OBSERVATORY_MUTATION = 1.15
 GREENHOUSE_PRODUCTION = 1.25
 # Ruches sous serre et températures permises, selon l'étape atteinte

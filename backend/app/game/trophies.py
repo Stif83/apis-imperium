@@ -25,6 +25,7 @@ CATEGORIES = {
     "pedigree": "Pedigree",
     "trade": "Comptoir",
     "projects": "Grands projets",
+    "expeditions": "Expéditions",
     "community": "Communauté",
     "secret": "Secrets",
 }
@@ -43,6 +44,7 @@ def _branches() -> dict[str, list[str]]:
 
 BRANCHES = _branches()
 N_SPECIES = len(C.SPECIES)
+WILD = [sid for sid, s in C.SPECIES.items() if s.get("wild")]
 
 
 def _t(tid, category, label, icon, desc, metric, tiers, metals=None, secret=False):
@@ -115,6 +117,10 @@ def _trophies() -> list[dict]:
            [(1, 500, None), (5, 3000, None), (15, 10000, None), (40, 30000, {"imperial_jelly": 2})]),
         _t("wonders", "projects", "Bâtisseur de merveilles", "🏛️", "Étapes de grands projets achevées", "project_stages",
            [(1, 500, None), (3, 3000, None), (6, 12000, {"imperial_jelly": 1})]),
+        _t("explorer", "expeditions", "Explorateur", "🧭", "Expéditions menées à terme", "expeditions",
+           [(1, 100, None), (10, 800, None), (50, 4000, {"royal_jelly": 10}), (200, 15000, {"imperial_jelly": 1})]),
+        _t("pioneer", "expeditions", "Pionnier", "🦋", "Espèces sauvages découvertes", "wild_species",
+           [(1, 500, None), (2, 1500, None), (4, 5000, None), (len(WILD), 15000, {"imperial_jelly": 1})]),
         # Communauté
         _t("curator", "community", "Vernissage", "🖼️", "Vitrines publiées", "showcases", [(1, 50, None)], metals=["silver"]),
         _t("loved", "community", "Coup de cœur", "💛", "« J'aime » reçus sur vos vitrines", "likes",

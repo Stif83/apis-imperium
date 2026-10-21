@@ -6,6 +6,7 @@ from ..game import content
 from ..game import lab
 from ..game import orders
 from ..game import projects
+from ..game import expeditions
 from ..game import trophies
 from ..game.service import Game
 
@@ -125,6 +126,17 @@ def contribute(body: ContributeIn, game: Game = Depends(current_game)):
     return _done(game)
 
 
+class ExpeditionIn(BaseModel):
+    region: str
+    bee_ids: list[str]
+
+
+@router.post("/expeditions/launch")
+def launch_expedition(body: ExpeditionIn, game: Game = Depends(current_game)):
+    game.launch_expedition(body.region, body.bee_ids)
+    return _done(game)
+
+
 class CertifyIn(BaseModel):
     bee_id: str
 
@@ -137,7 +149,8 @@ def certify(body: CertifyIn, game: Game = Depends(current_game)):
 
 @router.get("/content")
 def get_content():
-    return {**content.public_content(), "lab": lab.public_lab(), "trophies": trophies.public_trophies(), "orders": orders.public_orders(), "projects": projects.public_projects()}
+    return {**content.public_content(), "lab": lab.public_lab(), "trophies": trophies.public_trophies(), "orders": orders.public_orders(), "projects": projects.public_projects(),
+            "expeditions": expeditions.public_expeditions()}
 
 
 class ReplicateIn(BaseModel):

@@ -74,6 +74,7 @@ const BRANCH_LOOKS: Record<string, Look> = {
   Harmonieuses: { pattern: 'plain', wings: 'big', features: ['shine', 'halo'] },
   Temporelles: { pattern: 'split', wings: 'normal', features: ['sparkle'] },
   Légendaires: { pattern: 'stripes', wings: 'butterfly', features: ['halo', 'glow', 'shine', 'crest'], size: 2 },
+  Sauvages: { pattern: 'spots', wings: 'tattered', features: ['speckle', 'antennae'], size: 1 },
 };
 const DEFAULT_LOOK: Look = { pattern: 'stripes', wings: 'normal', features: [] };
 
