@@ -598,6 +598,48 @@ d'alvéaires possédés. La ruche garde reine, abeilles en attente, récolte, ca
   d'accueil en 200, l'API sert la durée de vie des sept modules concernés. Non vérifié : l'interface
   dans un navigateur.
 
+## Demande du 2026-10-21 : Apidex, arbre zoomable et fiche d'abeille
+
+- Arbre des mutations (`components/TreeView.tsx`) : il occupe toute la largeur et la hauteur de la
+  fenêtre ; molette ou pincement pour zoomer, glisser pour se déplacer, boutons + / − / Ajuster /
+  Plein écran, champ « Aller à… » (espèces connues seulement), « Lignée » de l'abeille choisie.
+  Un clic sélectionne et ouvre une carte « Ouvrir la fiche » ; un double-clic ouvre la fiche.
+- Fiche d'une abeille : nouvelle page `/apidex/<espèce>` avec deux onglets. Présentation : portrait
+  vectoriel détaillé (`components/BeePortrait.tsx`, reine / princesse / faux-bourdon, même apparence
+  par branche que le sprite), description écrite à partir des gènes et de la famille
+  (`describe` et `BRANCH_LORE` dans `components/apidex.tsx`), caractéristiques, récolte, même branche.
+  Mutations : comment l'obtenir, ce qu'elle peut donner, lien vers sa lignée dans l'arbre
+  (`/apidex?vue=arbre&abeille=<espèce>`). Une espèce inconnue reste anonyme (silhouette, « ??? »).
+- La fenêtre superposée de l'ancienne fiche disparaît : tous les clics sur une abeille de l'Apidex
+  mènent à sa page.
+- Vérifié dans un navigateur sans interface, sur une pile locale en mode dev : fiches (quatre
+  branches, espèce inconnue), onglet Mutations, arbre (zoom à la molette, sélection, lignée), mobile
+  390 px, sans erreur console.
+
+## Demande du 2026-10-21 (2) : portraits en pixel art et lore des abeilles
+
+- `components/BeePortrait.tsx` : le portrait vectoriel est remplacé par du pixel art 48×48 (ombrage en
+  trois tons, contours par partie). `ANATOMY` donne à chaque branche une tête (ronde, grosse, petite,
+  museau, casque, crâne, capuche), des yeux (composés, lumineux, visière, gemme…), des antennes (longues,
+  plumeuses, en spirale, bois, cornes, éclair…), un corps (ovale, allongé, rond, segmenté, cuirassé), un
+  thorax (fourrure, plaque, crinière, teinté de la couleur de l'espèce), des pattes et un dard. Les ailes,
+  le motif et les particularités restent ceux de `BRANCH_LOOKS` (BeeIcon). Les petites icônes ne changent pas.
+- `lib/lore.ts` : un petit texte par espèce (168), affiché en tête de la fiche à la place de la description
+  générée à partir des gènes (supprimée) ; les caractéristiques restent dans leur tableau. La phrase de
+  la branche (`BRANCH_LORE`) s'affiche dans l'encart « Même branche ».
+- Vérifié sur la pile locale en mode dev : planche de 16 branches, fiche complète, silhouette inconnue.
+
+## Demande du 2026-10-21 (3) : retouches de la fiche et déploiements 1.4.4 à 1.4.6
+
+- Fiche d'une abeille : bandeau d'en-tête aux couleurs de l'espèce au-dessus des onglets (nom, branche,
+  climat, palier, traits remarquables en clair sauf l'activité, badge « Découverte ») ; la rangée
+  d'icônes sous le lore est retirée. Onglet Mutations : chaque croisement occupe toute la largeur
+  (`Family` avec `wide`), chance en gros et condition dessous.
+- Le portrait s'affiche en 288 px (6 pixels écran par pixel de la grille 48) pour rester net.
+- Déploiements : frontend seul en 1.4.4 (arbre zoomable, fiche), 1.4.5 (pixel art, lore), 1.4.6
+  (retouches). Backend toujours en 1.4.3, PostgreSQL en 1.3.0, aucune migration. Vérifié : pods
+  prêts, fiches en 200 ; interface vérifiée sur la pile locale en mode dev, pas sur le cluster.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

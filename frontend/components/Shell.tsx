@@ -106,7 +106,7 @@ function Header() {
       {rain && <BeeRain onDone={stopRain} />}
       <nav>
         {TABS.map((tab) => (
-          <Link key={tab.href} href={tab.href} className={pathname === tab.href ? 'active' : ''}>
+          <Link key={tab.href} href={tab.href} className={(tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href)) ? 'active' : ''}>
             {tab.label}
             {tab.href === '/carnet' && rewards && <span className="dot" title="Récompense à réclamer" />}
           </Link>
