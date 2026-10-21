@@ -35,7 +35,7 @@ def _list(db: Session, me: Player) -> list[dict]:
         query = select(Discovery.player_id, Discovery.species_id).where(Discovery.player_id.in_(authors), Discovery.kind == "bee")
         for pid, species in db.execute(query):
             found[pid].add(species)
-    badges = {pid: player_badges(found[pid], set(p.claimed or []), len(p.achievements or {})) for pid, p in authors.items()}
+    badges = {pid: player_badges(found[pid], p.trophies) for pid, p in authors.items()}
     return [
         {
             "id": s.id,

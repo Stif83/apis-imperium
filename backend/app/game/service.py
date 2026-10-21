@@ -19,6 +19,7 @@ from . import content as C
 from . import garden as GD
 from . import genetics as G
 from . import lab as LAB
+from . import trophies as T
 from . import world as W
 
 
@@ -771,6 +772,7 @@ class Game:
                 key = f"{chromosome}:{allele}"
                 need = LAB.fragments_needed(chromosome, allele)
                 got = lab["fragments"].get(key, 0) + 1
+                A.bump(self.p, "extracts")
                 if got >= need:
                     complete = True
                     lab["fragments"].pop(key, None)
@@ -785,6 +787,7 @@ class Game:
         elif job["op"] == "imprint":
             self.add_bee(job["type"], job["genome"])
             A.unlock(self.p, "first_imprint")
+            A.bump(self.p, "imprints")
             self._lab_log(lab, "Impression terminée : l'abeille est revenue dans la réserve.")
         elif job["op"] == "replicate":
             self._add_doses(chromosome, allele, LAB.DOSES)
@@ -904,19 +907,91 @@ class Game:
             return len(self.genes)
         return 0
 
-    def claim_objective(self, objective_id: str) -> None:
-        objective = C.OBJECTIVES.get(objective_id)
-        if objective is None:
-            raise GameError("Objectif inconnu.")
-        claimed = list(self.p.claimed or [])
-        if objective_id in claimed:
-            raise GameError("Récompense déjà reçue.")
-        if self.objective_progress(objective) < objective["target"]:
-            raise GameError("Objectif pas encore atteint.")
-        self.p.claimed = [*claimed, objective_id]
-        self.p.honey += objective["reward"]["honey"]
-        for item, n in objective["reward"]["items"].items():
-            self.add_item(item, n)
+    # ---- trophées et pedigree --------------------------------------------
+
+    def trophy_value(self, trophy: dict) -> int:
+        """Valeur actuelle de la mesure suivie par un trophée."""
+        metric = trophy["metric"]
+        stats = self.p.stats or {}
+        events = self.p.achievements or {}
+        if metric == "species":
+            return len(self.discovered & set(C.SPECIES))
+        if metric == "branches":
+            return sum(1 for members in T.BRANCHES.values() if all(s in self.discovered for s in members))
+        if metric == "hives":
+            return len(self.hives)
+        if metric == "biomes":
+            return len({h.biome for h in self.hives})
+        if metric == "genes":
+            return len(self.genes)
+        if metric in ("combs", "honey", "manual", "drones_sold", "extracts", "imprints", "generation"):
+            return stats.get(metric, 0)
+        if metric.startswith("events:"):
+            return sum(1 for e in T.EVENT_SETS[metric[7:]] if e in events)
+        if metric.startswith("event:"):
+            return int(metric[6:] in events)
+        if metric.startswith("pedigree:"):
+            need = int(metric[9:])
+            return sum(1 for level in (self.p.pedigree or {}).values() if level >= need)
+        if metric == "showcases":
+            return self.db.scalar(select(func.count()).select_from(Showcase).where(Showcase.player_id == self.p.id)) or 0
+        if metric == "likes":
+            return self.db.scalar(
+                select(func.count()).select_from(ShowcaseLike).join(Showcase, Showcase.id == ShowcaseLike.showcase_id)
+                .where(Showcase.player_id == self.p.id)
+            ) or 0
+        return 0
+
+    def _ensure_trophies(self) -> None:
+        """Première lecture depuis les trophées : conversion des objectifs et succès, sans perte ni doublon.
+
+        Un objectif atteint mais pas encore réclamé est payé maintenant. Ensuite, chaque palier déjà
+        atteint est marqué comme reçu : les objectifs et succès d'avant l'ont déjà récompensé.
+        """
+        if self.p.trophies is not None:
+            return
+        claimed = set(self.p.claimed or [])
+        for oid, objective in C.OBJECTIVES.items():
+            if oid not in claimed and self.objective_progress(objective) >= objective["target"]:
+                self.p.honey += objective["reward"]["honey"]
+                for item, n in objective["reward"]["items"].items():
+                    self.add_item(item, n)
+                claimed.add(oid)
+        self.p.claimed = sorted(claimed)
+        self.p.trophies = {tid: T.reached(trophy, self.trophy_value(trophy)) for tid, trophy in T.TROPHIES.items()}
+
+    def claim_trophy(self, trophy_id: str) -> None:
+        """Réclame tous les paliers atteints et pas encore reçus d'un trophée."""
+        self._ensure_trophies()
+        trophy = T.TROPHIES.get(trophy_id)
+        if trophy is None:
+            raise GameError("Trophée inconnu.")
+        got = dict(self.p.trophies or {})
+        done = got.get(trophy_id, 0)
+        reached = T.reached(trophy, self.trophy_value(trophy))
+        if reached <= done:
+            raise GameError("Pas de nouveau palier à réclamer.")
+        for tier in trophy["tiers"][done:reached]:
+            self.p.honey += tier["reward"]["honey"]
+            for item, n in tier["reward"]["items"].items():
+                self.add_item(item, n)
+        got[trophy_id] = reached
+        self.p.trophies = got
+
+    def certify(self, bee_id: str) -> int:
+        """Présente une abeille au jury : son niveau de pedigree devient acquis pour l'espèce s'il est meilleur."""
+        bee = self._bee(bee_id)
+        genome = G.normalize(bee.genome)
+        level = T.pedigree_level(genome)
+        if level == 0:
+            raise GameError("Une abeille hybride ne peut pas être certifiée : son gène d'espèce doit être pur.")
+        species = genome["species"][0]
+        pedigree = dict(self.p.pedigree or {})
+        if pedigree.get(species, 0) >= level:
+            raise GameError(f"Cette espèce est déjà certifiée « {T.PEDIGREE_LEVELS[pedigree[species]]['label']} ».")
+        pedigree[species] = level
+        self.p.pedigree = pedigree
+        return level
 
     # ---- sérialisation ----------------------------------------------------
 
@@ -953,6 +1028,7 @@ class Game:
             if W.phase(t) == "night":
                 A.unlock(self.p, "night_worker")
         best = max((h.queen.get("generation", 1) for h in self.hives if h.queen), default=0)
+        A.record(self.p, "generation", best)
         if best >= 10:
             A.unlock(self.p, "generation_10")
         if best >= 50:
@@ -981,6 +1057,7 @@ class Game:
         t = now_ms()
         self.lab_tick(t)
         self._passive_achievements(t, [(h, self._hive_status(h, self._mods(h), t)) for h in self.hives])
+        self._ensure_trophies()
         hives = []
         for hive in self.hives:
             mods = self._mods(hive)
@@ -1019,13 +1096,14 @@ class Game:
             "server_time": t,
             "cycle_seconds": settings.cycle_seconds,
             "world": W.snapshot(t, C.BIOMES),
-            "badges": B.player_badges(self.discovered, set(self.p.claimed or []), len(self.p.achievements or {})),
+            "badges": B.player_badges(self.discovered, self.p.trophies),
             "achievements": dict(self.p.achievements or {}),
             "stats": dict(self.p.stats or {}),
-            "objectives": {
-                oid: {"progress": self.objective_progress(o), "claimed": oid in (self.p.claimed or [])}
-                for oid, o in C.OBJECTIVES.items()
+            "trophies": {
+                tid: {"progress": self.trophy_value(trophy), "claimed": (self.p.trophies or {}).get(tid, 0)}
+                for tid, trophy in T.TROPHIES.items()
             },
+            "pedigree": dict(self.p.pedigree or {}),
             "inventory": {item: row.qty for item, row in self.inv.items() if row.qty > 0},
             "worn_modules": self.p.worn_modules or {},
             "bees": [

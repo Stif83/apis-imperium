@@ -66,7 +66,6 @@ export type Content = {
     weathers: Record<string, string>;
     activity_hours: Record<string, number[]>;
   };
-  objectives: Objective[];
   garden_enabled: boolean;
   achievements: Achievement[];
   lab: {
@@ -79,18 +78,25 @@ export type Content = {
     fragments: Record<string, Record<string, number>>;
     rarity: Record<string, Record<string, 'common' | 'medium' | 'rare'>>;
   };
+  trophies: {
+    categories: Record<string, string>;
+    list: Trophy[];
+    pedigree: Record<string, { label: string; icon: string; desc: string }>;
+  };
+};
+
+export type Metal = 'bronze' | 'silver' | 'gold' | 'diamond';
+export type Trophy = {
+  id: string;
+  category: string;
+  label: string;
+  icon: string;
+  desc: string;
+  secret: boolean;
+  tiers: { need: number; metal: Metal; reward: Cost }[];
 };
 
 export type Achievement = { id: string; label: string; desc: string; icon: string; secret: boolean; honey: number };
-
-export type Objective = {
-  id: string;
-  label: string;
-  kind: 'species' | 'branch' | 'hives' | 'trees' | 'butterflies' | 'genes';
-  target: number;
-  branch: string | null;
-  reward: Cost;
-};
 
 export type Plot = {
   id: string;
@@ -126,7 +132,10 @@ export type GameState = {
   server_time: number;
   cycle_seconds: number;
   world: { hour: number; minute: number; phase: string; weather: Record<string, string>; next_weather_ms: number };
-  objectives: Record<string, { progress: number; claimed: boolean }>;
+  /** Valeur actuelle de la mesure et nombre de paliers déjà réclamés */
+  trophies: Record<string, { progress: number; claimed: number }>;
+  /** Meilleur niveau de pedigree certifié par espèce (1 Pure à 4 Champion) */
+  pedigree: Record<string, number>;
   badges: PlayerBadges;
   achievements: Record<string, number>;
   stats: Record<string, number>;

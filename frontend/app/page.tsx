@@ -23,7 +23,8 @@ import {
 } from '@/components/ui';
 import { HiveArt } from '@/components/HiveArt';
 import { useGame } from '@/lib/game';
-import type { Hive } from '@/lib/types';
+import { pedigreeLevel, pedigreeMissing } from '@/lib/trophies';
+import type { Bee, Hive } from '@/lib/types';
 
 const STATUS: Record<Hive['status'], { label: string; className: string; title: string }> = {
   working: { label: 'Au travail', className: 'badge ok', title: 'La reine produit des rayons.' },
@@ -400,6 +401,30 @@ function HiveCard({ hive }: { hive: Hive }) {
   );
 }
 
+/** Présente l'abeille au jury : le pedigree obtenu reste acquis pour l'espèce, l'abeille n'est pas consommée. */
+function Certify({ bee }: { bee: Bee }) {
+  const { content, state, act } = useGame();
+  const level = pedigreeLevel(bee.genome);
+  const species = bee.genome.species[0];
+  const best = state.pedigree?.[species] ?? 0;
+  const levels = content.trophies.pedigree;
+  const missing = pedigreeMissing(content, bee.genome);
+  const next = levels[String(level + 1)];
+  const hint = next ? `Pour « ${next.label} » : ${missing.join(', ')}` : 'Niveau maximal';
+  if (level === 0) return <span className="muted" title={hint}>Hybride : pas de pedigree</span>;
+  if (level <= best)
+    return (
+      <span className="muted" title={hint}>
+        {levels[String(level)].icon} {levels[String(level)].label} · espèce déjà certifiée {levels[String(best)].label}
+      </span>
+    );
+  return (
+    <button className="small primary-soft" title={hint} onClick={() => act('/bees/certify', { bee_id: bee.id })}>
+      Faire certifier : {levels[String(level)].icon} {levels[String(level)].label}
+    </button>
+  );
+}
+
 export default function ApiaryPage() {
   const { content, state, act } = useGame();
   const [open, setOpen] = useState<string | null>(null);
@@ -448,6 +473,7 @@ export default function ApiaryPage() {
           onClose={() => setOpen(null)}
           actions={(bee) => (
             <>
+              <Certify bee={bee} />
               <button className="small" onClick={() => act('/bees/sell', { bee_id: bee.id, qty: 1 })}>
                 Vendre 1 (<Honey amount={content.bee_sell[bee.type]} />)
               </button>

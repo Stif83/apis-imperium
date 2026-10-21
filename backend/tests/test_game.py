@@ -496,35 +496,87 @@ def test_hive_context_and_status(game):
     assert game._hive_status(hive, game._mods(hive), night) == "working"
 
 
-def test_objectives(game):
+def test_trophies_claim_tiers(game):
+    from app.game import trophies as T
+
+    game.state()  # première lecture : conversion, rien d'atteint pour un nouveau joueur
+    assert game.p.trophies["collector"] == 0
     with pytest.raises(GameError):
-        game.claim_objective("species:5")
+        game.claim_trophy("collector")
+    for species in list(C.SPECIES)[:10]:
+        game.discover(G.pure_genome(species))
+    state = game.state()
+    assert state["trophies"]["collector"] == {"progress": 10, "claimed": 0}
+    honey = game.p.honey
+    game.claim_trophy("collector")
+    tier = T.TROPHIES["collector"]["tiers"][0]
+    assert game.p.honey == honey + tier["reward"]["honey"]
+    assert game.qty("frame_untreated") == tier["reward"]["items"]["frame_untreated"]
+    with pytest.raises(GameError):
+        game.claim_trophy("collector")
+    assert game.state()["trophies"]["collector"]["claimed"] == 1
+    # Les médailles des vitrines suivent les paliers réclamés
+    assert "collector:bronze" in {b["id"] for b in game.state()["badges"]["badges"]}
+
+
+def test_trophies_convert_old_progress_without_paying_twice(game):
+    # Un ancien joueur : objectif « 5 espèces » atteint mais pas réclamé, succès déjà payés
     for species in ["common", "cultivated", "noble"]:
         game.discover(G.pure_genome(species))
+    game.p.achievements = {"first_install": 1, "first_harvest": 1, "konami": 1}
+    game.p.trophies = None
     honey = game.p.honey
-    game.claim_objective("species:5")
-    assert game.p.honey == honey + C.OBJECTIVES["species:5"]["reward"]["honey"]
-    assert game.qty("frame_untreated") == 1
+    # Objectifs atteints mais pas réclamés : 5 espèces, et la branche des Mellifères (complète)
+    pending = C.OBJECTIVES["species:5"]["reward"]["honey"] + C.OBJECTIVES["branch:forest"]["reward"]["honey"]
+    game.state()
+    # Ils sont payés une fois, puis les paliers déjà atteints sont marqués reçus
+    assert game.p.honey == honey + pending
+    assert game.p.trophies["firsts"] == 1 and game.p.trophies["secret:konami"] == 1
     with pytest.raises(GameError):
-        game.claim_objective("species:5")
-    assert game.state()["objectives"]["species:5"] == {"progress": 5, "claimed": True}
+        game.claim_trophy("firsts")
+    game.state()
+    assert game.p.honey == honey + pending
+
+
+def test_pedigree(game):
+    from app.game import trophies as T
+
+    forest = G.pure_genome("forest")
+    assert T.pedigree_level(forest) == 2  # une espèce pure de boutique est déjà stable
+    hybrid = {**forest, "species": ["forest", "meadows"]}
+    assert T.pedigree_level(hybrid) == 0
+    mixed = {**forest, "speed": ["slowest", "fast"]}
+    assert T.pedigree_level(mixed) == 1 and T.pedigree_missing(mixed)
+    elite = {**forest, "speed": ["fast", "fast"], "lifespan": ["long", "long"], "fertility": ["3", "3"]}
+    assert T.pedigree_level(elite) == 3
+    champion = {**elite, "tolerance": ["two", "two"], "weatherproof": ["yes", "yes"], "activity": ["cathemeral", "cathemeral"]}
+    assert T.pedigree_level(champion) == 4 and T.pedigree_missing(champion) == []
+
+    game.add_bee("drone", champion)
+    bee = next(b for b in game.bees if b.genome == champion)
+    assert game.certify(bee.id) == 4
+    assert game.p.pedigree == {"forest": 4}
+    assert bee in game.bees  # l'abeille n'est pas consommée
+    with pytest.raises(GameError):
+        game.certify(bee.id)
+    game.add_bee("drone", hybrid)
+    with pytest.raises(GameError):
+        game.certify(next(b for b in game.bees if b.genome == hybrid).id)
+    state = game.state()
+    assert state["pedigree"] == {"forest": 4}
+    assert state["trophies"]["pedigree_champion"]["progress"] == 1
 
 
 def test_badges():
-    empty = B.player_badges(set(), set())
+    empty = B.player_badges(set())
     assert empty["rank"] is None and empty["badges"] == [] and empty["next_rank"]["label"] == "Apprenti apiculteur"
     honey = set(B.BRANCHES["Mellifères"])
-    # Bronze : un quart des objectifs de la famille (1 sur 4 pour les ruches, 3 sur 10 pour les espèces)
-    got = B.player_badges(honey | {"noble"}, {"hives:3", "species:5", "species:10", "species:20"})
-    assert got["rank"]["label"] == "Apprenti apiculteur"
+    got = B.player_badges(honey | {"noble"}, {"builder": 1, "collector": 4, "curator": 1})
     ids = {b["id"] for b in got["badges"]}
-    assert "branch:forest" in ids and "builder:bronze" in ids and "collector:bronze" in ids
-    # Toutes les ruches réclamées : diamant ; tout découvert : rang ultime
-    hives = {o["id"] for o in C.OBJECTIVES.values() if o["kind"] == "hives"}
-    best = B.player_badges(set(C.SPECIES), hives)
-    assert "builder:diamond" in {b["id"] for b in best["badges"]}
+    assert {"branch:forest", "builder:bronze", "collector:diamond", "curator:silver"} <= ids
+    assert got["badges"][0]["id"] == "collector:diamond"
+    best = B.player_badges(set(C.SPECIES))
     assert best["rank"]["label"] == "Apis Imperator" and best["next_rank"] is None
-    assert best["badges"][0]["kind"] == "achievement"
 
 
 def test_achievements(game):
@@ -534,9 +586,7 @@ def test_achievements(game):
     hive = game.hives[0]
     game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
     assert "first_install" in game.p.achievements
-    assert game.p.honey == honey + A.ACHIEVEMENTS["first_install"][4]
-    game.install(game.hives[1].id, _bee(game, "princess", "meadows").id, _bee(game, "drone", "meadows").id)
-    assert game.p.honey == honey + A.ACHIEVEMENTS["first_install"][4]  # une seule fois
+    assert game.p.honey == honey  # la récompense passe désormais par le trophée « Premiers pas »
 
     game.advance(200)
     game.collect(hive.id)
@@ -551,15 +601,8 @@ def test_achievements(game):
         game.secret("midnight")
     state = game.state()
     assert set(state["achievements"]) <= set(A.ACHIEVEMENTS)
-    assert all(a["id"] in A.ACHIEVEMENTS for a in C.public_content()["achievements"])
-
-
-def test_adventurer_badge_needs_every_achievement_for_diamond():
-    from app.game import achievements as A
-
-    assert B.ADVENTURER_STEPS[-1] == len(A.ACHIEVEMENTS)
-    almost = B.player_badges(set(), set(), len(A.ACHIEVEMENTS) - 1)
-    assert "adventurer:gold" in {b["id"] for b in almost["badges"]}
+    assert state["trophies"]["secret:konami"]["progress"] == 1
+    assert state["trophies"]["firsts"]["progress"] == 2
 
 
 def test_automation_reuses_the_installed_drone(game):

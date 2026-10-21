@@ -652,6 +652,32 @@ d'alvéaires possédés. La ruche garde reine, abeilles en attente, récolte, ca
 - L'onglet « Laboratoire » devient « Améliorer » (niveaux et équipement). Aucun changement côté serveur.
 - Vérifié sur la pile locale en mode dev (deux paillasses, passeur, chaîne en cours), bureau et mobile.
 
+## Demande du 2026-10-21 (5) : fin de partie, étape 1 (1.5.0) : trophées et pedigree
+
+Feuille de route validée : 1.5.0 Trophées + Pedigree, 1.6.0 Commandes + réputation, 1.7.0 Grands projets
+(Observatoire, Serre climatique, Poste d'expédition), 1.8.0 Expéditions + espèces sauvages, puis Sanctuaire.
+Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en expédition les abeilles reviennent
+(perte possible sur un échec grave) ; la certification de pedigree ne consomme pas l'abeille.
+
+- `game/trophies.py` : 21 trophées à paliers (bronze, argent, or, diamant) répartis en catégories (Collection,
+  Rucher, Élevage, Laboratoire, Pedigree, Communauté) et 8 trophées secrets à un palier (les anciens succès
+  secrets). Chaque palier se réclame dans le Carnet (`POST /api/trophies/claim`) et rapporte miel et matériel.
+  Les succès (`achievements.py`) ne paient plus rien : ce sont des événements comptés par les trophées.
+  Nouvelles statistiques : `extracts`, `imprints`, `generation` (maximum atteint).
+- Conversion (`_ensure_trophies`, à la première lecture, quand `players.trophies` est vide) : un objectif atteint
+  mais pas réclamé est payé une fois, puis chaque palier déjà atteint est marqué reçu, sans paiement. Les
+  objectifs restent dans `content.OBJECTIVES` pour cette conversion seulement.
+- Pedigree : Pure (gène d'espèce identique sur les deux copies), Stable (tous les chromosomes), Élite (vitesse,
+  longévité, fertilité), Champion (tolérance ± 2, intempéries, jour et nuit). « Faire certifier » dans la
+  fiche d'une abeille de la réserve (`POST /api/bees/certify`), l'abeille n'est pas consommée, le meilleur
+  niveau est gardé par espèce (`players.pedigree`). Une abeille pure de boutique est déjà « Stable ».
+- Migration 0007 : colonnes `players.trophies` et `players.pedigree`.
+- Interface : Carnet refait en salle des trophées (rang, métaux, pedigree, à réclamer, filtres par catégorie) ;
+  pastille rouge de l'onglet sur les paliers à réclamer ; médailles des vitrines tirées des trophées ;
+  Apidex : pastille et échelle du pedigree sur la fiche.
+- Vérifié : 33 tests ; conversion d'un joueur créé en 1.4.6 puis passé en 1.5.0 (migration appliquée,
+  objectifs en attente payés une fois) ; Carnet, certification, réclamation dans un navigateur sur la pile locale.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

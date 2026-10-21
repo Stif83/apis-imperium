@@ -42,6 +42,7 @@ export default function BeePage() {
   const genome = Object.fromEntries(Object.entries(species.template).map(([c, a]) => [c, [a, a] as [string, string]]));
   // Traits remarquables, écrits en clair dans l'en-tête (l'activité est déjà dans le tableau)
   const traits = notableTraits(content, genome).filter((t) => !t.label.startsWith(content.chromosomes.activity));
+  const certified = state.pedigree?.[id] ?? 0;
 
   return (
     <div className="stack">
@@ -65,6 +66,11 @@ export default function BeePage() {
             <div className="row">
               <span className="chip">🌡️ Climat {content.temp_labels[species.temp].toLowerCase()}</span>
               <span className="chip">{tiers[id] === 0 ? '🛒 Espèce de base' : `🧬 Palier ${tiers[id]}`}</span>
+              {certified > 0 && (
+                <span className="chip" title="Meilleur pedigree certifié pour cette espèce">
+                  {content.trophies.pedigree[String(certified)].icon} Pedigree {content.trophies.pedigree[String(certified)].label}
+                </span>
+              )}
               {traits.map((t) => (
                 <span key={t.label} className="chip">
                   {t.icon} {t.label}
@@ -121,6 +127,20 @@ export default function BeePage() {
                         ))}
                     </tbody>
                   </table>
+                </div>
+
+                <div className="card stack">
+                  <div className="title">Pedigree</div>
+                  <div className="pedigree-ladder">
+                    {Object.entries(content.trophies.pedigree).map(([level, p]) => (
+                      <div key={level} className={`pedigree-step${Number(level) <= certified ? ' got' : ''}`} title={p.desc}>
+                        <span className="pedigree-icon">{p.icon}</span>
+                        <b>{p.label}</b>
+                        <span className="muted">{p.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <span className="muted">Certifiez une abeille de cette espèce depuis la réserve du Rucher.</span>
                 </div>
 
                 <div className="card stack">

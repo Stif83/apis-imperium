@@ -1,10 +1,10 @@
-"""Badges affichés sur les vitrines : rang de l'Apidex, branches complètes, succès du Carnet.
+"""Badges affichés sur les vitrines : rang de l'Apidex, trophées du Carnet, branches complètes.
 
-Rien n'est stocké : les badges se recalculent à partir des découvertes et des objectifs réclamés.
+Rien n'est stocké : les badges se recalculent à partir des découvertes et des paliers de trophées réclamés.
 """
 
 from . import content as C
-from .achievements import ACHIEVEMENTS as ALL_ACHIEVEMENTS
+from .trophies import TROPHIES
 
 # Rang : le plus haut atteint selon le nombre d'espèces découvertes
 RANKS = [
@@ -18,17 +18,6 @@ RANKS = [
 
 METALS = ["bronze", "silver", "gold", "diamond"]
 
-# Succès : une médaille par famille d'objectifs, dont le métal monte avec le nombre d'objectifs réclamés
-ACHIEVEMENTS = [
-    ("builder", "Bâtisseur", "🏠", lambda o: o["kind"] == "hives", "Objectifs de ruches réclamés"),
-    ("geneticist", "Généticien", "🧬", lambda o: o["kind"] == "genes", "Objectifs de génétique réclamés"),
-    ("collector", "Collectionneur", "📖", lambda o: o["kind"] == "species", "Paliers de découverte réclamés"),
-    ("archivist", "Archiviste", "📜", lambda o: True, "Objectifs du Carnet réclamés"),
-]
-# Seuils des métaux pour l'Archiviste (les autres familles comptent leurs objectifs un par un)
-ARCHIVIST_STEPS = [5, 15, 35, 60]
-ADVENTURER_STEPS = [5, 12, 22, len(ALL_ACHIEVEMENTS)]
-
 
 def _branches() -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
@@ -40,16 +29,7 @@ def _branches() -> dict[str, list[str]]:
 BRANCHES = _branches()
 
 
-def _metal_steps(family: str, members: list[dict]) -> list[int]:
-    """Nombre d'objectifs réclamés pour obtenir bronze, argent, or, diamant."""
-    if family == "archivist":
-        return [min(n, len(members)) for n in ARCHIVIST_STEPS]
-    total = len(members)
-    # Réparti sur les objectifs de la famille : le diamant exige de tous les réclamer
-    return [max(1, -(-total * k // 4)) for k in (1, 2, 3, 4)]
-
-
-def player_badges(discovered: set[str], claimed: set[str], achievements: int = 0) -> dict:
+def player_badges(discovered: set[str], trophies: dict | None = None) -> dict:
     count = len(discovered & set(C.SPECIES))
     rank = None
     next_rank = None
@@ -59,23 +39,15 @@ def player_badges(discovered: set[str], claimed: set[str], achievements: int = 0
         elif next_rank is None:
             next_rank = {"label": label, "need": need}
 
+    # Une médaille par trophée, au métal du plus haut palier réclamé
     badges = []
-    for family, label, icon, match, desc in ACHIEVEMENTS:
-        members = [o for o in C.OBJECTIVES.values() if match(o)]
-        done = sum(1 for o in members if o["id"] in claimed)
-        steps = _metal_steps(family, members)
-        level = sum(1 for n in steps if done >= n)
-        if level:
-            metal = METALS[min(level, len(METALS)) - 1]
-            badges.append({"id": f"{family}:{metal}", "kind": "achievement", "label": label, "icon": icon,
-                           "metal": metal, "desc": f"{desc} : {done}"})
-
-    # Aventurier : nombre de succès débloqués
-    level = sum(1 for n in ADVENTURER_STEPS if achievements >= n)
-    if level:
-        metal = METALS[level - 1]
-        badges.append({"id": f"adventurer:{metal}", "kind": "achievement", "label": "Aventurier", "icon": "🧭",
-                       "metal": metal, "desc": f"Succès débloqués : {achievements}"})
+    for tid, n in (trophies or {}).items():
+        trophy = TROPHIES.get(tid)
+        if not trophy or n <= 0:
+            continue
+        tier = trophy["tiers"][min(n, len(trophy["tiers"])) - 1]
+        badges.append({"id": f"{tid}:{tier['metal']}", "kind": "achievement", "label": trophy["label"], "icon": trophy["icon"],
+                       "metal": tier["metal"], "desc": f"{trophy['desc']} : {tier['need']}"})
 
     for branch, members in BRANCHES.items():
         if len(members) >= 2 and all(s in discovered for s in members):

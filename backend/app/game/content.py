@@ -917,7 +917,6 @@ def public_content() -> dict:
         "showcase_max_entries": SHOWCASE_MAX_ENTRIES,
         "garden": public_garden(),
         "world": public_world(),
-        "objectives": list(OBJECTIVES.values()),
         "garden_enabled": GARDEN_ENABLED,
         "achievements": public_achievements(),
     }

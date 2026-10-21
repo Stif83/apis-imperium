@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from ..auth import current_game
 from ..game import content
 from ..game import lab
+from ..game import trophies
 from ..game.service import Game
 
 router = APIRouter(prefix="/api")
@@ -82,19 +83,29 @@ def secret(body: SecretIn, game: Game = Depends(current_game)):
     return _done(game)
 
 
-class ClaimIn(BaseModel):
-    objective_id: str
+class TrophyIn(BaseModel):
+    trophy_id: str
 
 
-@router.post("/objectives/claim")
-def claim_objective(body: ClaimIn, game: Game = Depends(current_game)):
-    game.claim_objective(body.objective_id)
+@router.post("/trophies/claim")
+def claim_trophy(body: TrophyIn, game: Game = Depends(current_game)):
+    game.claim_trophy(body.trophy_id)
+    return _done(game)
+
+
+class CertifyIn(BaseModel):
+    bee_id: str
+
+
+@router.post("/bees/certify")
+def certify(body: CertifyIn, game: Game = Depends(current_game)):
+    game.certify(body.bee_id)
     return _done(game)
 
 
 @router.get("/content")
 def get_content():
-    return {**content.public_content(), "lab": lab.public_lab()}
+    return {**content.public_content(), "lab": lab.public_lab(), "trophies": trophies.public_trophies()}
 
 
 class ReplicateIn(BaseModel):

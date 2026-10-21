@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { GameProvider, useGame } from '@/lib/game';
+import { claimableTrophies } from '@/lib/trophies';
 import { BeeIcon } from './BeeIcon';
 import { ButterflyIcon, TreeIcon } from './garden';
 import { Honey, ThemeToggle, WorldClock } from './ui';
@@ -91,10 +92,7 @@ function Header() {
     }
   };
   // Pastille sur le Carnet quand une récompense attend
-  const rewards = content.objectives.some((o) => {
-    const p = state.objectives[o.id];
-    return p && !p.claimed && p.progress >= o.target;
-  });
+  const rewards = claimableTrophies(content, state).length > 0;
   return (
     <header className="topbar" data-phase={state.world.phase}>
       <div className="brand">
@@ -140,8 +138,8 @@ function Celebration() {
     if (!a) return null;
     icon = <span className="achievement-icon big">{a.icon}</span>;
     name = a.label;
-    kicker = a.secret ? 'Succès secret !' : 'Succès débloqué !';
-    detail = `${a.desc} · +${a.honey} miel`;
+    kicker = a.secret ? 'Secret découvert !' : 'Exploit !';
+    detail = `${a.desc} · Un trophée vous attend dans le Carnet.`;
   } else if (next.kind === 'bee') {
     const s = content.species[next.id];
     if (!s) return null;

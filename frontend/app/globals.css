@@ -619,3 +619,34 @@ html.avril .bee-icon { transform: scaleX(-1); }
 .lab-step { opacity: 0.65; }
 .lab-step.done, .lab-step.next { opacity: 1; }
 .lab-step.next { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+
+/* ---------- carnet : salle des trophées ---------- */
+.carnet-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 8px; }
+.metal-count { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; }
+.trophy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.trophy-card { gap: 8px; }
+.trophy-card.pending { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+.trophy-card.complete { background: linear-gradient(135deg, var(--panel), var(--panel-2)); }
+.trophy-head { display: flex; align-items: center; gap: 10px; }
+.trophy-empty {
+  width: 42px; height: 52px; flex: none; display: grid; place-items: center; font-size: 22px;
+  border-radius: 50% 50% 46% 46%; background: var(--panel-2); filter: grayscale(1); opacity: 0.7;
+}
+.tier-pips { display: flex; align-items: center; gap: 6px; }
+.tier-pip { width: 16px; height: 16px; border-radius: 50%; background: var(--panel-2); box-shadow: inset 0 0 0 2px var(--border); }
+.tier-pip.got.bronze { background: linear-gradient(135deg, #e6a165, #a8622c); box-shadow: none; }
+.tier-pip.got.silver { background: linear-gradient(135deg, #eef2f5, #9aa7b1); box-shadow: none; }
+.tier-pip.got.gold { background: linear-gradient(135deg, #ffe27a, #d49a00); box-shadow: none; }
+.tier-pip.got.diamond { background: linear-gradient(135deg, #e3fbff, #5fc8e8); box-shadow: none; }
+.tier-pip.ready { box-shadow: inset 0 0 0 2px var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.18); } }
+.tier-label { font-size: 13px; font-weight: 700; text-transform: capitalize; }
+.pedigree-ladder { display: grid; gap: 6px; }
+.pedigree-step {
+  display: grid; grid-template-columns: 28px 90px minmax(0, 1fr); align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 12px; background: var(--panel-2); opacity: 0.55; font-size: 14px;
+}
+.pedigree-step.got { opacity: 1; box-shadow: inset 0 0 0 2px var(--ok); }
+.pedigree-icon { font-size: 20px; }
+@media (max-width: 640px) { .pedigree-step { grid-template-columns: 28px minmax(0, 1fr); } .pedigree-step .muted { grid-column: 2; } }
+button.primary-soft { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }

@@ -1,4 +1,7 @@
-"""Succès : débloqués par des actions du joueur, une seule fois, avec une petite récompense en miel.
+"""Succès : événements débloqués une seule fois par des actions du joueur.
+
+Depuis les trophées, un succès ne paie plus rien lui-même : les trophées du Carnet comptent ces
+événements et versent les récompenses. La colonne « miel » reste la récompense du trophée secret.
 
 Les succès secrets (easter eggs) restent cachés dans l'interface tant qu'ils ne sont pas obtenus.
 Règle de compatibilité : les identifiants sont stockés dans les sauvegardes, on ne les renomme pas.
@@ -66,7 +69,7 @@ def public_achievements() -> list[dict]:
 
 
 def unlock(player, achievement_id: str) -> bool:
-    """Débloque un succès (une seule fois) et verse sa récompense. Renvoie True s'il est nouveau."""
+    """Débloque un succès (une seule fois). Renvoie True s'il est nouveau."""
     if achievement_id not in ACHIEVEMENTS:
         return False
     got = dict(player.achievements or {})
@@ -74,8 +77,15 @@ def unlock(player, achievement_id: str) -> bool:
         return False
     got[achievement_id] = int(time.time() * 1000)
     player.achievements = got
-    player.honey += ACHIEVEMENTS[achievement_id][4]
     return True
+
+
+def record(player, stat: str, value: int) -> int:
+    """Garde le maximum atteint d'une statistique (génération de reine la plus haute…)."""
+    stats = dict(player.stats or {})
+    stats[stat] = max(stats.get(stat, 0), value)
+    player.stats = stats
+    return stats[stat]
 
 
 def bump(player, stat: str, n: int = 1) -> int:
