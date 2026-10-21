@@ -354,6 +354,7 @@ class Game:
             "hives_min": sum(1 for h in self.hives if h.queen),
             "hives_max": sum(1 for h in self.hives if h.queen),
             "machines": machine.qty if machine else 0,
+            "sanctuary": self.project_stage("sanctuary"),
         }
 
     def _hive_ctx(self, hive: Hive, mods: dict, t_ms: int, world: dict) -> dict:
@@ -379,6 +380,7 @@ class Game:
         mods = self._mods(hive)
         auto = mods["automation"]
         biome_temp = self._biome_temp(hive)
+        sanctified = self.project_stage("sanctuary") >= 3
         out = dict(hive.output or {})
         t = start
         while cycles > 0 and hive.queen:
@@ -393,6 +395,9 @@ class Game:
                 mods["shelter"] or genome["weatherproof"][0] == "yes", biome_temp, mods["light"],
             )
             rate = G.value(genome, "speed") * mods["production"] * settings.production_mult * W.ACTIVE_BONUS
+            # Reliquaire du Sanctuaire : les grandes reines produisent davantage
+            if sanctified and C.SPECIES[genome["species"][0]]["branch"] in PR.SANCTUARY_BRANCHES:
+                rate *= PR.SANCTUARY_PRODUCTION
             for item, chance in G.products(genome):
                 made = G.binomial(self.rng, working, min(1.0, chance * rate))
                 if auto:
@@ -1108,6 +1113,8 @@ class Game:
             return stats.get(metric, 0)
         if metric == "expeditions":
             return stats.get("expeditions", 0)
+        if metric == "mythic_species":
+            return sum(1 for s in T.MYTHIC if s in self.discovered)
         if metric == "wild_species":
             return sum(1 for s in T.WILD if s in self.discovered)
         if metric == "project_stages":

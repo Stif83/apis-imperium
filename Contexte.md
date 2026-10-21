@@ -737,6 +737,22 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
   Route `POST /api/expeditions/launch`. Nouvelle page `/expeditions` (onglet après Projets).
 - Vérifié : 40 tests ; page, préparation d'équipe et départ dans un navigateur sur la pile locale en mode dev.
 
+## Demande du 2026-10-21 (9) : fin de partie, étape 5 (1.9.0) : le Sanctuaire
+
+- Quatrième grand projet, le Sanctuaire : 1) Autel, 2) Nef, 3) Reliquaire (25 000, 60 000 puis 150 000 miel,
+  avec gemmes, ambre, essence arcanique, prismes, fragments de chaos, gelée impériale, essence primordiale…).
+- Nouvelle condition de mutation `sanctuary` (étape minimale du Sanctuaire, dans le contexte du monde).
+  Sept espèces « Mythiques » nées de sauvages croisées à des espèces avancées :
+  étape 1 : Ignée + Volcanique → Salamandre, Benthique + Océanique → Ondine, Noctiluque + Astrale → Sylphide,
+  Lianeuse + Sylvaine → Dryade ; étape 2 : Banquisienne + Boréale → Boréade, Mirage + Irisée → Fata Morgana ;
+  étape 3 : Apis Imperatrix + Sylphide → Apis Aeterna, si la reine est de stabilité « Pure » (2 %).
+  181 espèces en tout.
+- Reliquaire : les reines légendaires et mythiques produisent ×1,5. Trophée « Mythologue ».
+- Portraits : ailes de papillon un peu plus petites ; les plus grandes abeilles sont réduites pour tenir dans
+  la grille de 48 pixels (le corps des mythiques débordait).
+- Pas de migration (l'avancement est dans `players.projects`).
+- Vérifié : 41 tests ; Projets, fiche d'Apis Aeterna et portraits dans un navigateur sur la pile locale.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

@@ -108,7 +108,7 @@ def cond_ok(cond: dict, ctx: dict) -> bool:
             ok = have in ("rain", "storm") if val == "rain" else have == val
         elif key in ("module", "tree"):
             ok = val in have
-        elif key in ("butterflies", "hives_min", "machines", "discovered"):
+        elif key in ("butterflies", "hives_min", "machines", "discovered", "sanctuary"):
             ok = have >= val
         elif key == "hives_max":
             ok = have <= val

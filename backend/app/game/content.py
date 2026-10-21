@@ -328,6 +328,14 @@ SPECIES = _species([
     ("igneous", "Ignée", "Sauvages", "c2361b", "hellish", "normal", "long", [("comb_simmering", 0.45), ("phosphor", 0.15), ("sunstone", 0.02)], {"secondary": "ffb300", "wild": "volcano", "dominant": False}),
     ("benthic", "Benthique", "Sauvages", "1a3a5c", "cold", "slow", "longer", [("comb_water", 0.40), ("dye", 0.15), ("sapphire", 0.01)], {"secondary": "4dd0e1", "activity": "nocturnal", "weatherproof": "yes", "wild": "abyss"}),
     ("noctiluca", "Noctiluque", "Sauvages", "241a4a", "cold", "normal", "long", [("comb_nocturnal", 0.40), ("stardust", 0.08), ("moonstone", 0.02)], {"secondary": "9effe2", "activity": "nocturnal", "wild": "night_sky", "dominant": False}),
+    # 1.9 : espèces mythiques, nées au Sanctuaire de sauvages croisées à des espèces avancées
+    ("salamander", "Salamandre", "Mythiques", "ff5722", "hellish", "normal", "longer", [("comb_simmering", 0.50), ("glowstone", 0.20), ("sunstone", 0.06)], {"secondary": "ffd54f", "tolerance": "one", "dominant": False}),
+    ("undine", "Ondine", "Mythiques", "26c6da", "normal", "slow", "longer", [("comb_water", 0.50), ("sapphire", 0.04), ("ender_pearl", 0.03)], {"secondary": "e0f7fa", "weatherproof": "yes", "activity": "crepuscular", "dominant": False}),
+    ("sylph", "Sylphide", "Mythiques", "e1f5fe", "normal", "fast", "long", [("comb_nocturnal", 0.35), ("stardust", 0.10), ("lightning_shard", 0.03)], {"secondary": "b388ff", "activity": "cathemeral", "dominant": False}),
+    ("dryad", "Dryade", "Mythiques", "4caf50", "normal", "slow", "longest", [("comb_floral", 0.45), ("precious_wood", 0.15), ("emerald", 0.03)], {"secondary": "a1887f", "weatherproof": "yes", "fertility": "3", "dominant": False}),
+    ("boread", "Boréade", "Mythiques", "b3e5fc", "icy", "normal", "longer", [("comb_frozen", 0.50), ("snowflake", 0.15), ("prism", 0.02)], {"secondary": "7c4dff", "tolerance": "one", "weatherproof": "yes", "dominant": False}),
+    ("morgana", "Fata Morgana", "Mythiques", "ffcc80", "hot", "faster", "normal", [("comb_parched", 0.40), ("dye", 0.25), ("prism", 0.05)], {"secondary": "ff80ab", "tolerance": "two", "dominant": False}),
+    ("aeterna", "Apis Aeterna", "Mythiques", "fffde7", "normal", "fastest", "longest", [("comb_royal", 0.60), ("imperial_jelly", 0.08), ("primordial_essence", 0.04)], {"secondary": "ffd700", "activity": "cathemeral", "weatherproof": "yes", "stability": "pure", "fertility": "4", "tolerance": "two", "dominant": False}),
     ("imperatrix", "Apis Imperatrix", "Légendaires", "ffc107", "normal", "fast", "longest", [("comb_royal", 0.50), ("imperial_jelly", 0.05)], {"secondary": "7f0000", "activity": "cathemeral", "weatherproof": "yes", "stability": "stable", "fertility": "4", "tolerance": "two", "dominant": False}),
 ])
 
@@ -529,6 +537,14 @@ def _mutations():
         ("chimera", "primeval", "primordial", 0.03, {"discovered": 120, "phase": "night"}),
         ("steppe", "farmerly", "agrarian", 0.08, {"phase": "day"}),
         ("electric", "ecstatic", "thunder", 0.05, {"weather": "storm"}),
+        # 1.9 : mutations mythiques, possibles une fois le Sanctuaire construit
+        ("igneous", "volcanic", "salamander", 0.06, {"sanctuary": 1}),
+        ("benthic", "ocean", "undine", 0.06, {"sanctuary": 1}),
+        ("noctiluca", "astral", "sylph", 0.06, {"sanctuary": 1}),
+        ("liana", "sylvan", "dryad", 0.06, {"sanctuary": 1}),
+        ("floe", "aurora", "boread", 0.05, {"sanctuary": 2}),
+        ("mirage", "rainbow", "morgana", 0.05, {"sanctuary": 2}),
+        ("imperatrix", "sylph", "aeterna", 0.02, {"sanctuary": 3, "trait": {"stability": "pure"}}),
     ]
     for a, b, result, chance, cond in rows:
         # Avant la 1.4, la seule condition possible était la température de la ruche
@@ -548,7 +564,7 @@ MUTATIONS = _mutations()
 
 MUTATION_CONDITIONS = {
     "temp", "biome", "phase", "hours", "weather", "module", "automated", "tree",
-    "butterflies", "hives_min", "hives_max", "machines", "discovered", "trait",
+    "butterflies", "hives_min", "hives_max", "machines", "discovered", "trait", "sanctuary",
 }
 
 
@@ -846,6 +862,8 @@ def cond_text(cond: dict) -> str:
             parts.append(f"avec au moins {val} centrifugeuses")
         elif key == "discovered":
             parts.append(f"après {val} espèces d'abeilles découvertes")
+        elif key == "sanctuary":
+            parts.append(f"avec le Sanctuaire construit jusqu'à l'étape {val}")
         elif key == "trait":
             for chromosome, allele in val.items():
                 parts.append(f"si la reine porte le gène {CHROMOSOMES[chromosome]} « {ALLELES[chromosome][allele]['label']} »")

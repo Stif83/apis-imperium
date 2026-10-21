@@ -74,6 +74,7 @@ const ANATOMY: Record<string, Anatomy> = {
   Temporelles: A({ eyes: 'gem', body: 'segmented' }),
   Légendaires: A({ head: 'big', eyes: 'gem', antennae: 'feather', thorax: 'mane' }),
   Sauvages: A({ head: 'long', eyes: 'big', antennae: 'antlers', body: 'segmented', thorax: 'mane', legs: 'long' }),
+  Mythiques: A({ head: 'big', eyes: 'gem', antennae: 'feather', body: 'long', thorax: 'mane' }),
 };
 
 function hash(x: number, y: number, seed: number) {
@@ -108,7 +109,7 @@ function draw(look: ReturnType<typeof lookOf>['look'], anatomy: Anatomy, sizeInd
   };
   const get = (x: number, y: number) => px.get(Math.round(y) * W + Math.round(x));
   const f = new Set<string>(look.features);
-  const k = 0.82 + 0.07 * Math.max(0, Math.min(5, sizeIndex));
+  const size = 0.82 + 0.07 * Math.max(0, Math.min(5, sizeIndex));
 
   /** Remplit une forme (test sur le centre des pixels) et trace son contour par-dessus ce qu'elle recouvre. */
   const shape = (inside: (x: number, y: number) => boolean, fill: (x: number, y: number) => string | null, rim: string | null = 'o') => {
@@ -127,10 +128,14 @@ function draw(look: ReturnType<typeof lookOf>['look'], anatomy: Anatomy, sizeInd
 
   // ---- Mise en place : abdomen, thorax, tête, centrés dans la case
   const dims: Record<Body, [number, number]> = { oval: [11, 8], long: [13.5, 6.5], round: [11, 9.5], segmented: [12, 7.5], armored: [11.5, 8.5] };
+  const headR: Record<Head, number> = { round: 5.6, big: 7, small: 4.4, long: 5, helmet: 6, skull: 5.8, hood: 6 };
+  // Les plus grandes (corps allongé, grosse tête) sont réduites pour tenir dans la case
+  const thoraxR = anatomy.thorax === 'plate' ? 5.2 : 5.6;
+  const natural = (dims[anatomy.body][0] * 2 + thoraxR * 2 + headR[anatomy.head] * 1.6) * size + 8;
+  const k = size * Math.min(1, (W - 4) / natural);
   const rx = dims[anatomy.body][0] * k;
   const ry = dims[anatomy.body][1] * k;
-  const tr = (anatomy.thorax === 'plate' ? 5.2 : 5.6) * k;
-  const headR: Record<Head, number> = { round: 5.6, big: 7, small: 4.4, long: 5, helmet: 6, skull: 5.8, hood: 6 };
+  const tr = thoraxR * k;
   const hr = headR[anatomy.head] * k;
   const span = rx * 2 + 2 + tr * 2 + hr * 1.6 + 6;
   const ax = (W - span) / 2 + 3 + rx;
@@ -143,7 +148,7 @@ function draw(look: ReturnType<typeof lookOf>['look'], anatomy: Anatomy, sizeInd
   const width = rx * 2;
 
   // ---- Ailes, derrière le corps
-  const wingScale = { big: 1.25, small: 0.7, butterfly: 1.4 }[look.wings as string] ?? 1;
+  const wingScale = { big: 1.2, small: 0.7, butterfly: 1.2 }[look.wings as string] ?? 1;
   const tall = look.wings === 'butterfly' ? 1.25 : 1;
   const wings = [
     { cx: tx - 6 * k, cy: ty - tr - 5 * k, rx: 10.5 * k * wingScale, ry: 5.2 * k * wingScale * tall, ang: -0.42 },

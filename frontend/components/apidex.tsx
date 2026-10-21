@@ -14,7 +14,8 @@ export const percent = (chance: number) => `${(chance * 100).toLocaleString('fr-
 export function computeTiers(content: Content): Record<string, number> {
   const tiers: Record<string, number> = {};
   const results = new Set(content.mutations.map((m) => m.result));
-  for (const id of Object.keys(content.species)) if (!results.has(id)) tiers[id] = 0;
+  // Les sauvages ne descendent de personne mais n'ont rien de débutant : on les range parmi les raretés
+  for (const id of Object.keys(content.species)) if (!results.has(id)) tiers[id] = content.species[id].wild ? 7 : 0;
   for (let changed = true; changed; ) {
     changed = false;
     for (const m of content.mutations) {
@@ -27,8 +28,6 @@ export function computeTiers(content: Content): Record<string, number> {
     }
   }
   for (const id of Object.keys(content.species)) tiers[id] ??= 0;
-  // Les sauvages ne descendent de personne mais n'ont rien de débutant : on les range parmi les raretés
-  for (const [id, s] of Object.entries(content.species)) if (s.wild) tiers[id] = 7;
   return tiers;
 }
 
@@ -85,6 +84,7 @@ export const BRANCH_LORE: Record<string, string> = {
   Temporelles: 'Les temporelles jouent avec le temps : certaines vivent un éclair, d’autres une éternité.',
   Légendaires: 'Les légendaires sont l’aboutissement d’une vie d’apiculteur. Peu les ont vues de leurs yeux.',
   Sauvages: 'Les sauvages n’ont jamais connu de ruche : on ne les trouve qu’en expédition, au bout du monde connu.',
+  Mythiques: 'Les mythiques naissent au Sanctuaire, quand une lignée sauvage rencontre les plus anciennes : on les croyait sorties des contes.',
 };
 
 /** Ce que donne un rayon à la centrifugeuse. */

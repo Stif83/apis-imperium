@@ -921,3 +921,36 @@ def test_expedition_outcomes():
     fails = [X.resolve({**team, "chance": 0.0}, __import__("random").Random(i), 1) for i in range(200)]
     assert all(not r["success"] and sum(r["loot"].values()) >= 1 for r in fails)
     assert any(r["lost"] for r in fails) and any(not r["lost"] for r in fails)
+
+
+def test_sanctuary(game):
+    from app.game import projects as PR
+
+    myth = [m for m in C.MUTATIONS if m["cond"].get("sanctuary")]
+    assert {m["result"] for m in myth} == {s for s, spec in C.SPECIES.items() if spec["branch"] == "Mythiques"}
+    salamander = next(m for m in myth if m["result"] == "salamander")
+    assert "Sanctuaire" in salamander["cond_text"]
+    # Le contexte de la ruche suit l'étape du Sanctuaire
+    assert game._world_ctx()["sanctuary"] == 0
+    assert not G.cond_ok(salamander["cond"], {**game._world_ctx()})
+    _give_stage(game, "sanctuary")
+    assert G.cond_ok(salamander["cond"], {**game._world_ctx()})
+    aeterna = next(m for m in myth if m["result"] == "aeterna")
+    _give_stage(game, "sanctuary")
+    _give_stage(game, "sanctuary")
+    pure = {**G.pure_genome("imperatrix"), "stability": ["pure", "pure"]}
+    assert not G.cond_ok(aeterna["cond"], {**game._world_ctx(), "queen": G.pure_genome("imperatrix")})
+    assert G.cond_ok(aeterna["cond"], {**game._world_ctx(), "queen": pure})
+
+    # Reliquaire : une reine légendaire produit davantage qu'avant
+    hive = game.hives[0]
+    royal = G.pure_genome("celestial")
+    game.add_bee("princess", royal)
+    game.add_bee("drone", royal)
+    game.install(hive.id, _bee(game, "princess", "celestial").id, _bee(game, "drone", "celestial").id)
+    game.advance(10)
+    boosted = sum(hive.output.values())
+    hive.output = {}
+    game.p.projects = {**game.p.projects, "sanctuary": {"stage": 2, "given": {}}}
+    game.advance(10)
+    assert boosted > sum(hive.output.values())

@@ -45,6 +45,7 @@ def _branches() -> dict[str, list[str]]:
 BRANCHES = _branches()
 N_SPECIES = len(C.SPECIES)
 WILD = [sid for sid, s in C.SPECIES.items() if s.get("wild")]
+MYTHIC = [sid for sid, s in C.SPECIES.items() if s["branch"] == "Mythiques"]
 
 
 def _t(tid, category, label, icon, desc, metric, tiers, metals=None, secret=False):
@@ -121,6 +122,8 @@ def _trophies() -> list[dict]:
            [(1, 100, None), (10, 800, None), (50, 4000, {"royal_jelly": 10}), (200, 15000, {"imperial_jelly": 1})]),
         _t("pioneer", "expeditions", "Pionnier", "🦋", "Espèces sauvages découvertes", "wild_species",
            [(1, 500, None), (2, 1500, None), (4, 5000, None), (len(WILD), 15000, {"imperial_jelly": 1})]),
+        _t("mythologist", "projects", "Mythologue", "⛩️", "Espèces mythiques découvertes", "mythic_species",
+           [(1, 2000, None), (3, 6000, None), (6, 15000, {"imperial_jelly": 1}), (len(MYTHIC), 40000, {"primordial_essence": 1})]),
         # Communauté
         _t("curator", "community", "Vernissage", "🖼️", "Vitrines publiées", "showcases", [(1, 50, None)], metals=["silver"]),
         _t("loved", "community", "Coup de cœur", "💛", "« J'aime » reçus sur vos vitrines", "likes",

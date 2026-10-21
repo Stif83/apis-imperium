@@ -444,6 +444,22 @@ export const LORE: Record<string, string> = {
   noctiluca:
     "La Noctiluque danse au sommet des montagnes, au plus près des étoiles. Ses ailes laissent une traînée de lumière que les bergers prennent pour des comètes.",
 
+  // Mythiques
+  salamander:
+    "La Salamandre naît dans le feu de la caldeira, d'une Ignée et d'une Volcanique. Les forgerons disent qu'elle peut rallumer une forge éteinte d'un battement d'ailes.",
+  undine:
+    "L'Ondine est née de la rencontre de la mer et des abysses. On l'entend chanter à l'aube et au crépuscule, quand la marée change.",
+  sylph:
+    "La Sylphide est plus légère que l'air : elle vole jour et nuit sans jamais se poser. Les anciens la croyaient faite de vent et de lumière d'étoile.",
+  dryad:
+    "La Dryade vit au cœur des arbres les plus vieux. Là où elle s'installe, la forêt repousse plus belle, et le bois devient précieux.",
+  boread:
+    "La Boréade porte les aurores dans ses ailes. Elle naît sur la banquise, les nuits où le ciel du nord se met à danser.",
+  morgana:
+    "Fata Morgana n'existe peut-être pas : on la voit trembler dans la chaleur du désert, puis disparaître. Elle laisse pourtant des prismes dans la ruche.",
+  aeterna:
+    "Apis Aeterna est le rêve de tout apiculteur : une reine parfaite, qui ne vieillit presque pas et ne change jamais. On dit que celui qui la fait naître n'a plus rien à apprendre des abeilles.",
+
   // Légendaires
   primordial:
     "La Primordiale existait avant toutes les autres abeilles. Les légendes disent que chaque espèce descend d'elle, et qu'elle en garde l'essence au fond de ses rayons.",

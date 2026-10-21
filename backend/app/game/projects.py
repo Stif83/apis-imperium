@@ -49,6 +49,23 @@ PROJECTS["outpost"] = {
     ],
 }
 
+PROJECTS["sanctuary"] = {
+    "label": "Sanctuaire",
+    "icon": "⛩️",
+    "desc": "Un temple où les abeilles sauvages rencontrent les plus anciennes lignées, et d'où naissent les mythes.",
+    "stages": [
+        {"label": "Autel", "effect": "Premier cercle : quatre mutations mythiques, des sauvages croisées à des espèces avancées.",
+         "cost": {"honey": 25000, "items": {"amber": 15, "mana": 20, "sapphire": 5, "ruby": 5, "stardust": 10}}},
+        {"label": "Nef", "effect": "Second cercle : deux mutations mythiques de plus.",
+         "cost": {"honey": 60000, "items": {"emerald": 15, "diamond": 3, "prism": 2, "chaos_shard": 3, "lightning_shard": 3}}},
+        {"label": "Reliquaire", "effect": "L'ultime mutation devient possible ; les reines légendaires et mythiques produisent ×1,5.",
+         "cost": {"honey": 150000, "items": {"imperial_jelly": 2, "primordial_essence": 2, "diamond": 8, "moonstone": 10, "sunstone": 10}}},
+    ],
+}
+
+SANCTUARY_PRODUCTION = 1.5
+SANCTUARY_BRANCHES = ("Légendaires", "Mythiques")
+
 OBSERVATORY_MUTATION = 1.15
 GREENHOUSE_PRODUCTION = 1.25
 # Ruches sous serre et températures permises, selon l'étape atteinte
