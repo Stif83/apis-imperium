@@ -698,6 +698,26 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
   et `/api/orders/discard`. Nouvelle page `/comptoir` (onglet entre Boutique et Génétique).
 - Vérifié : 35 tests ; page et livraison dans un navigateur sur la pile locale en mode dev.
 
+## Demande du 2026-10-21 (7) : fin de partie, étape 3 (1.7.0) : grands projets
+
+- `game/projects.py` : deux chantiers à trois étapes. On donne miel et objets petit à petit
+  (`POST /api/projects/contribute`, jamais plus que nécessaire) ; une étape s'achève dès que tout est réuni.
+  - Observatoire : 1) prévisions météo des 4 prochaines périodes par biome (`state.forecast`) ; 2) sur chaque
+    ruche, les mutations dont les parents et les conditions sont réunis en ce moment (`hive.mutations_now`) ;
+    3) chances de mutation ×1,15 partout.
+  - Serre climatique : la serre se pose sur une ruche existante, qui garde son biome (conditions de mutation)
+    mais prend la température choisie et ne craint plus la pluie (`hive.settings["greenhouse"]`, réglage
+    dans la ruche). 1) une ruche, Froid à Torride ; 2) trois ruches, toutes températures ; 3) toutes les ruches,
+    production ×1,25 sous serre. Choisi plutôt qu'un biome « Serre » pour ne pas fausser Globe-trotteuse
+    et le succès « tous les biomes ».
+  - Le Poste d'expédition est annoncé (« bientôt ») : il viendra avec les expéditions en 1.8.0.
+- `genetics.hive_mods` accepte une température de base (`base_temp`) ; le service passe par `_biome_temp`
+  et `_weather` pour toute ruche.
+- Trophée « Bâtisseur de merveilles » (catégorie Grands projets). Migration 0009 : `players.projects`.
+- Interface : page `/projets` (onglet après Comptoir), prévisions en haut du Rucher, réglage de la serre et
+  mutations possibles sur les ruches.
+- Vérifié : 37 tests ; pages et don dans un navigateur sur la pile locale en mode dev.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

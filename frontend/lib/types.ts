@@ -89,6 +89,18 @@ export type Content = {
     lifetime_ms: number;
     refill_ms: number;
   };
+  projects: {
+    list: Record<string, Project>;
+    greenhouse_temps: Record<string, string[]>;
+    greenhouse_slots: Record<string, number>;
+  };
+};
+
+export type Project = {
+  label: string;
+  icon: string;
+  desc: string;
+  stages: { label: string; effect: string; cost: Cost }[];
 };
 
 export type Order = {
@@ -137,6 +149,10 @@ export type Hive = {
   modules: string[];
   /** Générations restantes de chaque module monté (null = inusable) */
   wear: (number | null)[];
+  /** Température choisie si la ruche est sous serre */
+  greenhouse: string | null;
+  /** Mutations possibles en ce moment (Observatoire, étape 2) ; null si non disponible */
+  mutations_now: { result: string; chance: number }[] | null;
   queen: Queen | null;
   output: Record<string, number>;
   keep_drones: boolean;
@@ -156,6 +172,9 @@ export type GameState = {
   trophies: Record<string, { progress: number; claimed: number }>;
   /** Meilleur niveau de pedigree certifié par espèce (1 Pure à 4 Champion) */
   pedigree: Record<string, number>;
+  projects: Record<string, { stage: number; given: Record<string, number> }>;
+  /** Météo des prochaines périodes par biome (Observatoire construit) */
+  forecast: { in_ms: number; weather: Record<string, string> }[] | null;
   orders: {
     slots: { order: Order | null; ready_ms: number }[];
     prestige: { week: string; done: boolean; order: Order | null } | null;

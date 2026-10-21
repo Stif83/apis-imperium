@@ -67,7 +67,8 @@ def products(genome: dict, kind: str = "bee") -> list[tuple[str, float]]:
     return out
 
 
-def hive_mods(hive_type: str, biome: str, modules: list[str]) -> dict:
+def hive_mods(hive_type: str, biome: str, modules: list[str], base_temp: str | None = None) -> dict:
+    """Effets d'une ruche ; `base_temp` remplace la température du biome (ruche sous serre)."""
     mods = {
         "production": HIVE_TYPES[hive_type]["production"],
         "lifespan": 1.0,
@@ -76,7 +77,7 @@ def hive_mods(hive_type: str, biome: str, modules: list[str]) -> dict:
         "light": False,
         "shelter": False,
     }
-    temp = TEMPS.index(BIOMES[biome]["temp"])
+    temp = TEMPS.index(base_temp or BIOMES[biome]["temp"])
     for module in modules:
         effects = MODULES.get(module, {}).get("effects", {})
         for key in ("production", "lifespan", "mutation"):

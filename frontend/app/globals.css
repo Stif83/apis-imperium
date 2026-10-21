@@ -666,3 +666,38 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 .order-foot { border-top: 1px solid var(--panel-2); padding-top: 8px; }
 .ok-text { color: var(--ok); font-weight: 800; }
 .rep-chip { background: var(--info-bg); color: var(--info); }
+
+/* ---------- grands projets ---------- */
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; }
+@media (max-width: 520px) { .project-grid { grid-template-columns: 1fr; } }
+.project-card { gap: 12px; }
+.project-card.complete { box-shadow: 0 0 0 2px var(--ok), var(--shadow); }
+.project-card.soon { opacity: 0.6; border: 2px dashed var(--border); box-shadow: none; background: transparent; }
+.project-title { display: flex; align-items: center; gap: 12px; }
+.project-title > span:last-child { display: grid; gap: 2px; }
+.project-icon { font-size: 34px; }
+.project-desc { font-size: 14px; }
+.project-stages { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.project-stages li { display: flex; align-items: flex-start; gap: 10px; padding: 6px 10px; border-radius: 12px; background: var(--panel-2); opacity: 0.6; font-size: 14px; }
+.project-stages li.current { opacity: 1; box-shadow: inset 0 0 0 2px var(--accent); }
+.project-stages li.done { opacity: 1; }
+.project-step {
+  flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--panel); font: 700 13px/1 var(--display);
+}
+.project-stages li.done .project-step { background: var(--ok); color: #fff; }
+.project-stages li.current .project-step { background: var(--accent); color: var(--accent-ink); }
+.project-needs { display: grid; gap: 6px; }
+.project-need { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(60px, 1fr) auto auto; align-items: center; gap: 10px; }
+.project-need.done { opacity: 0.6; }
+.project-item { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; }
+.project-need .bar { display: block; height: 8px; }
+.project-need .bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.project-need.done .bar > span { background: var(--ok); }
+.project-count { font-size: 13px; white-space: nowrap; }
+@media (max-width: 520px) { .project-need { grid-template-columns: 1fr auto; } .project-need .bar { grid-column: 1 / -1; } }
+.mutations-now { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; font-size: 13px; color: var(--muted); }
+.forecast { gap: 8px; margin-bottom: 4px; }
+.forecast-table { border-collapse: collapse; font-size: 14px; }
+.forecast-table th, .forecast-table td { padding: 4px 12px 4px 0; text-align: left; white-space: nowrap; }
+.forecast-table thead th { color: var(--muted); font-weight: 700; font-size: 13px; }

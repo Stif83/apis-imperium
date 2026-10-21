@@ -791,3 +791,68 @@ def test_orders_bee_discard_and_prestige(game):
     assert game.orders_board(t)["slots"][0]["order"] is None
     state = game.state()
     assert state["orders"]["level"] == 1 and state["trophies"]["trader"]["progress"] == 1
+
+
+def _give_stage(game, project_id):
+    from app.game import projects as PR
+
+    cost = PR.stage_cost(project_id, game.project_stage(project_id))
+    given = (game.p.projects or {}).get(project_id, {}).get("given", {})
+    game.p.honey += cost["honey"]
+    game.contribute(project_id, "honey", cost["honey"])
+    for item, n in cost["items"].items():
+        if n > given.get(item, 0):
+            game.add_item(item, n - given.get(item, 0))
+            game.contribute(project_id, item, n - given.get(item, 0))
+
+
+def test_projects_contributions(game):
+    from app.game import projects as PR
+
+    cost = PR.stage_cost("observatory", 0)
+    with pytest.raises(GameError):
+        game.contribute("observatory", "diamond", 1)  # pas demandé à cette étape
+    game.add_item("wax", 50)
+    game.contribute("observatory", "wax", 50)
+    assert game.qty("wax") == 0 and game.p.projects["observatory"]["given"] == {"wax": 50}
+    # On ne donne jamais plus que nécessaire
+    game.add_item("wax", 1000)
+    game.contribute("observatory", "wax", 1000)
+    assert game.qty("wax") == 1000 - (cost["items"]["wax"] - 50)
+    with pytest.raises(GameError):
+        game.contribute("observatory", "wax", 1)
+    assert game.project_stage("observatory") == 0
+    _give_stage(game, "observatory")
+    assert game.project_stage("observatory") == 1 and game.p.projects["observatory"]["given"] == {}
+    state = game.state()
+    assert len(state["forecast"]) == PR.FORECAST_PERIODS and state["hives"][0]["mutations_now"] is None
+    assert state["trophies"]["wonders"]["progress"] == 1
+
+
+def test_greenhouse_and_observatory_effects(game):
+    from app.game import projects as PR
+
+    hive, other = game.hives[0], game.hives[1]
+    with pytest.raises(GameError):
+        game.update_hive(hive.id, None, None, greenhouse="hot")  # pas encore de serre
+    _give_stage(game, "greenhouse")
+    with pytest.raises(GameError):
+        game.update_hive(hive.id, None, None, greenhouse="hellish")  # étape 2 seulement
+    game.update_hive(hive.id, None, None, greenhouse="hot")
+    assert game._mods(hive)["temp"] == "hot" and game._mods(hive)["shelter"]
+    with pytest.raises(GameError):
+        game.update_hive(other.id, None, None, greenhouse="cold")  # une seule place à l'étape 1
+    game.update_hive(hive.id, None, None, greenhouse="")
+    assert game._mods(hive)["temp"] == "normal"
+
+    # Observatoire, étape 2 : mutations possibles maintenant (Sylvestre × Des prés → Commune, sans condition)
+    _give_stage(game, "observatory")
+    _give_stage(game, "observatory")
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "meadows").id)
+    now = game.state()["hives"][0]["mutations_now"]
+    assert {"result": "common", "chance": 0.15} in now
+    base = game._mods(hive)["mutation"]
+    _give_stage(game, "observatory")
+    assert game._mods(hive)["mutation"] == pytest.approx(base * PR.OBSERVATORY_MUTATION)
+    with pytest.raises(GameError):
+        game.contribute("observatory", "honey", 1)  # projet achevé

@@ -171,7 +171,8 @@ function HiveName({ hive }: { hive: Hive }) {
 
 function Scene({ hive }: { hive: Hive }) {
   const { content, state } = useGame();
-  const weather = state.world.weather[hive.biome] ?? 'clear';
+  // Sous serre, il ne pleut pas
+  const weather = hive.greenhouse ? 'clear' : (state.world.weather[hive.biome] ?? 'clear');
   const queen = hive.queen;
   const species = queen ? content.species[queen.genome.species[0]] : null;
   const status = STATUS[hive.status];
@@ -226,6 +227,7 @@ function HiveCard({ hive }: { hive: Hive }) {
   );
   const queen = hive.queen;
   const biome = content.biomes[hive.biome];
+  const greenhouseStage = state.projects?.greenhouse?.stage ?? 0;
 
   const collect = async () => {
     const combs = outputs.reduce((n, [, q]) => n + q, 0);
@@ -246,6 +248,11 @@ function HiveCard({ hive }: { hive: Hive }) {
             <span className="chip" title={`${biome.label} · climat ${content.temp_labels[hive.mods.temp]}`}>
               {BIOME_ICONS[hive.biome]} {biome.label}
             </span>
+            {hive.greenhouse && (
+              <span className="chip" title="Sous serre : température choisie, à l'abri de la pluie">
+                🌡️ Serre · {content.temp_labels[hive.greenhouse]}
+              </span>
+            )}
             {hive.modules.map((m, i) => (
               <span key={i} title={`${content.items[m]?.label} : ${content.modules[m]?.desc}`}>
                 <ItemIcon id={m} size={16} />
@@ -265,6 +272,18 @@ function HiveCard({ hive }: { hive: Hive }) {
               <div className="bar" title={`Reste ${queen.health} cycles sur ${queen.max_health}`}>
                 <div style={{ width: `${(100 * queen.health) / queen.max_health}%` }} />
               </div>
+              {hive.mutations_now && (
+                <div className="mutations-now" title="Observatoire : mutations dont les parents et les conditions sont réunis en ce moment">
+                  🔭{' '}
+                  {hive.mutations_now.length === 0
+                    ? 'Aucune mutation possible en ce moment'
+                    : hive.mutations_now.map((m) => (
+                        <span key={m.result} className="chip">
+                          {state.discovered.includes(m.result) ? content.species[m.result]?.label : '???'} {Math.round(m.chance * 1000) / 10} %
+                        </span>
+                      ))}
+                </div>
+              )}
             </div>
           </div>
         ) : princesses.length && drones.length ? (
@@ -356,6 +375,23 @@ function HiveCard({ hive }: { hive: Hive }) {
                 </button>
               </div>
             )}
+            {greenhouseStage >= 1 && (
+              <label className="row muted">
+                🌡️ Serre
+                <select
+                  value={hive.greenhouse ?? ''}
+                  onChange={(e) => act(`/hives/${hive.id}`, { greenhouse: e.target.value })}
+                  aria-label="Température sous serre"
+                >
+                  <option value="">Hors serre (climat du biome)</option>
+                  {(content.projects.greenhouse_temps[String(Math.min(greenhouseStage, 3))] ?? []).map((t) => (
+                    <option key={t} value={t}>
+                      {content.temp_labels[t]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             {hive.mods.automation && (
               <label className="row muted">
                 <input type="checkbox" checked={hive.keep_drones} onChange={(e) => act(`/hives/${hive.id}`, { keep_drones: e.target.checked })} />
@@ -425,6 +461,43 @@ function Certify({ bee }: { bee: Bee }) {
   );
 }
 
+/** Prévisions de l'Observatoire : météo des prochaines périodes, pour chaque biome où l'on a une ruche. */
+function Forecast() {
+  const { content, state } = useGame();
+  const biomes = [...new Set(state.hives.map((h) => h.biome))];
+  const hours = (ms: number) => `dans ${Math.max(1, Math.round(ms / ((content.world.day_seconds * 1000) / 24)))} h`;
+  return (
+    <div className="card forecast">
+      <div className="title">🔭 Prévisions de l'Observatoire</div>
+      <table className="forecast-table">
+        <thead>
+          <tr>
+            <th />
+            {state.forecast!.map((f) => (
+              <th key={f.in_ms}>{hours(f.in_ms)}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {biomes.map((b) => (
+            <tr key={b}>
+              <th>
+                {BIOME_ICONS[b]} {content.biomes[b].label}
+              </th>
+              {state.forecast!.map((f) => (
+                <td key={f.in_ms} title={content.world.weathers[f.weather[b]]}>
+                  {WEATHER_ICONS[f.weather[b]] || '☀️'} {content.world.weathers[f.weather[b]]}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <span className="muted">Heures de jeu. Une ruche sous serre ne craint pas la pluie.</span>
+    </div>
+  );
+}
+
 export default function ApiaryPage() {
   const { content, state, act } = useGame();
   const [open, setOpen] = useState<string | null>(null);
@@ -452,6 +525,8 @@ export default function ApiaryPage() {
           </button>
         </div>
       )}
+
+      {state.forecast && <Forecast />}
 
       <h2>Ruches</h2>
       <div className="grid">

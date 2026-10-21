@@ -5,6 +5,7 @@ from ..auth import current_game
 from ..game import content
 from ..game import lab
 from ..game import orders
+from ..game import projects
 from ..game import trophies
 from ..game.service import Game
 
@@ -46,6 +47,7 @@ class HiveIn(BaseModel):
     name: str | None = None
     keep_drones: bool | None = None
     reuse_drone: bool | None = None
+    greenhouse: str | None = None
 
 
 class ProcessIn(BaseModel):
@@ -111,6 +113,18 @@ def discard_order(body: OrderIn, game: Game = Depends(current_game)):
     return _done(game)
 
 
+class ContributeIn(BaseModel):
+    project_id: str
+    item: str
+    qty: int = Field(1, ge=1, le=1_000_000)
+
+
+@router.post("/projects/contribute")
+def contribute(body: ContributeIn, game: Game = Depends(current_game)):
+    game.contribute(body.project_id, body.item, body.qty)
+    return _done(game)
+
+
 class CertifyIn(BaseModel):
     bee_id: str
 
@@ -123,7 +137,7 @@ def certify(body: CertifyIn, game: Game = Depends(current_game)):
 
 @router.get("/content")
 def get_content():
-    return {**content.public_content(), "lab": lab.public_lab(), "trophies": trophies.public_trophies(), "orders": orders.public_orders()}
+    return {**content.public_content(), "lab": lab.public_lab(), "trophies": trophies.public_trophies(), "orders": orders.public_orders(), "projects": projects.public_projects()}
 
 
 class ReplicateIn(BaseModel):
@@ -216,7 +230,7 @@ def expand(hive_id: str, game: Game = Depends(current_game)):
 
 @router.post("/hives/{hive_id}")
 def update_hive(hive_id: str, body: HiveIn, game: Game = Depends(current_game)):
-    game.update_hive(hive_id, body.name, body.keep_drones, body.reuse_drone)
+    game.update_hive(hive_id, body.name, body.keep_drones, body.reuse_drone, body.greenhouse)
     return _done(game)
 
 

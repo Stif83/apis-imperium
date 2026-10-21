@@ -24,6 +24,7 @@ CATEGORIES = {
     "lab": "Laboratoire",
     "pedigree": "Pedigree",
     "trade": "Comptoir",
+    "projects": "Grands projets",
     "community": "Communauté",
     "secret": "Secrets",
 }
@@ -112,6 +113,8 @@ def _trophies() -> list[dict]:
            [(1, 200, None), (2, 600, None), (4, 3000, None), (5, 10000, {"imperial_jelly": 1})]),
         _t("prestige", "trade", "Prestige", "🏆", "Commandes de prestige honorées", "prestige_orders",
            [(1, 500, None), (5, 3000, None), (15, 10000, None), (40, 30000, {"imperial_jelly": 2})]),
+        _t("wonders", "projects", "Bâtisseur de merveilles", "🏛️", "Étapes de grands projets achevées", "project_stages",
+           [(1, 500, None), (3, 3000, None), (6, 12000, {"imperial_jelly": 1})]),
         # Communauté
         _t("curator", "community", "Vernissage", "🖼️", "Vitrines publiées", "showcases", [(1, 50, None)], metals=["silver"]),
         _t("loved", "community", "Coup de cœur", "💛", "« J'aime » reçus sur vos vitrines", "likes",

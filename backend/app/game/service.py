@@ -20,6 +20,7 @@ from . import garden as GD
 from . import genetics as G
 from . import lab as LAB
 from . import orders as O
+from . import projects as PR
 from . import trophies as T
 from . import world as W
 
@@ -293,7 +294,27 @@ class Game:
         raise GameError("Ruche introuvable.")
 
     def _mods(self, hive: Hive) -> dict:
-        return G.hive_mods(hive.hive_type, hive.biome, hive.modules or [])
+        greenhouse = self._greenhouse(hive)
+        mods = G.hive_mods(hive.hive_type, hive.biome, hive.modules or [], base_temp=greenhouse)
+        if greenhouse:
+            # Sous verrière, la pluie ne gêne plus personne
+            mods["shelter"] = True
+            if self.project_stage("greenhouse") >= 3:
+                mods["production"] *= PR.GREENHOUSE_PRODUCTION
+        if self.project_stage("observatory") >= 3:
+            mods["mutation"] *= PR.OBSERVATORY_MUTATION
+        return mods
+
+    def _greenhouse(self, hive: Hive) -> str | None:
+        """Température choisie si la ruche est sous serre (et que la serre est construite), sinon None."""
+        temp = (hive.settings or {}).get("greenhouse")
+        return temp if temp and self.project_stage("greenhouse") >= 1 else None
+
+    def _biome_temp(self, hive: Hive) -> str:
+        return self._greenhouse(hive) or C.BIOMES[hive.biome]["temp"]
+
+    def _weather(self, hive: Hive, t_ms: int) -> str:
+        return "clear" if self._greenhouse(hive) else W.weather(t_ms, C.BIOMES[hive.biome]["temp"])
 
     # ---- simulation -------------------------------------------------------
 
@@ -335,13 +356,12 @@ class Game:
         }
 
     def _hive_ctx(self, hive: Hive, mods: dict, t_ms: int, world: dict) -> dict:
-        biome_temp = C.BIOMES[hive.biome]["temp"]
         return {
             **world,
             "biome": hive.biome,
             "phase": W.phase(t_ms),
             "hours": W.hour(t_ms),
-            "weather": W.weather(t_ms, biome_temp),
+            "weather": self._weather(hive, t_ms),
             "module": set(hive.modules or []),
             "automated": mods["automation"],
             "discovered": len(self.discovered),
@@ -357,7 +377,7 @@ class Game:
         cycle_ms = settings.cycle_seconds * 1000
         mods = self._mods(hive)
         auto = mods["automation"]
-        biome_temp = C.BIOMES[hive.biome]["temp"]
+        biome_temp = self._biome_temp(hive)
         out = dict(hive.output or {})
         t = start
         while cycles > 0 and hive.queen:
@@ -587,8 +607,11 @@ class Game:
         stock = next((b for b in self.bees if b.type == "drone" and b.hive_id is None and b.genome_hash == line), None)
         return {"genome": stock.genome, "count": stock.count} if stock else {"genome": None, "count": 0}
 
-    def update_hive(self, hive_id: str, name: str | None, keep_drones: bool | None, reuse_drone: bool | None = None) -> None:
+    def update_hive(self, hive_id: str, name: str | None, keep_drones: bool | None, reuse_drone: bool | None = None,
+                    greenhouse: str | None = None) -> None:
         hive = self._hive(hive_id)
+        if greenhouse is not None:
+            self._set_greenhouse(hive, greenhouse)
         if name is not None:
             name = name.strip()
             if not name:
@@ -600,6 +623,80 @@ class Game:
             hive.settings = {**(hive.settings or {}), "keep_drones": keep_drones}
         if reuse_drone is not None:
             hive.settings = {**(hive.settings or {}), "reuse_drone": reuse_drone}
+
+    def _set_greenhouse(self, hive: Hive, temp: str) -> None:
+        """Met une ruche sous serre à la température voulue ; une chaîne vide l'en sort."""
+        settings_ = dict(hive.settings or {})
+        if not temp:
+            settings_.pop("greenhouse", None)
+            hive.settings = settings_
+            return
+        stage = self.project_stage("greenhouse")
+        if stage < 1:
+            raise GameError("Il faut d'abord construire la serre climatique (Grands projets).")
+        if temp not in PR.GREENHOUSE_TEMPS[stage]:
+            raise GameError("La serre ne permet pas encore cette température.")
+        used = sum(1 for h in self.hives if h.id != hive.id and (h.settings or {}).get("greenhouse"))
+        if not settings_.get("greenhouse") and used >= PR.GREENHOUSE_SLOTS[stage]:
+            raise GameError("Toutes les places sous serre sont prises : agrandissez la serre.")
+        settings_["greenhouse"] = temp
+        hive.settings = settings_
+
+    # ---- grands projets ---------------------------------------------------
+
+    def project_stage(self, project_id: str) -> int:
+        return (self.p.projects or {}).get(project_id, {}).get("stage", 0)
+
+    def contribute(self, project_id: str, item: str, qty: int) -> None:
+        """Donne miel ou objets à l'étape en cours ; l'étape s'achève quand tout est réuni."""
+        if project_id not in PR.PROJECTS:
+            raise GameError("Projet inconnu.")
+        projects = dict(self.p.projects or {})
+        entry = dict(projects.get(project_id) or {"stage": 0, "given": {}})
+        cost = PR.stage_cost(project_id, entry["stage"])
+        if cost is None:
+            raise GameError("Ce projet est déjà achevé.")
+        need = cost["honey"] if item == "honey" else cost["items"].get(item)
+        if need is None:
+            raise GameError("Cette étape ne demande pas cet objet.")
+        given = dict(entry.get("given") or {})
+        qty = min(qty, need - given.get(item, 0))
+        if qty <= 0:
+            raise GameError("Cette part est déjà complète.")
+        if item == "honey":
+            if self.p.honey < qty:
+                raise GameError("Pas assez de miel.")
+            self.p.honey -= qty
+        else:
+            self.take_item(item, qty)
+        given[item] = given.get(item, 0) + qty
+        done = given.get("honey", 0) >= cost["honey"] and all(given.get(i, 0) >= n for i, n in cost["items"].items())
+        entry = {"stage": entry["stage"] + 1, "given": {}} if done else {**entry, "given": given}
+        projects[project_id] = entry
+        self.p.projects = projects
+
+    def _forecast(self, t: int) -> list[dict]:
+        """Météo des prochaines périodes, par biome (Observatoire)."""
+        period = W.HOUR_MS * W.WEATHER_HOURS
+        first = t // period + 1
+        return [
+            {"in_ms": (first + k) * period - t, "weather": {b: W.weather((first + k) * period, s["temp"]) for b, s in C.BIOMES.items()}}
+            for k in range(PR.FORECAST_PERIODS)
+        ]
+
+    def _mutations_now(self, hive: Hive, mods: dict, t: int, world: dict) -> list[dict]:
+        """Mutations dont les parents et les conditions sont réunis en ce moment dans la ruche (Observatoire)."""
+        if not hive.queen:
+            return []
+        queen, mate = G.normalize(hive.queen["genome"]), G.normalize(hive.queen["mate"])
+        pairs = {frozenset((a, b)) for a in queen["species"] for b in mate["species"]}
+        ctx = {**self._hive_ctx(hive, mods, t, world), "temp": mods["temp"], "queen": queen}
+        mult = mods["mutation"] * G.value(queen, "stability")
+        return [
+            {"result": m["result"], "chance": min(1.0, m["chance"] * mult)}
+            for m in C.MUTATIONS
+            if frozenset((m["a"], m["b"])) in pairs and G.cond_ok(m.get("cond") or {}, ctx)
+        ]
 
     # ---- boutique et usine ------------------------------------------------
 
@@ -927,6 +1024,8 @@ class Game:
             return len(self.genes)
         if metric in ("combs", "honey", "manual", "drones_sold", "extracts", "imprints", "generation", "orders", "prestige_orders"):
             return stats.get(metric, 0)
+        if metric == "project_stages":
+            return sum(p.get("stage", 0) for p in (self.p.projects or {}).values())
         if metric == "reputation_level":
             return O.level_of(self.p.reputation or 0)
         if metric.startswith("events:"):
@@ -1119,7 +1218,7 @@ class Game:
         if not mods["light"] and W.hour(t_ms) not in W.ACTIVITY_HOURS[genome["activity"][0]]:
             return "resting"
         sheltered = mods["shelter"] or genome["weatherproof"][0] == "yes"
-        if not sheltered and W.weather(t_ms, C.BIOMES[hive.biome]["temp"]) != "clear":
+        if not sheltered and self._weather(hive, t_ms) != "clear":
             return "weather"
         return "working"
 
@@ -1134,7 +1233,7 @@ class Game:
         for hive, status in statuses:
             if status != "working":
                 continue
-            weather = W.weather(t, C.BIOMES[hive.biome]["temp"])
+            weather = self._weather(hive, t)
             if weather == "storm":
                 A.unlock(self.p, "storm_worker")
             if weather == "snow":
@@ -1172,6 +1271,8 @@ class Game:
         self.lab_tick(t)
         self._passive_achievements(t, [(h, self._hive_status(h, self._mods(h), t)) for h in self.hives])
         self._ensure_trophies()
+        observatory = self.project_stage("observatory")
+        world = self._world_ctx()
         hives = []
         for hive in self.hives:
             mods = self._mods(hive)
@@ -1192,6 +1293,8 @@ class Game:
                 "keep_drones": bool((hive.settings or {}).get("keep_drones")),
                 "reuse_drone": bool((hive.settings or {}).get("reuse_drone", True)),
                 "line_drone": self._line_drone_state(hive),
+                "greenhouse": self._greenhouse(hive),
+                "mutations_now": self._mutations_now(hive, mods, t, world) if observatory >= 2 else None,
                 "mods": mods,
                 "status": status,
             })
@@ -1218,6 +1321,9 @@ class Game:
                 for tid, trophy in T.TROPHIES.items()
             },
             "pedigree": dict(self.p.pedigree or {}),
+            "projects": {pid: {"stage": self.project_stage(pid), "given": (self.p.projects or {}).get(pid, {}).get("given", {})}
+                         for pid in PR.PROJECTS},
+            "forecast": self._forecast(t) if observatory >= 1 else None,
             "orders": {
                 **self.orders_board(t),
                 "reputation": self.p.reputation or 0,
