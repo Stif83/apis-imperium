@@ -118,7 +118,7 @@ function ItemOffer({ offer, qty }: { offer: Offer; qty: number }) {
   } else if (offer.kind === 'unlock') {
     icon = <span style={{ fontSize: 34 }}>🧪</span>;
     title = 'Laboratoire de génétique';
-    desc = "Extraction et impression de gènes (onglet Génétique).";
+    desc = "Extraction et impression de gènes (Atelier › Laboratoire).";
   }
   const stackable = offer.kind === 'item';
   return (

@@ -54,21 +54,12 @@ export type Content = {
   bee_sell: Record<string, number>;
   imprint_honey_per_gene: number;
   showcase_max_entries: number;
-  garden: {
-    chromosomes: Record<string, string>;
-    alleles: Record<string, Record<string, Allele>>;
-    trees: Record<string, Omit<Species, 'temp'>>;
-    mutations: { a: string; b: string; result: string; chance: number }[];
-    butterflies: Record<string, { label: string; color: string; secondary: string; chance: number; hosts: string[]; sell: number }>;
-    sapling_sell: number;
-  };
   world: {
     day_seconds: number;
     phases: Record<string, string>;
     weathers: Record<string, string>;
     activity_hours: Record<string, number[]>;
   };
-  garden_enabled: boolean;
   achievements: Achievement[];
   lab: {
     levels: Record<string, { label: string; desc: string; cost: Cost; min_species: number; extract: string[]; imprint: boolean }>;
@@ -167,12 +158,6 @@ export type Trophy = {
 
 export type Achievement = { id: string; label: string; desc: string; icon: string; secret: boolean; honey: number };
 
-export type Plot = {
-  id: string;
-  tree: { genome: Genome; mate: Genome; health: number; max_health: number } | null;
-  status: 'empty' | 'growing' | 'mature';
-};
-
 export type Bee = { id: string; type: BeeType; genome: Genome; count: number; hive_id: string | null };
 export type Queen = { genome: Genome; mate: Genome; health: number; max_health: number; generation: number };
 export type Hive = {
@@ -201,7 +186,7 @@ export type Hive = {
 };
 
 export type GameState = {
-  player: { id: string; username: string; honey: number; genetics_unlocked: boolean };
+  player: { id: string; username: string; honey: number };
   server_time: number;
   cycle_seconds: number;
   world: { hour: number; minute: number; phase: string; weather: Record<string, string>; next_weather_ms: number };
@@ -229,7 +214,17 @@ export type GameState = {
   lab: {
     level: number;
     /** Une opération par paillasse occupée ; chain = extraction en chaîne */
-    jobs: { op: 'extract' | 'imprint' | 'replicate'; chromosome?: string; allele?: string; chain?: boolean; start_ms: number; ready_ms: number }[];
+    jobs: {
+      id: string;
+      op: 'extract' | 'imprint' | 'replicate';
+      chromosome?: string;
+      allele?: string;
+      chain?: boolean;
+      /** Abeille reprise par la chaîne ; absente sur les extractions d'avant l'interrupteur */
+      bee_hash?: string;
+      start_ms: number;
+      ready_ms: number;
+    }[];
     benches: number;
     chain: boolean;
     fragments: Record<string, number>;
@@ -242,17 +237,12 @@ export type GameState = {
   bees: Bee[];
   hives: Hive[];
   machines: Record<string, number>;
+  /** Centrifugeuses automatiques : en marche ou non, et rayons qu'elles laissent de côté */
+  factory: { on: boolean; skip: string[] };
   discovered: string[];
   genes: Record<string, string[]>;
   offers: Record<string, { cost: Cost; lock: string | null }>;
   rescue_available: boolean;
-  garden: {
-    plots: Plot[];
-    saplings: { id: string; genome: Genome; count: number }[];
-    butterflies: { id: string; species: string; count: number }[];
-    found_trees: string[];
-    found_butterflies: string[];
-  };
 };
 
 export type Badge = {
@@ -279,7 +269,7 @@ export type Showcase = {
   author: string;
   badges: PlayerBadges;
   mine: boolean;
-  entries: { kind: string; type: string; genome: Genome }[];
+  entries: { type: string; genome: Genome }[];
   likes: number;
   liked: boolean;
   created_at: string | null;

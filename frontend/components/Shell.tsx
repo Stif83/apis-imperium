@@ -7,21 +7,82 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { GameProvider, useGame } from '@/lib/game';
 import { claimableTrophies } from '@/lib/trophies';
 import { BeeIcon } from './BeeIcon';
-import { ButterflyIcon, TreeIcon } from './garden';
 import { Honey, ThemeToggle, WorldClock } from './ui';
 
-const TABS = [
-  { href: '/', label: 'Rucher' },
-  { href: '/usine', label: 'Usine' },
-  { href: '/boutique', label: 'Boutique' },
-  { href: '/comptoir', label: 'Comptoir' },
-  { href: '/projets', label: 'Projets' },
-  { href: '/expeditions', label: 'Expéditions' },
-  { href: '/genetique', label: 'Génétique' },
-  { href: '/apidex', label: 'Apidex' },
-  { href: '/carnet', label: 'Carnet' },
-  { href: '/communaute', label: 'Communauté' },
+type Tab = { href: string; label: string; icon: string };
+type Hints = Record<string, { text: string; alert?: boolean } | undefined>;
+
+/** Menus de la barre du haut ; ceux qui regroupent plusieurs pages affichent des sous-onglets. */
+const MENUS: { label: string; tabs: Tab[] }[] = [
+  { label: 'Rucher', tabs: [{ href: '/', label: 'Rucher', icon: '🐝' }] },
+  {
+    label: 'Atelier',
+    tabs: [
+      { href: '/usine', label: 'Centrifugeuse', icon: '⚙️' },
+      { href: '/genetique', label: 'Laboratoire', icon: '🧬' },
+    ],
+  },
+  {
+    label: 'Marché',
+    tabs: [
+      { href: '/boutique', label: 'Boutique', icon: '🛒' },
+      { href: '/comptoir', label: 'Comptoir', icon: '📜' },
+    ],
+  },
+  {
+    label: 'Domaine',
+    tabs: [
+      { href: '/projets', label: 'Grands projets', icon: '🏛️' },
+      { href: '/expeditions', label: 'Expéditions', icon: '🧭' },
+    ],
+  },
+  { label: 'Apidex', tabs: [{ href: '/apidex', label: 'Apidex', icon: '📖' }] },
+  {
+    label: 'Carnet',
+    tabs: [
+      { href: '/carnet', label: 'Trophées', icon: '🏆' },
+      { href: '/communaute', label: 'Communauté', icon: '👥' },
+    ],
+  },
 ];
+
+const isActive = (href: string, pathname: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
+const menuOf = (pathname: string) => MENUS.find((m) => m.tabs.some((t) => isActive(t.href, pathname)));
+
+/** Petite info d'état à côté d'un sous-onglet, pour savoir où il y a quelque chose à faire. */
+function useTabHints(): Hints {
+  const { content, state } = useGame();
+  const combs = Object.keys(content.recipes).reduce((n, c) => n + (state.inventory[c] ?? 0), 0);
+  const centrifuges = state.machines.centrifuge ?? 0;
+  const busy = state.lab.jobs.filter((j) => j.ready_ms > state.server_time).length;
+  return {
+    '/usine': centrifuges && !state.factory.on ? { text: '⏸ arrêt', alert: true } : combs ? { text: `${combs} rayons` } : undefined,
+    // En rouge seulement si une paillasse libre peut vraiment servir
+    '/genetique': state.lab.level
+      ? { text: `${busy}/${state.lab.benches}`, alert: busy < state.lab.benches && (state.inventory.labware ?? 0) > 0 }
+      : undefined,
+    '/carnet': claimableTrophies(content, state).length ? { text: 'à réclamer', alert: true } : undefined,
+  };
+}
+
+function SubNav({ hints }: { hints: Hints }) {
+  const pathname = usePathname();
+  const menu = menuOf(pathname);
+  if (!menu || menu.tabs.length < 2) return null;
+  return (
+    <nav className="subnav" aria-label={menu.label}>
+      {menu.tabs.map((tab) => {
+        const hint = hints[tab.href];
+        return (
+          <Link key={tab.href} href={tab.href} className={isActive(tab.href, pathname) ? 'active' : ''}>
+            <span aria-hidden>{tab.icon}</span> {tab.label}
+            {hint && <span className={`subnav-hint${hint.alert ? ' alert' : ''}`}>{hint.text}</span>}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 
 const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 
@@ -76,9 +137,9 @@ function useEasterEggs() {
   return { rain, stopRain: () => setRain(false), has };
 }
 
-function Header() {
+function Header({ hints }: { hints: Hints }) {
   const auth = useAuth();
-  const { content, state, act } = useGame();
+  const { state, act } = useGame();
   const pathname = usePathname();
   const { rain, stopRain, has } = useEasterEggs();
   const clicks = useRef<number[]>([]);
@@ -94,8 +155,6 @@ function Header() {
       if (!has('buzz')) act('/secrets', { code: 'buzz' });
     }
   };
-  // Pastille sur le Carnet quand une récompense attend
-  const rewards = claimableTrophies(content, state).length > 0;
   return (
     <header className="topbar" data-phase={state.world.phase}>
       <div className="brand">
@@ -106,10 +165,10 @@ function Header() {
       </div>
       {rain && <BeeRain onDone={stopRain} />}
       <nav>
-        {TABS.map((tab) => (
-          <Link key={tab.href} href={tab.href} className={(tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href)) ? 'active' : ''}>
-            {tab.label}
-            {tab.href === '/carnet' && rewards && <span className="dot" title="Récompense à réclamer" />}
+        {MENUS.map((menu) => (
+          <Link key={menu.label} href={menu.tabs[0].href} className={menuOf(pathname) === menu ? 'active' : ''}>
+            {menu.label}
+            {menu.label === 'Carnet' && hints['/carnet'] && <span className="dot" title="Récompense à réclamer" />}
           </Link>
         ))}
       </nav>
@@ -143,25 +202,12 @@ function Celebration() {
     name = a.label;
     kicker = a.secret ? 'Secret découvert !' : 'Exploit !';
     detail = `${a.desc} · Un trophée vous attend dans le Carnet.`;
-  } else if (next.kind === 'bee') {
+  } else {
     const s = content.species[next.id];
     if (!s) return null;
     icon = <BeeIcon species={next.id} color={s.color} secondary={s.secondary} type="queen" size={128} />;
     name = s.label;
     detail = `Branche ${s.branch}`;
-  } else if (next.kind === 'tree') {
-    const t = content.garden.trees[next.id];
-    if (!t) return null;
-    icon = <TreeIcon color={t.color} secondary={t.secondary} size={112} />;
-    name = t.label;
-    kicker = "Nouvel arbre !";
-    detail = t.branch;
-  } else {
-    const b = content.garden.butterflies[next.id];
-    if (!b) return null;
-    icon = <ButterflyIcon color={b.color} secondary={b.secondary} size={112} />;
-    name = b.label;
-    kicker = 'Nouveau papillon !';
   }
   return (
     <div className="overlay" onClick={dismissCelebration}>
@@ -191,12 +237,25 @@ function Season() {
   return null;
 }
 
+/** En-tête et sous-onglets partagent les mêmes indications, calculées une fois par rendu. */
+function Layout({ children }: { children: ReactNode }) {
+  const hints = useTabHints();
+  return (
+    <>
+      <Header hints={hints} />
+      <main>
+        <SubNav hints={hints} />
+        {children}
+      </main>
+    </>
+  );
+}
+
 export function Shell({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <GameProvider>
-        <Header />
-        <main>{children}</main>
+        <Layout>{children}</Layout>
         <Celebration />
         <Season />
       </GameProvider>

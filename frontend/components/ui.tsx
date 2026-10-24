@@ -9,7 +9,7 @@ export const TYPE_LABELS: Record<BeeType, string> = { princess: 'Princesse', dro
 
 export const fmt = (n: number) => n.toLocaleString('fr-FR');
 
-export const PHASE_ICONS: Record<string, string> = { dawn: '🌅', day: '☀️', dusk: '🌇', night: '🌙' };
+const PHASE_ICONS: Record<string, string> = { dawn: '🌅', day: '☀️', dusk: '🌇', night: '🌙' };
 export const WEATHER_ICONS: Record<string, string> = { clear: '', rain: '🌧️', storm: '⛈️', snow: '❄️' };
 
 /** Heure du monde, commune à tous les joueurs (une journée de jeu = 24 minutes). */
@@ -196,6 +196,19 @@ export function BeeSheet({ group, onClose, actions }: { group: BeeGroup; onClose
   );
 }
 
+/** Interrupteur marche/arrêt. */
+export function Switch({ on, onChange, label, title }: { on: boolean; onChange: (on: boolean) => void; label?: ReactNode; title?: string }) {
+  return (
+    <label className={`switch${on ? ' on' : ''}`} title={title}>
+      <input type="checkbox" role="switch" checked={on} onChange={(e) => onChange(e.target.checked)} />
+      <span className="switch-track" aria-hidden>
+        <span className="switch-knob" />
+      </span>
+      {label && <span>{label}</span>}
+    </label>
+  );
+}
+
 export function Honey({ amount }: { amount: number }) {
   return (
     <span className="honey">
@@ -298,39 +311,5 @@ export function GenomeTable({ genome }: { genome: Genome }) {
         })}
       </tbody>
     </table>
-  );
-}
-
-export function BeeCard({
-  genome,
-  type,
-  count,
-  children,
-  selected,
-  onClick,
-}: {
-  genome: Genome;
-  type: BeeType;
-  count?: number;
-  children?: ReactNode;
-  selected?: boolean;
-  onClick?: () => void;
-}) {
-  const { content } = useGame();
-  return (
-    <div className={`card bee-card${selected ? ' selected' : ''}${onClick ? ' clickable' : ''}`} onClick={onClick}>
-      <div className="bee-head">
-        <GenomeIcon genome={genome} type={type} />
-        <div>
-          <div className="title">{speciesName(content, genome)}</div>
-          <div className="muted">
-            {TYPE_LABELS[type]}
-            {count !== undefined && count > 1 && <b> ×{fmt(count)}</b>}
-          </div>
-        </div>
-      </div>
-      <GenomeTable genome={genome} />
-      {children && <div className="actions">{children}</div>}
-    </div>
   );
 }

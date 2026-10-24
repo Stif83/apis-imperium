@@ -1,7 +1,8 @@
 'use client';
 
+import { Outputs } from '@/components/apidex';
 import { HoldButton } from '@/components/HoldButton';
-import { CostView, Honey, ItemIcon, PageHead, fmt } from '@/components/ui';
+import { CostView, ItemIcon, ItemQty, PageHead, Switch, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
 
 const HOLD_SECONDS = 3;
@@ -21,73 +22,115 @@ function Centrifuge({ spinning }: { spinning: boolean }) {
   );
 }
 
+/** Durée lisible pour un nombre de secondes. */
+function duration(s: number) {
+  if (s < 60) return `${s} s`;
+  const minutes = Math.round(s / 60);
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`;
+}
+
 export default function FactoryPage() {
   const { content, state, act } = useGame();
-  const combs = Object.keys(content.recipes);
-  const owned = combs.filter((c) => (state.inventory[c] ?? 0) > 0);
-  const resources = Object.entries(state.inventory).filter(([id]) => content.items[id]?.category === 'resource');
+  const owned = Object.keys(content.recipes).filter((c) => (state.inventory[c] ?? 0) > 0);
+  const resources = Object.entries(state.inventory)
+    .filter(([id, qty]) => content.items[id]?.category === 'resource' && qty > 0)
+    .sort((a, b) => b[1] - a[1]);
   const centrifuges = state.machines.centrifuge ?? 0;
+  const hasAuto = centrifuges > 0;
   const offer = state.offers['machine:centrifuge'];
+  const running = state.factory.on;
+  const skip = new Set(state.factory.skip);
+  const todo = owned.filter((c) => !skip.has(c));
+  const queued = todo.reduce((n, c) => n + state.inventory[c], 0);
+  const kept = owned.length - todo.length;
+  const working = hasAuto && running && queued > 0;
+
+  let status: string;
+  if (!hasAuto) status = 'Aucune centrifugeuse automatique : les rayons se traitent à la main.';
+  else if (!running) status = 'À l’arrêt : les rayons restent en stock.';
+  else if (!queued) status = owned.length ? 'En attente : tous les rayons en stock sont mis de côté.' : 'En attente : plus de rayons à traiter.';
+  else status = `En marche : ${centrifuges} rayon${centrifuges > 1 ? 's' : ''} toutes les ${state.cycle_seconds} s.`;
 
   return (
     <>
-      <PageHead title="Usine">
+      <PageHead title="Centrifugeuse">
         Centrifugez les rayons récoltés pour en tirer du miel et des ressources. À la main, maintenez le bouton {HOLD_SECONDS} secondes
-        par rayon. Les centrifugeuses automatiques traitent un rayon chacune par cycle ({state.cycle_seconds} s), même en votre absence.
+        par rayon. Chaque centrifugeuse automatique traite un rayon par cycle ({state.cycle_seconds} s), même en votre absence. Coupez-les
+        ou décochez « Auto » sur un rayon pour le garder en stock, pour une commande du Comptoir par exemple.
       </PageHead>
 
-      <div className="card machine">
-        <Centrifuge spinning={centrifuges > 0 && owned.length > 0} />
-        <div className="grow">
-          <div className="title">
-            {content.machines.centrifuge.label} {centrifuges > 0 && <span className="badge ok">×{centrifuges}</span>}
+      <div className="card factory-head">
+        <Centrifuge spinning={working} />
+        <div style={{ minWidth: 0 }}>
+          <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+            <span className="title">
+              {content.machines.centrifuge.label} {hasAuto && <span className="badge ok">×{centrifuges}</span>}
+            </span>
+            {hasAuto && (
+              <Switch
+                on={running}
+                onChange={(on) => act('/factory/settings', { on })}
+                label={running ? 'Automatique' : 'À l’arrêt'}
+                title={running ? 'Arrêter les centrifugeuses automatiques' : 'Remettre les centrifugeuses en marche'}
+              />
+            )}
           </div>
-          <div className="muted">
-            {centrifuges === 0
-              ? "Aucune pour l'instant : tout se fait à la main."
-              : owned.length
-                ? `En marche : ${centrifuges} rayon${centrifuges > 1 ? 's' : ''} toutes les ${state.cycle_seconds} s.`
-                : 'À l’arrêt : plus de rayons à traiter.'}
-          </div>
+          <div className="muted">{status}</div>
+          {hasAuto && (
+            <div className="factory-stats">
+              <span className="chip">{fmt(queued)} rayons en file</span>
+              {working && <span className="chip">≈ {duration(Math.ceil(queued / centrifuges) * state.cycle_seconds)} pour tout traiter</span>}
+              {kept > 0 && <span className="chip">{kept} sorte{kept > 1 ? 's' : ''} mise{kept > 1 ? 's' : ''} de côté</span>}
+            </div>
+          )}
         </div>
-        <div className="stack" style={{ alignItems: 'flex-end' }}>
+        <div className="factory-buy">
           <CostView cost={offer.cost} />
           <button className="primary" onClick={() => act('/shop/buy', { offer_id: 'machine:centrifuge' })}>
-            {centrifuges ? 'En ajouter une' : 'Acheter'}
+            {hasAuto ? 'Ajouter une centrifugeuse' : 'Acheter une centrifugeuse'}
           </button>
         </div>
       </div>
 
-      <h2>Rayons à traiter</h2>
+      <h2>Rayons en stock</h2>
       {owned.length === 0 && <p className="muted">Aucun rayon en stock. Récoltez vos ruches dans l'onglet Rucher.</p>}
-      <div className="grid tiles wide-tiles">
-        {owned.map((comb) => (
-          <div key={comb} className="card shop-tile">
-            <ItemIcon id={comb} size={44} />
-            <div className="title">{content.items[comb].label}</div>
-            <span className="badge">×{fmt(state.inventory[comb])}</span>
-            <div className="row" style={{ justifyContent: 'center', gap: 4 }}>
-              {content.recipes[comb].map(([out, chance, qty]) => (
-                <span key={out} className="trait" title={`${out === 'honey' ? 'Miel' : content.items[out]?.label} ×${qty} · ${Math.round(chance * 100)} % de chance`}>
-                  {out === 'honey' ? <Honey amount={qty} /> : <ItemIcon id={out} size={14} />}
-                </span>
-              ))}
+      <div className="comb-list">
+        {owned.map((comb) => {
+          const auto = !skip.has(comb);
+          return (
+            <div key={comb} className={`comb-row${hasAuto && (!auto || !running) ? ' paused' : ''}`}>
+              <ItemIcon id={comb} size={44} />
+              <span>
+                <div className="title">{content.items[comb].label}</div>
+                <b>×{fmt(state.inventory[comb])}</b>
+              </span>
+              <Outputs comb={comb} />
+              {hasAuto ? (
+                <Switch
+                  on={auto}
+                  onChange={(on) => act('/factory/combs', { comb_id: comb, auto: on })}
+                  label="Auto"
+                  title={auto ? 'Traité par les centrifugeuses automatiques' : 'Mis de côté : les centrifugeuses n’y touchent pas'}
+                />
+              ) : (
+                <span />
+              )}
+              <span className="hold-col">
+                <HoldButton seconds={HOLD_SECONDS} onDone={() => act('/factory/process', { comb_id: comb, qty: 1 })}>
+                  Maintenir
+                </HoldButton>
+              </span>
             </div>
-            <HoldButton seconds={HOLD_SECONDS} onDone={() => act('/factory/process', { comb_id: comb, qty: 1 })}>
-              Maintenir
-            </HoldButton>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <h2>Ressources</h2>
       {resources.length === 0 && <p className="muted">Aucune ressource pour le moment.</p>}
-      <div className="inventory">
+      <div className="resource-grid">
         {resources.map(([id, qty]) => (
-          <div key={id} className="inv-slot" title={content.items[id].label}>
-            <ItemIcon id={id} size={30} />
-            <small>{fmt(qty)}</small>
-          </div>
+          <ItemQty key={id} id={id} qty={qty} />
         ))}
       </div>
     </>

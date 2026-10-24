@@ -13,18 +13,16 @@ type Game = {
   request: <T extends GameState>(path: string, body?: unknown) => Promise<T | null>;
   /** Appel d'API générique (onglet communautaire). */
   call: <T>(path: string, body?: unknown, method?: string) => Promise<T | null>;
-  /** Découvertes à fêter (nouvelle espèce d'abeille, d'arbre, de papillon), la plus ancienne en tête. */
+  /** Découvertes à fêter (nouvelle espèce, exploit), la plus ancienne en tête. */
   celebrations: Discovery[];
   dismissCelebration: () => void;
 };
 
-export type Discovery = { kind: 'bee' | 'tree' | 'butterfly' | 'achievement'; id: string };
+type Discovery = { kind: 'bee' | 'achievement'; id: string };
 
 function discoveries(state: GameState): Set<string> {
   return new Set([
     ...state.discovered.map((id) => `bee:${id}`),
-    ...state.garden.found_trees.map((id) => `tree:${id}`),
-    ...state.garden.found_butterflies.map((id) => `butterfly:${id}`),
     ...Object.keys(state.achievements ?? {}).map((id) => `achievement:${id}`),
   ]);
 }

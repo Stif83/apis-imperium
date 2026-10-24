@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { BadgeStrip, RankChip } from '@/components/Badges';
-import { SpecimenIcon, specimenLabel } from '@/components/garden';
-import { PageHead } from '@/components/ui';
+import { GenomeIcon, PageHead, TYPE_LABELS, speciesName } from '@/components/ui';
 import { useGame } from '@/lib/game';
-import type { Genome, Showcase } from '@/lib/types';
+import type { Showcase } from '@/lib/types';
 
 export default function CommunityPage() {
   const { content, state, call } = useGame();
@@ -30,21 +29,8 @@ export default function CommunityPage() {
     else if (picked.length < content.showcase_max_entries) setPicked([...picked, id]);
   };
 
-  // Abeilles, plus pousses et papillons tant que le jardin est ouvert
-  const specimens: { id: string; kind: string; type: string; genome: Genome }[] = [
-    ...state.bees.map((b) => ({ id: b.id, kind: 'bee', type: b.type, genome: b.genome })),
-    ...(content.garden_enabled
-      ? [
-          ...state.garden.saplings.map((s) => ({ id: s.id, kind: 'tree', type: 'tree', genome: s.genome })),
-          ...state.garden.butterflies.map((b) => ({
-            id: b.id,
-            kind: 'butterfly',
-            type: 'butterfly',
-            genome: { species: [b.species, b.species] as [string, string] },
-          })),
-        ]
-      : []),
-  ];
+  const label = (type: string, genome: Showcase['entries'][number]['genome']) =>
+    `${TYPE_LABELS[type as 'drone'] ?? type} ${speciesName(content, genome)}`;
 
   const publish = async () => {
     if (await update('/community/showcases', { title, description, bee_ids: picked })) {
@@ -83,10 +69,10 @@ export default function CommunityPage() {
             Spécimens choisis : {picked.length} / {content.showcase_max_entries}
           </div>
           <div className="row">
-            {specimens.map((f) => (
-              <button key={f.id} className={`chip pick${picked.includes(f.id) ? ' selected' : ''}`} onClick={() => toggle(f.id)}>
-                <SpecimenIcon kind={f.kind} type={f.type} genome={f.genome} size={24} />
-                {specimenLabel(content, f.kind, f.type, f.genome)}
+            {state.bees.map((b) => (
+              <button key={b.id} className={`chip pick${picked.includes(b.id) ? ' selected' : ''}`} onClick={() => toggle(b.id)}>
+                <GenomeIcon genome={b.genome} type={b.type} size={24} />
+                {label(b.type, b.genome)}
               </button>
             ))}
           </div>
@@ -126,8 +112,8 @@ export default function CommunityPage() {
             <BadgeStrip badges={s.badges} />
             <div className="shelf">
               {s.entries.map((entry, i) => (
-                <span key={i} title={specimenLabel(content, entry.kind, entry.type, entry.genome)}>
-                  <SpecimenIcon kind={entry.kind} type={entry.type} genome={entry.genome} size={48} />
+                <span key={i} title={label(entry.type, entry.genome)}>
+                  <GenomeIcon genome={entry.genome} type={entry.type as 'drone'} size={48} />
                 </span>
               ))}
             </div>

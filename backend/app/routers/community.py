@@ -32,7 +32,7 @@ def _list(db: Session, me: Player) -> list[dict]:
     authors = {p.id: p for _, p in rows}
     found: dict[str, set[str]] = {pid: set() for pid in authors}
     if authors:
-        query = select(Discovery.player_id, Discovery.species_id).where(Discovery.player_id.in_(authors), Discovery.kind == "bee")
+        query = select(Discovery.player_id, Discovery.species_id).where(Discovery.player_id.in_(authors))
         for pid, species in db.execute(query):
             found[pid].add(species)
     badges = {pid: player_badges(found[pid], p.trophies) for pid, p in authors.items()}
@@ -66,7 +66,7 @@ def create_showcase(body: ShowcaseIn, me: Player = Depends(current_player), db: 
     if len(bees) != len(set(body.bee_ids)):
         raise HTTPException(400, "Certaines abeilles sont introuvables.")
     # On enregistre une copie : la vitrine survit à la mort ou à la vente des abeilles
-    entries = [{"kind": bees[i].kind, "type": bees[i].type, "genome": bees[i].genome} for i in dict.fromkeys(body.bee_ids)]
+    entries = [{"type": bees[i].type, "genome": bees[i].genome} for i in dict.fromkeys(body.bee_ids)]
     db.add(Showcase(player_id=me.id, title=body.title.strip(), description=body.description.strip(), entries=entries))
     A.unlock(me, "first_showcase")
     db.flush()

@@ -420,8 +420,7 @@ console. Non vérifié à l'œil : Usine, Boutique, Génétique, Jardin, Communa
 - **Jardin masqué** : onglet et page retirés (la page reste dans l'historique git, commit `682c18e`).
   Côté serveur, `GARDEN_ENABLED = False` dans `content.py` retire pousses, parcelles et objectifs du
   jardin. Les 9 mutations qui dépendaient d'un arbre ou des papillons prennent une condition de
-  remplacement (`GARDEN_FALLBACK`). Les données du jardin restent en base : pour le rétablir,
-  repasser le drapeau à True et restaurer `frontend/app/jardin/page.tsx` depuis git.
+  remplacement (`GARDEN_FALLBACK`). Le jardin a depuis été supprimé pour de bon (1.10.0, voir plus bas).
 - **Mode nuit de l'affichage** : thème sombre complet. Par défaut il suit le réglage de l'appareil ;
   un bouton dans l'en-tête bascule entre automatique, clair et nuit. Le choix est gardé dans le
   navigateur et appliqué avant le premier affichage (pas de flash blanc).
@@ -752,6 +751,27 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
   la grille de 48 pixels (le corps des mythiques débordait).
 - Pas de migration (l'avancement est dans `players.projects`).
 - Vérifié : 41 tests ; Projets, fiche d'Apis Aeterna et portraits dans un navigateur sur la pile locale.
+
+## Demande du 2026-10-24 : Atelier, menus regroupés, jardin supprimé (1.10.0, déployée)
+
+- **Interrupteurs.** Usine : centrifugeuses automatiques en marche ou à l'arrêt, et case « Auto » par rayon
+  pour garder un rayon en stock (colonne `players.factory`, migration 0011, endpoints `/factory/settings` et
+  `/factory/combs`). Laboratoire : la chaîne s'enclenche ou se coupe sur une extraction en cours
+  (`/genetics/chain`, chaque opération a un `id` qu'une chaîne garde d'une abeille à la suivante).
+- **Menus regroupés** : 6 menus au lieu de 10, avec des sous-onglets : Rucher, Atelier (Centrifugeuse,
+  Laboratoire), Marché (Boutique, Comptoir), Domaine (Grands projets, Expéditions), Apidex, Carnet (Trophées,
+  Communauté). Les adresses des pages n'ont pas changé. Les sous-onglets portent une pastille d'état
+  (rayons en attente, usine à l'arrêt, paillasses occupées, trophée à réclamer).
+- **Page Centrifugeuse refaite** : un bloc machine (interrupteur, file, temps estimé, achat), une ligne par
+  rayon (sorties avec pourcentages, Auto, Maintenir), ressources avec leur nom.
+- **Code mort supprimé**, dont tout le jardin : `garden.py`, routes et méthodes des parcelles, pousses et
+  papillons, `garden.tsx`. Les 9 mutations qui en dépendaient gardent leurs conditions de remplacement, et
+  la génétique ne gère plus que les abeilles. Les objets que seuls les arbres donnaient sont retirés (bois,
+  pommes, noix, châtaignes, papayes, dattes). Migration 0012 : table `plots`, spécimens et découvertes
+  d'arbres et papillons, vitrines nettoyées, colonnes `kind` et `genetics_unlocked` supprimées. Le jardin
+  reste dans l'historique git.
+- Vérifié : 40 tests ; migrations 0011 et 0012 (aller et retour) sur une copie de la sauvegarde OKD ; toutes
+  les pages dans un navigateur sur la pile locale ; sauvegarde de la prod avant déploiement.
 
 ## Questions pour toi
 

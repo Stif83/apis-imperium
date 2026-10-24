@@ -56,14 +56,18 @@ class ProcessIn(BaseModel):
     qty: int = Field(1, ge=1, le=100)
 
 
-class PlantIn(BaseModel):
-    sapling_id: str
-    pollen_id: str
+class FactoryIn(BaseModel):
+    on: bool
 
 
-class SellSpecimenIn(BaseModel):
-    specimen_id: str
-    qty: int = Field(1, ge=1, le=1_000_000)
+class CombAutoIn(BaseModel):
+    comb_id: str
+    auto: bool
+
+
+class ChainIn(BaseModel):
+    job_id: str
+    on: bool
 
 
 class ExtractIn(BaseModel):
@@ -253,27 +257,27 @@ def process(body: ProcessIn, game: Game = Depends(current_game)):
     return _done(game)
 
 
-@router.post("/garden/plots/{plot_id}/plant")
-def plant(plot_id: str, body: PlantIn, game: Game = Depends(current_game)):
-    game.plant(plot_id, body.sapling_id, body.pollen_id)
+@router.post("/factory/settings")
+def factory_settings(body: FactoryIn, game: Game = Depends(current_game)):
+    game.set_factory(body.on)
     return _done(game)
 
 
-@router.post("/garden/plots/{plot_id}/harvest")
-def harvest(plot_id: str, game: Game = Depends(current_game)):
-    gained = game.harvest(plot_id)
-    return {**_done(game), "harvest": gained}
-
-
-@router.post("/garden/sell")
-def sell_specimen(body: SellSpecimenIn, game: Game = Depends(current_game)):
-    game.sell_specimen(body.specimen_id, body.qty)
+@router.post("/factory/combs")
+def comb_auto(body: CombAutoIn, game: Game = Depends(current_game)):
+    game.set_comb_auto(body.comb_id, body.auto)
     return _done(game)
 
 
 @router.post("/genetics/extract")
 def extract(body: ExtractIn, game: Game = Depends(current_game)):
     game.extract_gene(body.bee_id, body.chromosome, chain=body.chain)
+    return _done(game)
+
+
+@router.post("/genetics/chain")
+def chain(body: ChainIn, game: Game = Depends(current_game)):
+    game.set_chain(body.job_id, body.on)
     return _done(game)
 
 

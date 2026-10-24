@@ -4,6 +4,7 @@ La simulation est paresseuse : à chaque requête, on rejoue les cycles écoulé
 la dernière visite (ce qui donne aussi la progression hors-ligne).
 """
 
+import copy
 import random
 import time
 
@@ -12,11 +13,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..models import Bee, Discovery, Hive, InventoryItem, Machine, Player, PlayerGene, Plot, Showcase, ShowcaseLike, _uuid
+from ..models import Bee, Discovery, Hive, InventoryItem, Machine, Player, PlayerGene, Showcase, ShowcaseLike, _uuid
 from . import achievements as A
 from . import badges as B
 from . import content as C
-from . import garden as GD
 from . import genetics as G
 from . import lab as LAB
 from . import orders as O
@@ -64,7 +64,7 @@ def _starter_kit(db: Session, player: Player) -> None:
         h = G.genome_hash(genome)
         db.add(Bee(player_id=player.id, type="princess", genome=genome, genome_hash=h, count=1))
         db.add(Bee(player_id=player.id, type="drone", genome=genome, genome_hash=h, count=drones))
-        db.add(Discovery(player_id=player.id, kind="bee", species_id=species))
+        db.add(Discovery(player_id=player.id, species_id=species))
 
 
 def _new_hive(player: Player, hive_type: str, biome: str, position: int, number: int) -> Hive:
@@ -90,35 +90,20 @@ class Game:
         self.rng = rng or random.Random()
         pid = player.id
         self.inv = {r.item_id: r for r in db.scalars(select(InventoryItem).where(InventoryItem.player_id == pid))}
-        rows = list(db.scalars(select(Bee).where(Bee.player_id == pid).order_by(Bee.created_at, Bee.id)))
-        self.bees = [r for r in rows if r.kind == "bee"]
-        # Pousses d'arbres et papillons : mêmes lignes que les abeilles, distinguées par `kind`
-        self.flora = [r for r in rows if r.kind != "bee"]
-        self.plots = list(db.scalars(select(Plot).where(Plot.player_id == pid).order_by(Plot.position, Plot.id)))
-        self.found = {"tree": set(), "butterfly": set()}
-        for kind, species in db.execute(select(Discovery.kind, Discovery.species_id).where(Discovery.player_id == pid, Discovery.kind != "bee")):
-            self.found.setdefault(kind, set()).add(species)
+        self.bees = list(db.scalars(select(Bee).where(Bee.player_id == pid).order_by(Bee.created_at, Bee.id)))
         self.hives = list(db.scalars(select(Hive).where(Hive.player_id == pid).order_by(Hive.position, Hive.id)))
         self.machines = {r.machine_id: r for r in db.scalars(select(Machine).where(Machine.player_id == pid))}
-        self.discovered = set(db.scalars(select(Discovery.species_id).where(Discovery.player_id == pid, Discovery.kind == "bee")))
+        self.discovered = set(db.scalars(select(Discovery.species_id).where(Discovery.player_id == pid)))
         # Banque de gènes : (chromosome, allèle) -> ligne, avec ses doses restantes
         self.gene_rows = {
             (r.chromosome, r.allele): r
-            for r in db.scalars(select(PlayerGene).where(PlayerGene.player_id == pid, PlayerGene.kind == "bee"))
+            for r in db.scalars(select(PlayerGene).where(PlayerGene.player_id == pid))
         }
         for bee in self.bees:
             fixed = G.normalize(bee.genome)
             if fixed != bee.genome:
                 bee.genome = fixed
                 bee.genome_hash = G.genome_hash(fixed)
-        if not self.plots:
-            # Premier passage au jardin (nouveau joueur, ou compte créé avant le jardin)
-            for i in range(GD.STARTER_PLOTS):
-                plot = Plot(id=_uuid(), player_id=pid, position=i)
-                db.add(plot)
-                self.plots.append(plot)
-            for species, count in GD.STARTER_SAPLINGS.items():
-                self.add_specimen("tree", G.pure_genome(species, "tree"), count)
 
     # ---- inventaire -------------------------------------------------------
 
@@ -200,93 +185,7 @@ class Game:
                 if species not in SHOP_SPECIES:
                     A.unlock(self.p, "first_mutation")
                 self.discovered.add(species)
-                self.db.add(Discovery(player_id=self.p.id, kind="bee", species_id=species))
-
-    # ---- jardin -----------------------------------------------------------
-
-    def add_specimen(self, kind: str, genome: dict, count: int = 1) -> None:
-        h = G.genome_hash(genome)
-        for row in self.flora:
-            if row.kind == kind and row.genome_hash == h:
-                row.count += count
-                break
-        else:
-            row = Bee(id=_uuid(), player_id=self.p.id, kind=kind, type="sapling" if kind == "tree" else kind,
-                      genome=genome, genome_hash=h, count=count)
-            self.db.add(row)
-            self.flora.append(row)
-        for species in genome["species"]:
-            if species not in self.found[kind]:
-                self.found[kind].add(species)
-                self.db.add(Discovery(player_id=self.p.id, kind=kind, species_id=species))
-
-    def _specimen(self, specimen_id: str, kind: str | None = None) -> Bee:
-        for row in self.flora:
-            if row.id == specimen_id and (kind is None or row.kind == kind):
-                return row
-        raise GameError("Introuvable dans le jardin.")
-
-    def _take_specimen(self, row: Bee, n: int = 1) -> None:
-        if row.count < n:
-            raise GameError("Vous n'en avez pas assez.")
-        row.count -= n
-        if row.count == 0:
-            self.flora.remove(row)
-            if row in self.db.new:
-                self.db.expunge(row)
-            else:
-                self.db.delete(row)
-
-    def _plot(self, plot_id: str) -> Plot:
-        for plot in self.plots:
-            if plot.id == plot_id:
-                return plot
-        raise GameError("Parcelle introuvable.")
-
-    def plant(self, plot_id: str, sapling_id: str, pollen_id: str) -> None:
-        plot = self._plot(plot_id)
-        if plot.tree:
-            raise GameError("Cette parcelle est déjà occupée.")
-        sapling = self._specimen(sapling_id, "tree")
-        pollen = self._specimen(pollen_id, "tree")
-        if sapling is pollen and sapling.count < 2:
-            raise GameError("Il faut deux pousses : une à planter, une pour la pollinisation.")
-        genome, mate = G.normalize(sapling.genome, "tree"), G.normalize(pollen.genome, "tree")
-        self._take_specimen(sapling)
-        self._take_specimen(pollen)
-        growth = G.value(genome, "growth", "tree")
-        plot.tree = {"genome": genome, "mate": mate, "health": growth, "max_health": growth}
-
-    def harvest(self, plot_id: str) -> dict:
-        plot = self._plot(plot_id)
-        tree = plot.tree
-        if not tree:
-            raise GameError("Rien n'est planté ici.")
-        if tree["health"] > 0:
-            raise GameError("L'arbre n'est pas encore mûr.")
-        genome, mate = tree["genome"], tree["mate"]
-        gained: dict[str, int] = {}
-        rate = G.value(genome, "yield", "tree")
-        for item, chance in G.products(genome, "tree"):
-            made = G.binomial(self.rng, tree["max_health"], min(1.0, chance * rate))
-            if made:
-                self.add_item(item, made)
-                gained[item] = gained.get(item, 0) + made
-        for _ in range(G.value(genome, "saplings", "tree")):
-            self.add_specimen("tree", G.breed(genome, mate, self.rng, kind="tree"))
-        butterflies = []
-        for bid, butterfly in GD.BUTTERFLIES.items():
-            if genome["species"][0] in butterfly["hosts"] and self.rng.random() < butterfly["chance"]:
-                self.add_specimen("butterfly", {"species": [bid, bid]})
-                butterflies.append(bid)
-        plot.tree = None
-        return {"items": gained, "butterflies": butterflies}
-
-    def sell_specimen(self, specimen_id: str, qty: int) -> None:
-        row = self._specimen(specimen_id)
-        price = GD.SAPLING_SELL if row.kind == "tree" else GD.BUTTERFLIES[row.genome["species"][0]]["sell"]
-        self._take_specimen(row, qty)
-        self.p.honey += price * qty
+                self.db.add(Discovery(player_id=self.p.id, species_id=species))
 
     def _hive(self, hive_id: str) -> Hive:
         for hive in self.hives:
@@ -340,17 +239,12 @@ class Game:
         world = self._world_ctx()
         for hive in self.hives:
             self._sim_hive(hive, cycles, start, world)
-        for plot in self.plots:
-            if plot.tree and plot.tree["health"] > 0:
-                plot.tree = {**plot.tree, "health": max(0, plot.tree["health"] - cycles)}
         self._sim_factory(cycles)
 
     def _world_ctx(self) -> dict:
         """Partie du contexte de mutation commune à toutes les ruches du joueur."""
         machine = self.machines.get("centrifuge")
         return {
-            "tree": {plot.tree["genome"]["species"][0] for plot in self.plots if plot.tree},
-            "butterflies": len(self.found.get("butterfly", ())),
             "hives_min": sum(1 for h in self.hives if h.queen),
             "hives_max": sum(1 for h in self.hives if h.queen),
             "machines": machine.qty if machine else 0,
@@ -482,16 +376,38 @@ class Game:
         for item, chance, amount in C.RECIPES[comb]:
             self.add_item(item, G.binomial(self.rng, n, chance) * amount)
 
+    def _factory(self) -> dict:
+        """Réglages de l'usine : centrifugeuses en marche (par défaut) et rayons qu'elles laissent de côté."""
+        factory = self.p.factory or {}
+        return {"on": factory.get("on", True), "skip": list(factory.get("skip") or [])}
+
     def _sim_factory(self, cycles: int) -> None:
+        factory = self._factory()
+        if not factory["on"]:
+            return
         machine = self.machines.get("centrifuge")
         budget = (machine.qty if machine else 0) * cycles
         for comb in C.RECIPES:
             if budget <= 0:
                 break
+            if comb in factory["skip"]:
+                continue
             n = min(budget, self.qty(comb))
             if n:
                 self._process(comb, n)
                 budget -= n
+
+    def set_factory(self, on: bool) -> None:
+        """Met les centrifugeuses automatiques en marche ou à l'arrêt."""
+        self.p.factory = {**self._factory(), "on": on}
+
+    def set_comb_auto(self, comb: str, auto: bool) -> None:
+        """Confie un rayon aux centrifugeuses automatiques, ou le met de côté."""
+        if comb not in C.RECIPES:
+            raise GameError("Ce n'est pas un rayon.")
+        factory = self._factory()
+        skip = set(factory["skip"]) - {comb} if auto else set(factory["skip"]) | {comb}
+        self.p.factory = {**factory, "skip": sorted(skip)}
 
     # ---- ruches -----------------------------------------------------------
 
@@ -794,8 +710,6 @@ class Game:
         elif offer["kind"] == "machine":
             machine = self.machines.get(offer["machine"])
             owned = machine.qty if machine else 0
-        elif offer["kind"] == "plot":
-            owned = len(self.plots) - offer.get("free", 0)
         # Le miel et les ressources augmentent ensemble à chaque exemplaire possédé
         factor = offer.get("scale", 1) ** max(0, owned)
         items = {item: round(n * factor) for item, n in offer.get("items", {}).items()}
@@ -819,7 +733,7 @@ class Game:
         if lock:
             raise GameError(lock)
         kind = offer["kind"]
-        if kind not in ("bee", "item", "sapling"):
+        if kind not in ("bee", "item"):
             qty = 1
         if kind == "hive" and biome not in C.BIOMES:
             raise GameError("Biome inconnu.")
@@ -842,12 +756,6 @@ class Game:
                 self.db.add(machine)
                 self.machines[offer["machine"]] = machine
             machine.qty += 1
-        elif kind == "sapling":
-            self.add_specimen("tree", G.pure_genome(offer["species"], "tree"), qty)
-        elif kind == "plot":
-            plot = Plot(id=_uuid(), player_id=self.p.id, position=len(self.plots))
-            self.db.add(plot)
-            self.plots.append(plot)
 
     def sell_item(self, item: str, qty: int) -> None:
         price = C.ITEMS.get(item, {}).get("sell", 0)
@@ -906,12 +814,16 @@ class Game:
             raise GameError(f"Il faut le laboratoire niveau {level} ({LAB.LEVELS[level]['label']}).")
 
     def _lab_state(self) -> dict:
-        lab = dict(self.p.lab or {})
+        # Copie profonde : modifier une opération sur place laisserait la colonne JSON identique à l'ancienne valeur
+        lab = copy.deepcopy(self.p.lab or {})
         lab.setdefault("fragments", {})
         lab.setdefault("log", [])
         # Avant les paillasses supplémentaires, une seule opération à la fois
         old = lab.pop("job", None)
         lab["jobs"] = list(lab.get("jobs") or ([old] if old else []))
+        # Repère stable d'une opération ; une chaîne le garde d'une abeille à la suivante
+        for job in lab["jobs"]:
+            job.setdefault("id", str(job["start_ms"]))
         return lab
 
     def _machine_qty(self, machine_id: str) -> int:
@@ -932,7 +844,7 @@ class Game:
     def _start_job(self, lab: dict, job: dict, seconds: int, now: int) -> None:
         if len(lab["jobs"]) >= self.lab_benches:
             raise GameError("Toutes les paillasses sont occupées : attendez la fin d'une opération.")
-        lab["jobs"].append({**job, "start_ms": now, "ready_ms": now + seconds * 1000})
+        lab["jobs"].append({**job, "id": _uuid(), "start_ms": now, "ready_ms": now + seconds * 1000})
 
     def lab_tick(self, now: int | None = None) -> None:
         """Termine, dans l'ordre, les opérations dont le temps est écoulé (et relance les chaînes)."""
@@ -994,7 +906,7 @@ class Game:
     def _add_doses(self, chromosome: str, allele: str, n: int) -> None:
         row = self.gene_rows.get((chromosome, allele))
         if row is None:
-            row = PlayerGene(player_id=self.p.id, kind="bee", chromosome=chromosome, allele=allele, doses=0)
+            row = PlayerGene(player_id=self.p.id, chromosome=chromosome, allele=allele, doses=0)
             self.db.add(row)
             self.gene_rows[(chromosome, allele)] = row
         row.doses = (row.doses or 0) + n
@@ -1009,7 +921,6 @@ class Game:
             raise GameError(f"Découvrez {need} espèces ({len(self.discovered)}/{need}).")
         self.pay(spec["cost"])
         self.p.lab_level = level
-        self.p.genetics_unlocked = True
 
     def extract_gene(self, bee_id: str, chromosome: str, now: int | None = None, chain: bool = False) -> None:
         now = now or now_ms()
@@ -1024,12 +935,26 @@ class Game:
         lab = self._lab_state()
         bee = self._bee(bee_id)
         allele = G.normalize(bee.genome)[chromosome][0]
-        job = {"op": "extract", "chromosome": chromosome, "allele": allele}
-        if chain:
-            job.update(chain=True, bee_type=bee.type, bee_hash=bee.genome_hash)
+        # L'abeille est notée même sans chaîne : on peut l'enclencher pendant l'extraction
+        job = {"op": "extract", "chromosome": chromosome, "allele": allele, "chain": chain,
+               "bee_type": bee.type, "bee_hash": bee.genome_hash}
         self._start_job(lab, job, LAB.EXTRACT_SECONDS, now)
         self.take_item("labware", 1)
         self._take_bee(bee)
+        self.p.lab = lab
+
+    def set_chain(self, job_id: str, on: bool, now: int | None = None) -> None:
+        """Enclenche ou coupe la chaîne d'une extraction en cours."""
+        self.lab_tick(now)
+        if on and not self._machine_qty("lab_chain"):
+            raise GameError("L'extraction en chaîne demande le passeur d'échantillons.")
+        lab = self._lab_state()
+        job = next((j for j in lab["jobs"] if j["op"] == "extract" and j["id"] == job_id), None)
+        if job is None:
+            raise GameError("Cette extraction est déjà terminée.")
+        if on and not job.get("bee_hash"):
+            raise GameError("Cette extraction ne peut pas passer en chaîne.")
+        job["chain"] = on
         self.p.lab = lab
 
     def imprint(self, bee_id: str, genes: dict[str, str], now: int | None = None) -> None:
@@ -1084,10 +1009,6 @@ class Game:
             return sum(1 for s in self.discovered if s in C.SPECIES and C.SPECIES[s]["branch"] == objective["branch"])
         if kind == "hives":
             return len(self.hives)
-        if kind == "trees":
-            return len(self.found.get("tree", ()))
-        if kind == "butterflies":
-            return len(self.found.get("butterfly", ()))
         if kind == "genes":
             return len(self.genes)
         return 0
@@ -1400,7 +1321,6 @@ class Game:
                 "id": self.p.id,
                 "username": self.p.username,
                 "honey": self.p.honey,
-                "genetics_unlocked": self.lab_level >= 1,
             },
             "lab": {**self._lab_state(), "level": self.lab_level, "benches": self.lab_benches, "chain": self._machine_qty("lab_chain") > 0},
             "gene_bank": {c: {a: row.doses for (cc, a), row in sorted(self.gene_rows.items()) if cc == c} for c in C.CHROMOSOMES},
@@ -1432,6 +1352,7 @@ class Game:
             ],
             "hives": hives,
             "machines": {m: row.qty for m, row in self.machines.items()},
+            "factory": self._factory(),
             "discovered": sorted(self.discovered),
             "genes": genes,
             "offers": {
@@ -1439,22 +1360,4 @@ class Game:
                 for oid, offer in C.OFFERS.items()
             },
             "rescue_available": self.rescue_available(),
-            "garden": {
-                "plots": [
-                    {
-                        "id": plot.id,
-                        "tree": plot.tree,
-                        "status": "empty" if not plot.tree else "growing" if plot.tree["health"] > 0 else "mature",
-                    }
-                    for plot in self.plots
-                ],
-                "saplings": [
-                    {"id": r.id, "genome": r.genome, "count": r.count} for r in self.flora if r.kind == "tree"
-                ],
-                "butterflies": [
-                    {"id": r.id, "species": r.genome["species"][0], "count": r.count} for r in self.flora if r.kind == "butterfly"
-                ],
-                "found_trees": sorted(self.found["tree"]),
-                "found_butterflies": sorted(self.found["butterfly"]),
-            },
         }

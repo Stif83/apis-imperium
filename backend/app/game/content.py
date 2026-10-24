@@ -5,7 +5,6 @@ stockés dans les sauvegardes. On peut en ajouter librement, mais on ne renomme 
 supprime jamais un identifiant existant.
 """
 
-from .garden import BASE_TREES, BUTTERFLIES, STARTER_PLOTS, TREE_SPECIES, public_garden
 from .achievements import public_achievements
 from .world import public_world
 
@@ -28,22 +27,6 @@ BIOMES = {
 }
 # Ruches offertes au départ ; les autres biomes s'achètent en boutique
 STARTER_BIOMES = ["plains", "plains"]
-
-# Jardin masqué pour l'instant : ses offres et objectifs disparaissent, et les mutations qui
-# dépendaient d'un arbre ou des papillons prennent une condition de remplacement (GARDEN_FALLBACK).
-# Les données du jardin restent en base : repasser à True le rétablit tel quel.
-GARDEN_ENABLED = False
-GARDEN_FALLBACK = {
-    "blossom": {"phase": "day", "weather": "clear"},
-    "resinous": {"biome": "taiga"},
-    "syrupy": {"phase": "dawn_dusk"},
-    "citrus": {"biome": "jungle"},
-    "orchard": {"phase": "day", "hives_min": 3},
-    "sylvan": {"weather": "rain", "phase": "day"},
-    "ebon": {"phase": "night"},
-    "pollinator": {"discovered": 40},
-    "papillon": {"discovered": 60},
-}
 
 CHROMOSOMES = {
     "species": "Espèce",
@@ -494,15 +477,15 @@ def _mutations():
         ("forest", "wintry", "summit", 0.10, {"biome": "taiga"}),
         ("wintry", "rock", "permafrost", 0.08, {"biome": "tundra"}),
         ("meadows", "rural", "steppe", 0.10, {"biome": "plains", "phase": "day"}),
-        ("meadows", "sweet", "blossom", 0.12, {"tree": "cherry"}),
-        ("forest", "sticky", "resinous", 0.10, {"tree": "pine"}),
-        ("sweet", "rural", "syrupy", 0.10, {"tree": "maple"}),
-        ("fruity", "tropical", "citrus", 0.08, {"tree": "lemon"}),
-        ("fruity", "blossom", "orchard", 0.08, {"tree": "plum"}),
-        ("forest", "charmed", "sylvan", 0.08, {"tree": "sequoia"}),
-        ("shadowed", "sylvan", "ebon", 0.06, {"tree": "ebony", "phase": "night"}),
-        ("blossom", "orchard", "pollinator", 0.08, {"butterflies": 5}),
-        ("pollinator", "leporine", "papillon", 0.05, {"butterflies": 12}),
+        ("meadows", "sweet", "blossom", 0.12, {"phase": "day", "weather": "clear"}),
+        ("forest", "sticky", "resinous", 0.10, {"biome": "taiga"}),
+        ("sweet", "rural", "syrupy", 0.10, {"phase": "dawn_dusk"}),
+        ("fruity", "tropical", "citrus", 0.08, {"biome": "jungle"}),
+        ("fruity", "blossom", "orchard", 0.08, {"phase": "day", "hives_min": 3}),
+        ("forest", "charmed", "sylvan", 0.08, {"weather": "rain", "phase": "day"}),
+        ("shadowed", "sylvan", "ebon", 0.06, {"phase": "night"}),
+        ("blossom", "orchard", "pollinator", 0.08, {"discovered": 40}),
+        ("pollinator", "leporine", "papillon", 0.05, {"discovered": 60}),
         ("common", "diligent", "gregarious", 0.10, {"hives_min": 4}),
         ("gregarious", "industrious", "colonial", 0.08, {"hives_min": 6}),
         ("colonial", "majestic", "swarm", 0.05, {"hives_min": 8}),
@@ -554,8 +537,6 @@ def _mutations():
     for m in out:
         m.setdefault("cond", {})
         m["chance"] = round(m["chance"] * MUTATION_RATE, 4)
-        if not GARDEN_ENABLED and ({"tree", "butterflies"} & set(m["cond"])):
-            m["cond"] = GARDEN_FALLBACK[m["result"]]
     return out
 
 
@@ -563,8 +544,7 @@ def _mutations():
 MUTATIONS = _mutations()
 
 MUTATION_CONDITIONS = {
-    "temp", "biome", "phase", "hours", "weather", "module", "automated", "tree",
-    "butterflies", "hives_min", "hives_max", "machines", "discovered", "trait", "sanctuary",
+    "temp", "biome", "phase", "hours", "weather", "module", "automated", "hives_min", "hives_max", "machines", "discovered", "trait", "sanctuary",
 }
 
 
@@ -655,16 +635,10 @@ ITEMS = {
         ("diamond", "Diamant", "7fe0fa", 80),
         ("uranium", "Uranium", "41cc2f", 60),
         ("ender_pearl", "Perle du Néant", "1c7a6e", 40),
-        ("wood", "Bois", "9a6b3a", 2),
         ("precious_wood", "Bois précieux", "5a2a1a", 8),
-        ("apple", "Pommes", "d83a2a", 3),
         ("cherry", "Cerises", "c2185b", 5),
-        ("nut", "Noix", "8a6a3a", 6),
-        ("chestnut", "Châtaignes", "6a3a1a", 6),
         ("lemon", "Citrons", "f4e04a", 8),
         ("plum", "Prunes", "6a3a8a", 8),
-        ("papaya", "Papayes", "f08a2a", 10),
-        ("dates", "Dattes", "8a4a1a", 10),
         ("maple_syrup", "Sirop d'érable", "c8741a", 10),
         ("moonstone", "Pierre de lune", "c9d1ff", 30),
         ("sunstone", "Pierre de soleil", "ffb300", 30),
@@ -790,8 +764,6 @@ def _offers():
         out.append({"id": f"bee:{s}:princess", "kind": "bee", "species": s, "type": "princess", "honey": princess, **extra})
         out.append({"id": f"bee:{s}:drone", "kind": "bee", "species": s, "type": "drone", "honey": drone, **extra})
     out += [
-        *([{"id": f"sapling:{t}", "kind": "sapling", "species": t, "honey": 30} for t in BASE_TREES] if GARDEN_ENABLED else []),
-        *([{"id": "plot", "kind": "plot", "honey": 150, "scale": 1.5, "free": STARTER_PLOTS}] if GARDEN_ENABLED else []),
         {"id": "hive:apiary", "kind": "hive", "hive_type": "apiary", "honey": 80, "scale": 1.5, "free": len(STARTER_BIOMES)},
         {"id": "hive:alveary", "kind": "hive", "hive_type": "alveary", "honey": 1200, "items": {"wax": 40, "honeydew": 10}, "scale": 1.4},
         {"id": "item:frame_untreated", "kind": "item", "item": "frame_untreated", "honey": 30, "items": {"wax": 3}},
@@ -850,10 +822,6 @@ def cond_text(cond: dict) -> str:
             parts.append(f"avec « {ITEMS[val]['label']} » dans la ruche")
         elif key == "automated":
             parts.append("dans une ruche automatisée")
-        elif key == "tree":
-            parts.append(f"avec un arbre « {TREE_SPECIES[val]['label']} » planté au jardin")
-        elif key == "butterflies":
-            parts.append(f"après {val} espèces de papillons trouvées")
         elif key == "hives_min":
             parts.append(f"avec au moins {val} ruches occupées")
         elif key == "hives_max":
@@ -910,11 +878,6 @@ def _objectives():
 
     for n, honey in ((3, 150), (5, 400), (8, 1000), (12, 2500)):
         add(f"hives:{n}", f"Posséder {n} ruches", "hives", n, honey)
-    if GARDEN_ENABLED:
-        for n, honey in ((5, 100), (10, 300), (20, 800), (len(TREE_SPECIES), 2000)):
-            add(f"trees:{n}", f"Découvrir {n} espèces d'arbres", "trees", n, honey)
-        for n, honey in ((3, 100), (8, 300), (14, 800), (len(BUTTERFLIES), 2000)):
-            add(f"butterflies:{n}", f"Trouver {n} espèces de papillons", "butterflies", n, honey)
     for n, honey in ((5, 300), (15, 800), (30, 2000)):
         add(f"genes:{n}", f"Réunir {n} gènes dans la banque génétique", "genes", n, honey, {"labware": 5})
     return {o["id"]: o for o in out}
@@ -942,8 +905,6 @@ def public_content() -> dict:
         "bee_sell": BEE_SELL,
         "imprint_honey_per_gene": IMPRINT_HONEY_PER_GENE,
         "showcase_max_entries": SHOWCASE_MAX_ENTRIES,
-        "garden": public_garden(),
         "world": public_world(),
-        "garden_enabled": GARDEN_ENABLED,
         "achievements": public_achievements(),
     }

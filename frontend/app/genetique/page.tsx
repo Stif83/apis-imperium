@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { CostView, GenomeIcon, Honey, ItemIcon, PageHead, TYPE_LABELS, alleleLabel, fmt } from '@/components/ui';
+import { CostView, GenomeIcon, Honey, ItemIcon, PageHead, Switch, TYPE_LABELS, alleleLabel, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
 import type { Bee, Content, Cost } from '@/lib/types';
 
@@ -126,6 +126,14 @@ export default function GeneticsPage() {
                 </span>
               </span>
               <span className="bench-time">{duration(left)}</span>
+              {lab.chain && job.op === 'extract' && job.bee_hash && (
+                <Switch
+                  on={!!job.chain}
+                  onChange={(on) => act('/genetics/chain', { job_id: job.id, on })}
+                  label="🔁"
+                  title={job.chain ? 'Chaîne active : couper pour s’arrêter après cette extraction' : 'Enchaîner sur les abeilles identiques'}
+                />
+              )}
             </div>
           );
         })}
@@ -213,11 +221,10 @@ export default function GeneticsPage() {
             d'échec · {content.lab.extract_seconds / 60} min · 1 verrerie
           </span>
           {lab.chain ? (
-            <label className="row" style={{ gap: 6 }}>
-              <input type="checkbox" checked={chain} onChange={(e) => setChain(e.target.checked)} />
-              <b>🔁 En chaîne</b>
+            <span className="row" style={{ gap: 6 }}>
+              <Switch on={chain} onChange={setChain} label={<b>🔁 En chaîne</b>} />
               <span className="muted">jusqu'au gène complet</span>
-            </label>
+            </span>
           ) : (
             <span className="muted">🔁 L'extraction en chaîne s'obtient avec le passeur d'échantillons (onglet Améliorer).</span>
           )}
@@ -492,7 +499,7 @@ export default function GeneticsPage() {
 
   return (
     <>
-      <PageHead title="Génétique">
+      <PageHead title="Laboratoire">
         <b>Extraire</b> sacrifie une abeille pour un fragment de son gène actif ; il faut 2 à 8 fragments selon la rareté pour compléter un
         gène, qui offre alors {content.lab.doses} doses. <b>Imprimer</b> (niveau 2) remplace la copie active d'un gène d'une abeille et
         consomme une dose. Chaque paillasse mène une opération à la fois.

@@ -3,7 +3,7 @@ import type { Content, Genome, Region } from '@/lib/types';
 
 // Mêmes règles que le serveur (game/expeditions.py), pour annoncer la chance avant le départ
 
-export type Score = { climate: number; weather: number; dark: number; endurance: number; total: number };
+type Score = { climate: number; weather: number; dark: number; endurance: number; total: number };
 
 export function beeScore(content: Content, genome: Genome, region: Region): Score {
   const lifespan = content.alleles.lifespan?.[genome.lifespan?.[0]]?.value ?? 30;

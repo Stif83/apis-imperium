@@ -13,7 +13,6 @@ from sqlalchemy.pool import StaticPool
 from app.db import get_db
 from app.game import badges as B
 from app.game import content as C
-from app.game import garden as GD
 from app.game import genetics as G
 from app.game import world as W
 from app.game.service import Game, GameError, get_or_create_player
@@ -65,8 +64,6 @@ def test_content_is_consistent():
         assert {m["a"], m["b"], m["result"]} <= set(C.SPECIES)
         assert set(m["cond"]) <= C.MUTATION_CONDITIONS
         assert m["cond_text"] or not m["cond"]
-        if "tree" in m["cond"]:
-            assert m["cond"]["tree"] in GD.TREE_SPECIES
         if "module" in m["cond"]:
             assert m["cond"]["module"] in C.MODULES
         for chromosome, allele in m["cond"].get("trait", {}).items():
@@ -251,6 +248,31 @@ def test_alveary_automation_and_factory(game):
     assert game.qty("comb_honey") == 0
 
 
+def test_factory_switches(game):
+    game.p.honey = 10_000
+    game.add_item("wax", 100)
+    game.buy("machine:centrifuge")
+    game.add_item("comb_honey", 50)
+    game.add_item("comb_frozen", 50)
+
+    # À l'arrêt, les rayons restent en stock
+    game.set_factory(on=False)
+    game._sim_factory(20)
+    assert game.qty("comb_honey") == 50 and game.state()["factory"]["on"] is False
+
+    # Un rayon décoché est laissé de côté, les autres sont traités
+    game.set_factory(on=True)
+    game.set_comb_auto("comb_honey", False)
+    game._sim_factory(20)
+    assert game.qty("comb_honey") == 50 and game.qty("comb_frozen") == 30
+    assert game.state()["factory"] == {"on": True, "skip": ["comb_honey"]}
+    game.set_comb_auto("comb_honey", True)
+    game._sim_factory(20)
+    assert game.qty("comb_honey") == 30
+    with pytest.raises(GameError):
+        game.set_comb_auto("wax", False)
+
+
 def test_shop_prices_scale_and_locks(game):
     game.p.honey = 10_000
     first = game.offer_cost(C.OFFERS["hive:apiary"])["honey"]
@@ -337,70 +359,6 @@ def test_lab_rarity():
     assert LAB.can_extract(1, "speed") and not LAB.can_extract(1, "species") and LAB.can_extract(3, "species")
     cost = LAB.imprint_cost({"species": "noble"})
     assert cost["items"]["comb_dripping"] == 5 and cost["items"]["royal_jelly"] == 3
-
-
-def test_garden_content_is_consistent():
-    for tree in GD.TREE_SPECIES.values():
-        assert all(item in C.ITEMS for item, _ in tree["products"])
-        assert all(G.allele_exists(c, a, "tree") for c, a in tree["template"].items())
-    reachable = set(GD.BASE_TREES) | {m["result"] for m in GD.TREE_MUTATIONS}
-    assert reachable == set(GD.TREE_SPECIES)
-    hosts = {h for b in GD.BUTTERFLIES.values() for h in b["hosts"]}
-    assert hosts <= set(GD.TREE_SPECIES)
-    assert hosts == set(GD.TREE_SPECIES)  # chaque arbre attire au moins un papillon
-
-
-def test_garden_cycle(game):
-    state = game.state()["garden"]
-    assert len(state["plots"]) == GD.STARTER_PLOTS
-    assert sum(s["count"] for s in state["saplings"]) == 4
-    oak = next(r for r in game.flora if r.genome["species"][0] == "oak")
-    birch = next(r for r in game.flora if r.genome["species"][0] == "birch")
-    plot = game.plots[0]
-    game.plant(plot.id, oak.id, birch.id)
-    assert plot.tree["health"] == 30
-    with pytest.raises(GameError):
-        game.harvest(plot.id)
-    with pytest.raises(GameError):
-        game.plant(plot.id, oak.id, birch.id)
-    game.advance(1000)
-    assert game.state()["garden"]["plots"][0]["status"] == "mature"
-    gained = game.harvest(plot.id)
-    assert plot.tree is None and gained["items"].get("wood", 0) > 0
-    assert sum(r.count for r in game.flora if r.kind == "tree") == 4  # 2 plantées, 2 obtenues
-
-    # Sur de nombreuses générations : mutation Chêne + Bouleau -> Tilleul, et des papillons
-    for _ in range(150):
-        game.add_specimen("tree", G.pure_genome("oak", "tree"))
-        game.add_specimen("tree", G.pure_genome("birch", "tree"))
-        a = next(r for r in game.flora if r.kind == "tree" and r.genome["species"] == ["oak", "oak"])
-        b = next(r for r in game.flora if r.kind == "tree" and r.genome["species"] == ["birch", "birch"])
-        game.plant(plot.id, a.id, b.id)
-        game.advance(100)
-        game.harvest(plot.id)
-    assert "lime" in game.found["tree"]
-    assert game.found["butterfly"] and game.found["butterfly"] <= set(GD.BUTTERFLIES)
-    butterfly = next(r for r in game.flora if r.kind == "butterfly")
-    honey = game.p.honey
-    game.sell_specimen(butterfly.id, 1)
-    assert game.p.honey > honey
-    # Les spécimens du jardin ne se mélangent pas aux abeilles
-    assert all(b.kind == "bee" for b in game.bees)
-
-
-def test_garden_shop(game):
-    if not C.GARDEN_ENABLED:
-        # Jardin masqué : ni pousses ni parcelles en boutique, et aucune mutation n'en dépend
-        assert not [o for o in C.OFFERS.values() if o["kind"] in ("sapling", "plot")]
-        assert not [m for m in C.MUTATIONS if {"tree", "butterflies"} & set(m["cond"])]
-        return
-    game.p.honey = 1000
-    game.buy("sapling:spruce", 3)
-    assert sum(r.count for r in game.flora if r.genome["species"][0] == "spruce") == 3
-    first = game.offer_cost(C.OFFERS["plot"])["honey"]
-    game.buy("plot")
-    assert len(game.plots) == GD.STARTER_PLOTS + 1
-    assert game.offer_cost(C.OFFERS["plot"])["honey"] > first
 
 
 def test_rescue(game):
@@ -700,6 +658,39 @@ def test_chain_extraction(game):
     assert lab["jobs"] == [] and lab["log"][0].startswith("Chaîne arrêtée (plus de verrerie)")
 
 
+def test_chain_switch_on_running_job(game):
+    from app.game import lab as LAB
+
+    _lab_ready(game)
+    game.add_bee("drone", G.pure_genome("forest"), 30)
+    t = 1_000_000
+    game.extract_gene(_bee(game, "drone", "forest").id, "fertility", now=t)
+    job_id = game._lab_state()["jobs"][0]["id"]
+    # Sans passeur d'échantillons, on ne peut pas enclencher la chaîne
+    with pytest.raises(GameError):
+        game.set_chain(job_id, True, now=t + 1)
+    game.buy("machine:lab_chain")
+    game.set_chain(job_id, True, now=t + 1)
+    game.lab_tick(t + 100 * LAB.EXTRACT_SECONDS * 1000)
+    assert game.gene_rows[("fertility", "3")].doses == LAB.DOSES
+
+    # Une chaîne coupée en route s'arrête après l'extraction en cours
+    stock = _bee(game, "drone", "forest").count
+    game.extract_gene(_bee(game, "drone", "forest").id, "speed", now=t, chain=True)
+    job_id = game._lab_state()["jobs"][0]["id"]
+    # La chaîne garde son repère d'une abeille à la suivante : on peut la couper sur une vue en retard
+    game.lab_tick(t + LAB.EXTRACT_SECONDS * 1000)
+    game.set_chain(job_id, False, now=t + LAB.EXTRACT_SECONDS * 1000 + 1)
+    game.lab_tick(t + 100 * LAB.EXTRACT_SECONDS * 1000)
+    assert stock - _bee(game, "drone", "forest").count == 2
+    with pytest.raises(GameError):
+        game.set_chain(job_id, True, now=t + 100 * LAB.EXTRACT_SECONDS * 1000)
+
+    # Une opération enregistrée avant les repères en reçoit un à la lecture
+    game.p.lab = {"fragments": {}, "log": [], "jobs": [{"op": "replicate", "start_ms": 5, "ready_ms": 10 ** 15}]}
+    assert game._lab_state()["jobs"][0]["id"] == "5"
+
+
 def test_modules_wear_out(game):
     game.p.honey = 10_000
     game.add_item("wax", 100)
@@ -904,7 +895,8 @@ def test_expedition_flow(game):
     report = game.p.expeditions["log"][0]
     assert not game.p.expeditions["teams"] and game.p.stats["expeditions"] == 1
     returned = 2 - len(report["lost"])
-    assert liana.count == 1 + returned
+    # Une Lianeuse sauvage trouvée en route rejoint la même pile de faux-bourdons
+    assert liana.count == 1 + returned + (report["wild"] == "liana")
     for item, n in report["loot"].items():
         assert game.qty(item) >= n
 
@@ -924,8 +916,6 @@ def test_expedition_outcomes():
 
 
 def test_sanctuary(game):
-    from app.game import projects as PR
-
     myth = [m for m in C.MUTATIONS if m["cond"].get("sanctuary")]
     assert {m["result"] for m in myth} == {s for s, spec in C.SPECIES.items() if spec["branch"] == "Mythiques"}
     salamander = next(m for m in myth if m["result"] == "salamander")

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -20,7 +20,6 @@ class Player(Base):
     sub: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     username: Mapped[str] = mapped_column(String(255))
     honey: Mapped[int] = mapped_column(BigInteger, default=0)
-    genetics_unlocked: Mapped[bool] = mapped_column(Boolean, default=False)
     # Niveau du laboratoire (0 = pas construit) et travaux en cours : opération, fragments, journal
     lab_level: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     lab: Mapped[dict | None] = mapped_column(JSON, nullable=True)
@@ -42,6 +41,8 @@ class Player(Base):
     projects: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Expéditions en cours et derniers retours (voir game/expeditions.py)
     expeditions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Usine : {"on": centrifugeuses en marche, "skip": rayons que les automatiques ne touchent pas}
+    factory: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -71,34 +72,18 @@ class Hive(Base):
 
 
 class Bee(Base):
-    """Un individu (ou une pile d'individus génétiquement identiques).
-
-    `kind` vaut "bee" aujourd'hui ; "tree" et "butterfly" sont prévus pour le jardin.
-    """
+    """Un individu (ou une pile d'individus génétiquement identiques)."""
 
     __tablename__ = "bees"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     player_id: Mapped[str] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), index=True)
-    kind: Mapped[str] = mapped_column(String(16), default="bee")
     type: Mapped[str] = mapped_column(String(16))
     genome: Mapped[dict] = mapped_column(JSON)
     genome_hash: Mapped[str] = mapped_column(String(40))
     count: Mapped[int] = mapped_column(Integer, default=1)
     # Renseigné tant que l'abeille attend dans la sortie d'une ruche
     hive_id: Mapped[str | None] = mapped_column(ForeignKey("hives.id", ondelete="SET NULL"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
-class Plot(Base):
-    """Parcelle du jardin ; `tree` décrit l'arbre planté, ou vaut NULL si elle est libre."""
-
-    __tablename__ = "plots"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    player_id: Mapped[str] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), index=True)
-    position: Mapped[int] = mapped_column(Integer, default=0)
-    tree: Mapped[dict | None] = mapped_column(JSON(none_as_null=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -114,7 +99,6 @@ class Discovery(Base):
     __tablename__ = "discoveries"
 
     player_id: Mapped[str] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), primary_key=True)
-    kind: Mapped[str] = mapped_column(String(16), primary_key=True, default="bee")
     species_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -123,7 +107,6 @@ class PlayerGene(Base):
     __tablename__ = "player_genes"
 
     player_id: Mapped[str] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), primary_key=True)
-    kind: Mapped[str] = mapped_column(String(16), primary_key=True, default="bee")
     chromosome: Mapped[str] = mapped_column(String(32), primary_key=True)
     allele: Mapped[str] = mapped_column(String(64), primary_key=True)
     # Nombre d'impressions encore possibles avec ce gène
