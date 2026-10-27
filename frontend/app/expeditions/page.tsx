@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { BeeIcon } from '@/components/BeeIcon';
 import { GenomeIcon, ItemQty, PageHead, TYPE_LABELS, alleleLabel } from '@/components/ui';
+import { useScoutBonus } from '@/components/Effects';
 import { beeScore, teamChance } from '@/lib/expeditions';
 import { useGame } from '@/lib/game';
 import type { Bee } from '@/lib/types';
@@ -29,6 +30,7 @@ const pct = (p: number) => `${Math.round(p * 100)} %`;
 
 export default function ExpeditionsPage() {
   const { content, state, act } = useGame();
+  const scout = useScoutBonus();
   const now = useNow(state.server_time);
   const [region, setRegion] = useState<string | null>(null);
   const [team, setTeam] = useState<string[]>([]);
@@ -233,7 +235,9 @@ export default function ExpeditionsPage() {
                         );
                       })}
                     </span>
-                    <span className="badge">{team.length ? pct(teamChance(scores)) : '—'} de réussite</span>
+                    <span className="badge" title={scout ? `Élixir d'éclaireur : +${pct(scout)}` : undefined}>
+                      {team.length ? pct(Math.min(0.98, teamChance(scores) + scout)) : '—'} de réussite{scout > 0 && ' ⚗️'}
+                    </span>
                   </div>
                   <div className="row">
                     <button

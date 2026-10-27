@@ -773,3 +773,24 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 .loadout-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
 .loadout-slots select { width: 100%; min-width: 0; }
 .robo-loadout > button { align-self: flex-end; }
+
+/* ---------- musée, ruche-monde, distillerie ---------- */
+.museum-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+.museum-card { gap: 8px; }
+.museum-card.complete { box-shadow: 0 0 0 2px var(--ok), var(--shadow); }
+.museum-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+  background: none; border: 0; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer;
+}
+.museum-lore { display: block; font-size: 13px; }
+.museum-card > .bar, .world-hive .bar { display: block; height: 6px; background: var(--panel-2); border-radius: 999px; }
+.museum-card > .bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.world-hive { gap: 12px; }
+.world-hive-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; }
+.world-hive-head .title { display: block; font-size: 20px; }
+.world-globe { font-size: 44px; line-height: 1; }
+.machine-offer { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 12px; }
+.elixir-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
+.elixir-card { gap: 10px; }
+.elixir-desc { display: block; font-size: 13px; }
+.effects-bar { gap: 6px; flex-wrap: wrap; }

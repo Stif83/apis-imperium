@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from ..auth import current_game
 from ..game import content
 from ..game import lab
+from ..game import late
 from ..game import orders
 from ..game import projects
 from ..game import expeditions
@@ -128,6 +129,50 @@ class ContributeIn(BaseModel):
     qty: int = Field(1, ge=1, le=1_000_000)
 
 
+class MuseumIn(BaseModel):
+    branch: str
+    item: str
+    qty: int = Field(1, ge=1, le=1_000_000)
+
+
+class WorldIn(BaseModel):
+    item: str
+    qty: int = Field(1, ge=1, le=10_000_000_000)
+
+
+class BrewIn(BaseModel):
+    elixir_id: str
+    qty: int = Field(1, ge=1, le=100)
+
+
+class DrinkIn(BaseModel):
+    elixir_id: str
+
+
+@router.post("/museum/donate")
+def museum_donate(body: MuseumIn, game: Game = Depends(current_game)):
+    game.museum_donate(body.branch, body.item, body.qty)
+    return _done(game)
+
+
+@router.post("/world-hive/contribute")
+def world_contribute(body: WorldIn, game: Game = Depends(current_game)):
+    game.world_contribute(body.item, body.qty)
+    return _done(game)
+
+
+@router.post("/distillery/brew")
+def brew(body: BrewIn, game: Game = Depends(current_game)):
+    game.brew(body.elixir_id, body.qty)
+    return _done(game)
+
+
+@router.post("/distillery/drink")
+def drink(body: DrinkIn, game: Game = Depends(current_game)):
+    game.drink(body.elixir_id)
+    return _done(game)
+
+
 @router.post("/projects/contribute")
 def contribute(body: ContributeIn, game: Game = Depends(current_game)):
     game.contribute(body.project_id, body.item, body.qty)
@@ -158,7 +203,7 @@ def certify(body: CertifyIn, game: Game = Depends(current_game)):
 @router.get("/content")
 def get_content():
     return {**content.public_content(), "lab": lab.public_lab(), "trophies": trophies.public_trophies(), "orders": orders.public_orders(), "projects": projects.public_projects(),
-            "expeditions": expeditions.public_expeditions()}
+            "expeditions": expeditions.public_expeditions(), "late": late.public_late()}
 
 
 class ReplicateIn(BaseModel):

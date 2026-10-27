@@ -20,6 +20,7 @@ from . import badges as B
 from . import content as C
 from . import genetics as G
 from . import lab as LAB
+from . import late as L
 from . import orders as O
 from . import projects as PR
 from . import expeditions as X
@@ -288,6 +289,8 @@ class Game:
         auto = mods["automation"]
         biome_temp = self._biome_temp(hive)
         sanctified = self.project_stage("sanctuary") >= 3
+        museum = self._museum_done()
+        world_mult = L.world_multiplier(self._world_hive()["level"])
         out = dict(hive.output or {})
         t = start
         while cycles > 0 and hive.queen:
@@ -305,6 +308,10 @@ class Game:
             # Reliquaire du Sanctuaire : les grandes reines produisent davantage
             if sanctified and C.SPECIES[genome["species"][0]]["branch"] in PR.SANCTUARY_BRANCHES:
                 rate *= PR.SANCTUARY_PRODUCTION
+            # Fin de partie : branche complète au Musée, niveaux de la Ruche-monde, élixir en cours
+            if C.SPECIES[genome["species"][0]]["branch"] in museum:
+                rate *= L.MUSEUM_BONUS
+            rate *= world_mult * self._effect("production", t)
             for item, chance in G.products(genome):
                 made = G.binomial(self.rng, working, min(1.0, chance * rate))
                 if auto:
@@ -323,8 +330,9 @@ class Game:
             # La reine meurt et laisse une princesse et des faux-bourdons
             hive.queen = None
             ctx = self._hive_ctx(hive, mods, t - cycle_ms, world)
-            princess = G.breed(genome, mate, self.rng, mods["mutation"], mods["temp"], ctx=ctx, pure_mutation=True)
-            drones = [G.breed(genome, mate, self.rng, mods["mutation"], mods["temp"], ctx=ctx)
+            mutation = mods["mutation"] * self._effect("mutation", t - cycle_ms)
+            princess = G.breed(genome, mate, self.rng, mutation, mods["temp"], ctx=ctx, pure_mutation=True)
+            drones = [G.breed(genome, mate, self.rng, mutation, mods["temp"], ctx=ctx)
                       for _ in range(G.value(genome, "fertility"))]
             if auto:
                 self.discover(princess)
@@ -637,6 +645,87 @@ class Game:
         settings_["greenhouse"] = temp
         hive.settings = settings_
 
+    # ---- fin de partie : musée, ruche-monde, distillerie ---------------------
+
+    def _museum_done(self) -> set[str]:
+        museum = self.p.museum or {}
+        return {branch for branch in L.MUSEUM if L.museum_complete(museum, branch)}
+
+    def museum_donate(self, branch: str, item: str, qty: int) -> int:
+        """Donne des objets à la collection d'une branche ; renvoie la quantité vraiment donnée."""
+        need = L.MUSEUM.get(branch, {}).get(item)
+        if need is None:
+            raise GameError("Cet objet n'entre pas dans cette collection.")
+        museum = copy.deepcopy(self.p.museum or {})
+        given = museum.setdefault(branch, {})
+        n = min(qty, need - given.get(item, 0), self.qty(item))
+        if n <= 0:
+            raise GameError("Rien à donner : collection complète ou objet absent de la réserve.")
+        self.take_item(item, n)
+        given[item] = given.get(item, 0) + n
+        self.p.museum = museum
+        return n
+
+    def _world_hive(self) -> dict:
+        """État de la Ruche-monde ; le panier d'un niveau est tiré une fois, parmi les espèces découvertes."""
+        data = dict(self.p.world_hive or {})
+        data.setdefault("level", 0)
+        if not data.get("request"):
+            data["request"] = L.world_request(data["level"], self.discovered, self.rng)
+            data["given"] = {}
+            self.p.world_hive = data
+        return data
+
+    def world_contribute(self, item: str, qty: int) -> None:
+        """Donne miel ou objets au niveau en cours ; le niveau s'achève dès que le panier est complet."""
+        data = copy.deepcopy(self._world_hive())
+        request, given = data["request"], data["given"]
+        need = request["honey"] if item == "honey" else request["items"].get(item)
+        if need is None:
+            raise GameError("La Ruche-monde ne demande pas cela.")
+        have = self.p.honey if item == "honey" else self.qty(item)
+        n = min(qty, need - given.get(item, 0), have)
+        if n <= 0:
+            raise GameError("Rien à donner : déjà complet ou absent de la réserve.")
+        if item == "honey":
+            self.p.honey -= n
+        else:
+            self.take_item(item, n)
+        given[item] = given.get(item, 0) + n
+        if given.get("honey", 0) >= request["honey"] and all(given.get(i, 0) >= q for i, q in request["items"].items()):
+            data = {"level": data["level"] + 1}
+        self.p.world_hive = data
+        if "request" not in data:
+            self._world_hive()
+
+    def _effect(self, key: str, t: int, neutral: float = 1.0) -> float:
+        """Effet d'élixir en cours à l'instant t : multiplicateur (production, mutation) ou bonus (expédition)."""
+        for elixir_id, until in (self.p.effects or {}).items():
+            if until > t and key in L.ELIXIRS.get(elixir_id, {}).get("effects", {}):
+                return L.ELIXIRS[elixir_id]["effects"][key]
+        return neutral
+
+    def brew(self, elixir_id: str, qty: int = 1) -> None:
+        if elixir_id not in L.ELIXIRS:
+            raise GameError("Recette inconnue.")
+        if not self._machine_qty("distillery"):
+            raise GameError("Il faut d'abord une distillerie (Boutique).")
+        self.pay(L.ELIXIRS[elixir_id]["cost"], qty)
+        self.add_item(elixir_id, qty)
+        A.bump(self.p, "elixirs", qty)
+
+    def drink(self, elixir_id: str, now: int | None = None) -> None:
+        """Boit un élixir : son effet commence, ou se prolonge s'il est déjà en cours."""
+        now = now or now_ms()
+        if elixir_id not in L.ELIXIRS:
+            raise GameError("Ce n'est pas un élixir.")
+        if self.qty(elixir_id) < 1:
+            raise GameError("Vous n'en avez plus.")
+        self.take_item(elixir_id, 1)
+        effects = {k: v for k, v in (self.p.effects or {}).items() if v > now}
+        effects[elixir_id] = max(now, effects.get(elixir_id, 0)) + L.ELIXIRS[elixir_id]["minutes"] * 60_000
+        self.p.effects = effects
+
     # ---- grands projets ---------------------------------------------------
 
     def project_stage(self, project_id: str) -> int:
@@ -706,7 +795,7 @@ class Game:
         data["counter"] += 1
         data["teams"].append({
             "id": f"e{data['counter']}", "region": region_id, "bees": members, "scores": scores,
-            "chance": X.team_chance(scores), "start_ms": now, "end_ms": now + region["minutes"] * X.MINUTE,
+            "chance": min(L.EXPEDITION_MAX_CHANCE, X.team_chance(scores) + self._effect("expedition", now, 0.0)), "start_ms": now, "end_ms": now + region["minutes"] * X.MINUTE,
         })
         self.p.expeditions = data
 
@@ -1115,6 +1204,12 @@ class Game:
             return sum(1 for s in T.MYTHIC if s in self.discovered)
         if metric == "wild_species":
             return sum(1 for s in T.WILD if s in self.discovered)
+        if metric == "museum_branches":
+            return len(self._museum_done())
+        if metric == "world_hive_level":
+            return self._world_hive()["level"]
+        if metric == "elixirs":
+            return stats.get("elixirs", 0)
         if metric == "project_stages":
             return sum(p.get("stage", 0) for p in (self.p.projects or {}).values())
         if metric == "reputation_level":
@@ -1417,6 +1512,9 @@ class Game:
                          for pid in PR.PROJECTS},
             "forecast": self._forecast(t) if observatory >= 1 else None,
             "expeditions": {**self._expeditions(), "stage": self.project_stage("outpost")},
+            "museum": {"given": dict(self.p.museum or {}), "complete": sorted(self._museum_done())},
+            "world_hive": {**self._world_hive(), "multiplier": L.world_multiplier(self._world_hive()["level"])},
+            "effects": {k: v for k, v in (self.p.effects or {}).items() if v > t},
             "orders": {
                 **self.orders_board(t),
                 "reputation": self.p.reputation or 0,

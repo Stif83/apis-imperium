@@ -91,6 +91,11 @@ export type Content = {
     greenhouse_temps: Record<string, string[]>;
     greenhouse_slots: Record<string, number>;
   };
+  late: {
+    museum: { collections: Record<string, Record<string, number>>; bonus: number; comb_need: number };
+    world_hive: { bonus: number };
+    elixirs: Record<string, { effects: Partial<Record<'production' | 'mutation' | 'expedition', number>>; minutes: number; desc: string; cost: Cost }>;
+  };
   expeditions: {
     regions: Record<string, Region>;
     team_max: number;
@@ -245,6 +250,12 @@ export type GameState = {
   machines: Record<string, number>;
   /** Centrifugeuses automatiques : en marche ou non, et rayons qu'elles laissent de côté */
   factory: { on: boolean; skip: string[] };
+  /** Musée du miel : ce qui a été donné à chaque collection, et les branches complètes */
+  museum: { given: Record<string, Record<string, number>>; complete: string[] };
+  /** Ruche-monde : niveaux achevés, panier en cours et multiplicateur de production obtenu */
+  world_hive: { level: number; request: Cost; given: Record<string, number>; multiplier: number };
+  /** Élixirs en cours : fin de chaque effet (ms) */
+  effects: Record<string, number>;
   discovered: string[];
   genes: Record<string, string[]>;
   offers: Record<string, { cost: Cost; lock: string | null }>;

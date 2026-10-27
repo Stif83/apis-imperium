@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { CostView, PageHead, alleleLabel } from '@/components/ui';
+import { CostView, PageHead, alleleLabel, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
 import type { Content } from '@/lib/types';
 
@@ -437,6 +437,60 @@ const GUIDES: Guide[] = [
               {r.icon} <b>{r.label}</b> ({content.temp_labels[r.temp]}
               {r.wet ? ', humide' : ''}
               {r.dark ? ', obscure' : ''}, {r.minutes} min) : {r.desc}
+            </li>
+          ))}
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: 'musee',
+    icon: '🏺',
+    title: 'Musée du miel',
+    keywords: 'musée collection branche don bonus production fin de partie',
+    page: { href: '/musee', label: 'Domaine › Musée' },
+    body: (content) => (
+      <>
+        <p>
+          Une collection par branche : tout ce que ses abeilles produisent, rayons et ressources. Il faut {fmt(content.late.museum.comb_need)}
+          rayons de chaque sorte, et des ressources selon leur rareté : beaucoup des courantes, peu des précieuses. Une collection complète fait produire les abeilles de sa branche ×
+          {String(content.late.museum.bonus).replace('.', ',')}, pour toujours.
+        </p>
+        <Tip>Les dons sont définitifs : gardez ce dont vos commandes et vos projets ont besoin.</Tip>
+      </>
+    ),
+  },
+  {
+    id: 'ruche-monde',
+    icon: '🌍',
+    title: 'Ruche-monde',
+    keywords: 'ruche-monde niveau panier infini bonus production fin de partie',
+    page: { href: '/ruche-monde', label: 'Domaine › Ruche-monde' },
+    body: (content) => (
+      <p>
+        Un chantier sans fin. Chaque niveau demande du miel et un panier de produits de branches différentes, tirés parmi les espèces
+        que vous connaissez ; il grossit à chaque niveau. Chaque niveau achevé ajoute {pct(content.late.world_hive.bonus)} de production
+        à toutes vos ruches, et les bonus s'additionnent.
+      </p>
+    ),
+  },
+  {
+    id: 'distillerie',
+    icon: '⚗️',
+    title: 'Distillerie',
+    keywords: 'distillerie élixir hydromel philtre éclaireur effet temporaire boire',
+    page: { href: '/distillerie', label: 'Atelier › Distillerie' },
+    body: (content) => (
+      <>
+        <p>
+          La distillerie (en boutique) transforme des ressources de plusieurs branches en élixirs. Un élixir se garde en réserve et se
+          boit au bon moment ; boire un élixir déjà en cours prolonge son effet. Des effets différents se cumulent (production et
+          mutation), mais deux élixirs qui donnent le même effet ne s'additionnent pas.
+        </p>
+        <ul>
+          {Object.entries(content.late.elixirs).map(([id, e]) => (
+            <li key={id}>
+              <b>{content.items[id]?.label}</b> : {e.desc}
             </li>
           ))}
         </ul>

@@ -20,6 +20,7 @@ const MENUS: { label: string; tabs: Tab[] }[] = [
     tabs: [
       { href: '/usine', label: 'Centrifugeuse', icon: '⚙️' },
       { href: '/genetique', label: 'Laboratoire', icon: '🧬' },
+      { href: '/distillerie', label: 'Distillerie', icon: '⚗️' },
     ],
   },
   {
@@ -34,6 +35,8 @@ const MENUS: { label: string; tabs: Tab[] }[] = [
     tabs: [
       { href: '/projets', label: 'Grands projets', icon: '🏛️' },
       { href: '/expeditions', label: 'Expéditions', icon: '🧭' },
+      { href: '/musee', label: 'Musée', icon: '🏺' },
+      { href: '/ruche-monde', label: 'Ruche-monde', icon: '🌍' },
     ],
   },
   { label: 'Apidex', tabs: [{ href: '/apidex', label: 'Apidex', icon: '📖' }] },
@@ -61,6 +64,9 @@ function useTabHints(): Hints {
     '/genetique': state.lab.level
       ? { text: `${busy}/${state.lab.benches}`, alert: busy < state.lab.benches && (state.inventory.labware ?? 0) > 0 }
       : undefined,
+    '/distillerie': Object.keys(state.effects ?? {}).length ? { text: `${Object.keys(state.effects).length} en cours` } : undefined,
+    '/ruche-monde': state.world_hive.level ? { text: `niv. ${state.world_hive.level}` } : undefined,
+    '/musee': state.museum.complete.length ? { text: `${state.museum.complete.length} / ${Object.keys(content.late.museum.collections).length}` } : undefined,
     '/carnet': claimableTrophies(content, state).length ? { text: 'à réclamer', alert: true } : undefined,
   };
 }

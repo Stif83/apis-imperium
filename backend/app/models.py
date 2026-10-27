@@ -43,6 +43,12 @@ class Player(Base):
     expeditions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Usine : {"on": centrifugeuses en marche, "skip": rayons que les automatiques ne touchent pas}
     factory: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Musée du miel : {branche: {objet: quantité donnée}}
+    museum: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Ruche-monde : {"level": niveaux achevés, "request": panier en cours, "given": déjà donné}
+    world_hive: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Élixirs bus : {effet: fin de l'effet en ms}
+    effects: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

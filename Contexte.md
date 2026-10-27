@@ -795,6 +795,18 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
 - Impression génétique ×10 environ (`lab.IMPRINT_COSTS`, exposée au frontend).
 - Pas de migration. Vérifié : 43 tests, pile locale dans un navigateur, sauvegarde de la prod avant déploiement.
 
+## Demande du 2026-10-27 (2) : Musée, Ruche-monde, Distillerie (1.13.0, déployée)
+
+- Module `late.py`, migration 0013 (colonnes `museum`, `world_hive`, `effects`).
+- Musée du miel : une collection par branche (tous les produits de ses espèces) ; 10 000 rayons de chaque sorte,
+  ressources selon leur valeur (100 à 10 000). Collection complète : production ×1,1 pour la branche.
+- Ruche-monde : niveaux sans fin, panier de produits de branches différentes tiré parmi les espèces découvertes
+  (miel 25 000 ×1,3 par niveau) ; +2 % de production par niveau.
+- Distillerie (machine, 60 espèces) : 4 élixirs (production ×1,5, mutation ×1,5, +15 points en expédition, les
+  trois) à boire ; boire un élixir en cours le prolonge.
+- 3 trophées (Conservateur, Bâtisseur de la Ruche-monde, Maître distillateur) ; composant partagé `Donations`.
+- Vérifié : 46 tests, pages dans un navigateur en local, sauvegarde de la prod avant déploiement.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ActiveEffects } from '@/components/Effects';
 import {
   BIOME_ICONS,
   BeeSheet,
@@ -586,6 +587,7 @@ export default function ApiaryPage() {
         </div>
       )}
 
+      <ActiveEffects />
       {state.forecast && <Forecast />}
 
       <h2>Ruches</h2>

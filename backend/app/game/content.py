@@ -684,6 +684,13 @@ ITEMS = {
         ("primordial_essence", "Essence primordiale", "4a148c", 200),
         ("imperial_jelly", "Gelée impériale", "ffc107", 300),
     ]),
+    # Élixirs de la Distillerie (effets dans late.ELIXIRS)
+    **_items("elixir", [
+        ("elixir_vigor", "Hydromel de vigueur", "ffb300", 0),
+        ("elixir_mutation", "Philtre de mutation", "ab47bc", 0),
+        ("elixir_scout", "Élixir d'éclaireur", "26a69a", 0),
+        ("elixir_grand", "Grand élixir", "fff176", 0),
+    ]),
     **_items("consumable", [
         ("labware", "Verrerie de laboratoire", "a8d8ea", 0),
     ]),
@@ -780,6 +787,7 @@ SLOT_SCALE = 1.5
 MACHINES = {
     "centrifuge": {"label": "Centrifugeuse automatique", "desc": "Traite 1 rayon par cycle, sans intervention."},
     "lab_bench": {"label": "Paillasse supplémentaire", "desc": "Une opération de plus en même temps au laboratoire."},
+    "distillery": {"label": "Distillerie", "desc": "Distille les ressources de vos branches en élixirs aux effets temporaires."},
     "lab_chain": {"label": "Passeur d'échantillons",
                   "desc": "Extraction en chaîne : la paillasse reprend une abeille de la même pile jusqu'au gène complet."},
 }
@@ -821,6 +829,8 @@ def _offers():
          "scale": 1.8, "max": 4, "requires_unlock": "genetics"},
         {"id": "machine:lab_chain", "kind": "machine", "machine": "lab_chain", "honey": 4000, "items": {"propolis": 20, "royal_jelly": 5},
          "max": 1, "requires_unlock": "genetics"},
+        {"id": "machine:distillery", "kind": "machine", "machine": "distillery", "honey": 50000,
+         "items": {"copper": 50, "gold": 10, "refractory_wax": 40}, "max": 1, "min_species": 60},
     ]
     return {o["id"]: o for o in out}
 

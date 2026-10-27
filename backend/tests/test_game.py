@@ -17,7 +17,7 @@ from app.game import genetics as G
 from app.game import world as W
 from app.game.service import Game, GameError, get_or_create_player
 from app.main import app
-from app.models import Base
+from app.models import Base, Machine
 
 
 @pytest.fixture
@@ -1035,3 +1035,64 @@ def test_robo_hive(game):
     game._restock(hive)
     assert hive.modules.count("frame_impregnated") == 2 and game.p.honey < honey
     assert game.p.stats["robo_buys"] >= 1
+
+
+def test_museum(game):
+    from app.game import late as L
+    from app.game import trophies as T
+
+    collection = L.MUSEUM["Mellifères"]
+    assert collection and all(item in C.ITEMS for item in collection)
+    with pytest.raises(GameError):
+        game.museum_donate("Mellifères", "diamond", 1)  # pas dans cette collection
+    for item, need in collection.items():
+        game.add_item(item, need + 10)
+        assert game.museum_donate("Mellifères", item, 10 ** 6) == need  # on ne prend que le nécessaire
+    assert "Mellifères" in game.state()["museum"]["complete"]
+    hive = game.hives[0]
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
+    assert game.trophy_value(T.TROPHIES["conservator"]) == 1
+
+
+def test_world_hive(game):
+    from app.game import late as L
+
+    data = game.state()["world_hive"]
+    assert data["level"] == 0 and data["multiplier"] == 1
+    request = data["request"]
+    assert 1 <= len(request["items"]) <= 3
+    # Les objets demandés viennent d'espèces déjà découvertes
+    produced = {item for s in game.discovered for item, _ in C.SPECIES[s]["products"]}
+    assert set(request["items"]) <= produced
+    game.p.honey = request["honey"]
+    game.world_contribute("honey", 10 ** 9)
+    for item, n in request["items"].items():
+        game.add_item(item, n)
+        game.world_contribute(item, n)
+    data = game.state()["world_hive"]
+    assert data["level"] == 1 and data["multiplier"] == pytest.approx(1 + L.WORLD_HIVE_BONUS)
+    assert data["request"]["honey"] > request["honey"] and data["given"] == {}
+    with pytest.raises(GameError):
+        game.world_contribute("diamond", 1)
+
+
+def test_distillery(game):
+    from app.game import late as L
+
+    recipe = L.ELIXIRS["elixir_vigor"]
+    with pytest.raises(GameError):
+        game.brew("elixir_vigor")  # pas de distillerie
+    game.machines["distillery"] = Machine(player_id=game.p.id, machine_id="distillery", qty=1)
+    game.p.honey = recipe["cost"]["honey"] * 2
+    for item, n in recipe["cost"]["items"].items():
+        game.add_item(item, n * 2)
+    game.brew("elixir_vigor", 2)
+    assert game.qty("elixir_vigor") == 2 and game.p.stats["elixirs"] == 2
+    t = 1_000_000_000
+    assert game._effect("production", t) == 1
+    game.drink("elixir_vigor", now=t)
+    game.drink("elixir_vigor", now=t)  # le second prolonge le premier
+    end = t + 2 * recipe["minutes"] * 60_000
+    assert game.p.effects["elixir_vigor"] == end
+    assert game._effect("production", end - 1) == 1.5 and game._effect("production", end) == 1
+    assert game._effect("expedition", t, 0.0) == 0.0
