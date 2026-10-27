@@ -41,7 +41,8 @@ export default function CarnetPage() {
     list.reduce((n, t) => n + t.tiers.slice(0, progress(t).claimed).filter((tier) => tier.metal === metal).length, 0);
   const pedigree = Object.values(state.pedigree ?? {});
 
-  const Card = ({ t }: { t: Trophy }) => {
+  // Une fonction et non un composant : un composant défini ici serait recréé à chaque sondage
+  const card = (t: Trophy) => {
     const p = progress(t);
     const reached = reachedTiers(t, p.progress);
     const hidden = t.secret && reached === 0;
@@ -52,7 +53,7 @@ export default function CarnetPage() {
     // Barre : progression vers le prochain palier non réclamé
     const target = t.tiers[Math.min(reached, t.tiers.length - 1)];
     return (
-      <div className={`card trophy-card${complete ? ' complete' : ''}${pending ? ' pending' : ''}`}>
+      <div key={t.id} className={`card trophy-card${complete ? ' complete' : ''}${pending ? ' pending' : ''}`}>
         <div className="trophy-head">
           {best ? (
             <Medal badge={{ id: `${t.id}-${best.metal}`, kind: 'achievement', label: t.label, icon: t.icon, metal: best.metal, desc: t.desc }} size={42} />
@@ -166,9 +167,7 @@ export default function CarnetPage() {
         <>
           <h2>À réclamer · {ready.length}</h2>
           <div className="trophy-grid">
-            {ready.map((t) => (
-              <Card key={t.id} t={t} />
-            ))}
+            {ready.map(card)}
           </div>
         </>
       )}
@@ -200,9 +199,7 @@ export default function CarnetPage() {
               )}
             </h2>
             <div className="trophy-grid">
-              {members.map((t) => (
-                <Card key={t.id} t={t} />
-              ))}
+              {members.map(card)}
             </div>
           </section>
         );

@@ -1,3 +1,6 @@
+import logging
+import os
+import ssl
 from functools import lru_cache
 
 import jwt
@@ -8,10 +11,43 @@ from .config import settings
 from .db import get_db
 from .game.service import Game, get_or_create_player
 
+log = logging.getLogger("apiculteur.auth")
+
+# Tolérance sur les dates du jeton (horloges de Keycloak et du serveur de jeu un peu décalées)
+CLOCK_LEEWAY = 60
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """Autorités du système, plus celle de KEYCLOAK_CA_FILE (Keycloak signé par une autorité interne)."""
+    context = ssl.create_default_context()
+    if settings.keycloak_ca_file and os.path.exists(settings.keycloak_ca_file):
+        context.load_verify_locations(settings.keycloak_ca_file)
+    return context
+
 
 @lru_cache
 def _jwks_client() -> jwt.PyJWKClient:
-    return jwt.PyJWKClient(settings.jwks_url, cache_keys=True, lifespan=3600)
+    return jwt.PyJWKClient(settings.jwks_url, cache_keys=True, lifespan=3600, timeout=10, ssl_context=_ssl_context())
+
+
+def auth_diagnostic() -> dict:
+    """État de la configuration SSO, pour vérifier un déploiement (aucun secret)."""
+    out = {
+        "mode": settings.auth_mode,
+        "issuer": settings.keycloak_issuer,
+        "jwks_url": settings.jwks_url,
+        "client_id": settings.keycloak_client_id,
+        "ca_file": settings.keycloak_ca_file or None,
+        "ca_file_found": bool(settings.keycloak_ca_file) and os.path.exists(settings.keycloak_ca_file),
+    }
+    if settings.auth_mode == "dev":
+        return out
+    try:
+        keys = _jwks_client().get_jwk_set(refresh=True).keys
+        out.update(jwks_ok=True, keys=len(keys))
+    except jwt.PyJWKClientError as exc:
+        out.update(jwks_ok=False, error=str(exc))
+    return out
 
 
 def current_identity(request: Request) -> tuple[str, str]:
@@ -28,16 +64,31 @@ def current_identity(request: Request) -> tuple[str, str]:
     token = header[7:]
     try:
         key = _jwks_client().get_signing_key_from_jwt(token)
+    except jwt.PyJWKClientConnectionError as exc:
+        # Le serveur de jeu n'arrive pas à lire les clés de Keycloak : ce n'est pas la faute du joueur
+        log.error("Clés Keycloak injoignables (%s) : %s", settings.jwks_url, exc)
+        raise HTTPException(503, "Le serveur de jeu ne joint pas le service d'authentification.") from exc
+    except jwt.PyJWTError as exc:
+        log.warning("Jeton refusé (clé de signature) : %s", exc)
+        raise HTTPException(401, "Jeton invalide ou expiré.") from exc
+    try:
         claims = jwt.decode(
             token,
             key.key,
             algorithms=["RS256"],
             issuer=settings.keycloak_issuer,
+            leeway=CLOCK_LEEWAY,
             options={"verify_aud": False},
         )
+    except jwt.InvalidIssuerError as exc:
+        got = jwt.decode(token, options={"verify_signature": False}).get("iss")
+        log.error("Émetteur du jeton inattendu : reçu %r, attendu %r (KEYCLOAK_ISSUER)", got, settings.keycloak_issuer)
+        raise HTTPException(401, "Jeton émis par un autre Keycloak que celui configuré.") from exc
     except jwt.PyJWTError as exc:
+        log.warning("Jeton refusé : %s", exc)
         raise HTTPException(401, "Jeton invalide ou expiré.") from exc
     if claims.get("azp") != settings.keycloak_client_id:
+        log.error("Jeton émis pour le client %r, attendu %r (KEYCLOAK_CLIENT_ID)", claims.get("azp"), settings.keycloak_client_id)
         raise HTTPException(401, "Jeton émis pour un autre client.")
     return claims["sub"], claims.get("preferred_username") or claims["sub"]
 

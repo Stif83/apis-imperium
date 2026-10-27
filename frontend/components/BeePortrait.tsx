@@ -1,7 +1,8 @@
 'use client';
 
 import { lookOf } from '@/components/BeeIcon';
-import { useGame } from '@/lib/game';
+import { memo } from 'react';
+import { useContent } from '@/lib/game';
 import type { BeeType } from '@/lib/types';
 
 // Portrait d'une espèce en pixel art détaillé (grille 48×48) : ombrage en trois tons, contours,
@@ -530,8 +531,18 @@ function palette(color: string, secondary: string): Record<string, [string, numb
 type Run = { x: number; y: number; w: number; k: string };
 const cache = new Map<string, Run[]>();
 
-export function BeePortrait({ species, type = 'queen', size = 288, unknown = false }: { species: string; type?: BeeType; size?: number; unknown?: boolean }) {
-  const { content } = useGame();
+export const BeePortrait = memo(function BeePortrait({
+  species,
+  type = 'queen',
+  size = 288,
+  unknown = false,
+}: {
+  species: string;
+  type?: BeeType;
+  size?: number;
+  unknown?: boolean;
+}) {
+  const content = useContent();
   const spec = content.species[species];
   const { look, size: sizeIndex, seed } = lookOf(spec, species, type, (allele) => content.alleles.lifespan?.[allele]?.value ?? 30);
   const anatomy = ANATOMY[spec?.branch] ?? BASE;
@@ -585,4 +596,4 @@ export function BeePortrait({ species, type = 'queen', size = 288, unknown = fal
       })}
     </svg>
   );
-}
+});

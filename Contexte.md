@@ -817,6 +817,23 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
   distillerie, évolutions et emplacements des ruches, « Tout donner ».
 - Frontend seul (backend 1.13.0). Vérifié dans un navigateur sur la pile locale.
 
+## Demande du 2026-10-27 (4) : lags et SSO (1.14.2, déployée)
+
+- Lags : sur l'Apidex, le Carnet et le Comptoir, des composants définis dans le rendu de la page étaient
+  recréés à chaque sondage (l'Apidex redessinait 15 000 rectangles toutes les 5 s). Ce sont maintenant des
+  fonctions. Les icônes (`BeeIcon`, `ItemIcon`, `BeePortrait`) sont mémorisées et lisent le contenu par
+  `useContent()` (contexte séparé, stable) ; la valeur du contexte du jeu est mémorisée ; pas de sondage quand
+  l'onglet est caché. Mesuré sur une copie de la prod : plus aucune tâche longue, 60 images/s partout.
+- SSO : le backend accepte une autorité interne pour le certificat de Keycloak (`KEYCLOAK_CA_FILE`, ConfigMap
+  facultative `keycloak-ca` montée dans le pod) ; sans elle, une prod qui lit les clés en HTTPS échouait
+  (« certificate verify failed ») avec un simple « Jeton invalide ». Chaque cause de refus a maintenant son
+  message et sa ligne de journal (Keycloak injoignable = 503, émetteur reçu/attendu, client), 60 s de tolérance
+  d'horloge, diagnostic `/api/health/auth`. Le frontend explique pourquoi le rucher ne s'ouvre pas.
+- Kit de prod 1.14.2 (`dist/deploiement-prod-1.14.2`) : `KEYCLOAK_CA` dans `prod.env`, vérification de
+  l'issuer au début de `deployer.sh` et du SSO à la fin, LISEZ-MOI avec la configuration du client Keycloak.
+- Vérifié : 49 tests (dont l'authentification avec de vrais jetons signés), diagnostic contre le Keycloak du
+  cluster sans puis avec son autorité, `/api/health/auth` en ligne.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

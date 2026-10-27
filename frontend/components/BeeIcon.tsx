@@ -1,6 +1,7 @@
 'use client';
 
-import { useGame } from '@/lib/game';
+import { memo } from 'react';
+import { useContent } from '@/lib/game';
 import type { BeeType, Species } from '@/lib/types';
 
 // Abeilles en pixel art générées à partir de l'espèce : taille (longévité, branche, reine),
@@ -407,7 +408,7 @@ export function lookOf(species: Species | undefined, id: string, type: BeeType, 
   return { look, size, seed: seedOf(id) };
 }
 
-export function BeeIcon({
+export const BeeIcon = memo(function BeeIcon({
   color,
   secondary,
   type = 'drone',
@@ -428,7 +429,7 @@ export function BeeIcon({
   x?: number;
   y?: number;
 }) {
-  const { content } = useGame();
+  const content = useContent();
   const spec = species ? content.species[species] : undefined;
   const { look, size: sizeIndex, seed } = lookOf(spec, species ?? 'default', type, (allele) => content.alleles.lifespan?.[allele]?.value ?? 30);
   const when = season();
@@ -454,4 +455,4 @@ export function BeeIcon({
       })}
     </svg>
   );
-}
+});

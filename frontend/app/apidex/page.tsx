@@ -83,10 +83,11 @@ export default function ApidexPage() {
     return Object.keys(content.recipes).sort((a, b) => rank(a) - rank(b));
   }, [content, producers, tiers]);
 
-  const BranchBee = ({ id }: { id: string }) => {
+  // Une fonction et non un composant : défini ici, un composant serait recréé (et redessiné) à chaque sondage
+  const branchBee = (id: string) => {
     const s = content.species[id];
     return (
-      <Link className={`branch-bee${known.has(id) ? '' : ' unknown'}`} title={name(id)} href={`/apidex/${id}`}>
+      <Link key={id} className={`branch-bee${known.has(id) ? '' : ' unknown'}`} title={name(id)} href={`/apidex/${id}`}>
         <BeeIcon species={id} color={s.color} secondary={s.secondary} type="queen" size={44} unknown={!known.has(id)} />
         <span>{name(id)}</span>
       </Link>
@@ -184,9 +185,7 @@ export default function ApidexPage() {
                           <div style={{ width: `${(100 * n) / b.ids.length}%` }} />
                         </div>
                         <div className="branch-bees">
-                          {b.ids.map((id) => (
-                            <BranchBee key={id} id={id} />
-                          ))}
+                          {b.ids.map(branchBee)}
                         </div>
                         {b.parents.length > 0 && (
                           <div className="muted branch-from">
@@ -228,9 +227,7 @@ export default function ApidexPage() {
                 {seen ? <Outputs comb={comb} /> : <div className="muted">Découvrez une abeille qui le produit pour connaître son contenu.</div>}
                 <div className="muted">Produit par :</div>
                 <div className="branch-bees">
-                  {(producers[comb] ?? []).map((id) => (
-                    <BranchBee key={id} id={id} />
-                  ))}
+                  {(producers[comb] ?? []).map(branchBee)}
                 </div>
               </div>
             );

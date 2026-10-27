@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     # URL interne des clés publiques ; déduite de l'issuer si vide
     keycloak_jwks_url: str = ""
     keycloak_client_id: str = "apiculteur-web"
+    # Autorité (PEM) qui signe le certificat HTTPS de Keycloak, si elle n'est pas publique ; s'ajoute à celles du système
+    keycloak_ca_file: str = ""
 
     # Réglages de rythme du jeu
     cycle_seconds: int = 5

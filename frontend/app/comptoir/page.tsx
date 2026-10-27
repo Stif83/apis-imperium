@@ -38,7 +38,8 @@ export default function ComptoirPage() {
   const fits = (bee: Bee, want: NonNullable<Order['bee']>) =>
     bee.type === want.type && bee.genome.species[0] === want.species && Object.entries(want.alleles).every(([c, a]) => bee.genome[c]?.[0] === a);
 
-  const Card = ({ order }: { order: Order }) => {
+  // Une fonction et non un composant : un composant défini ici serait recréé à chaque seconde (minuterie)
+  const card = (order: Order) => {
     const guild = content.orders.guilds[order.guild];
     const items = Object.entries(order.items ?? {});
     const candidates = order.bee ? reserve.filter((b) => fits(b, order.bee!)) : [];
@@ -46,7 +47,7 @@ export default function ComptoirPage() {
     const pedigreeOk = order.pedigree ? (state.pedigree?.[order.pedigree.species] ?? 0) >= order.pedigree.level : true;
     const ready = items.every(([item, n]) => (state.inventory[item] ?? 0) >= n) && (!order.bee || !!chosen) && pedigreeOk;
     return (
-      <div className={`card order-card${order.prestige ? ' prestige' : ''}${ready ? ' ready' : ''}`}>
+      <div key={order.id} className={`card order-card${order.prestige ? ' prestige' : ''}${ready ? ' ready' : ''}`}>
         <div className="row between">
           <span className="order-guild" title={guild.desc}>
             <span className="order-guild-icon">{guild.icon}</span>
@@ -189,7 +190,7 @@ export default function ComptoirPage() {
       ) : board.prestige?.done ? (
         <div className="notice">Commande de la semaine honorée. La prochaine arrive lundi.</div>
       ) : board.prestige?.order ? (
-        <Card order={board.prestige.order} />
+        card(board.prestige.order)
       ) : (
         <div className="notice">Aucune commande de prestige cette semaine.</div>
       )}
@@ -198,7 +199,7 @@ export default function ComptoirPage() {
       <div className="order-grid">
         {board.slots.map((slot, i) =>
           slot.order ? (
-            <Card key={slot.order.id} order={slot.order} />
+            card(slot.order)
           ) : (
             <div key={`empty-${i}`} className="card order-card empty">
               <span className="muted">🚪 Place libre · un client arrive dans {duration(slot.ready_ms - now)}</span>

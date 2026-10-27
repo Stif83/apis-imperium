@@ -42,8 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let where = 'la configuration (/config)';
     (async () => {
       const cfg = await (await fetch('/config')).json();
+      where = `Keycloak (${cfg.keycloakUrl}, realm « ${cfg.keycloakRealm} », client « ${cfg.keycloakClientId} »)`;
       if (cfg.authMode === 'dev') {
         const saved = localStorage.getItem(DEV_USER_KEY);
         if (saved) enterDev(saved);
@@ -60,7 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         logout: () => kc.logout({ redirectUri: window.location.origin }),
       });
-    })().catch(() => setError("Impossible de joindre le service d'authentification."));
+    })().catch(() =>
+      setError(
+        `Impossible de joindre ${where}. Vérifiez l'adresse de Keycloak, et dans le client : « Valid redirect URIs » et « Web origins » doivent contenir l'adresse du jeu.`,
+      ),
+    );
   }, []);
 
   if (error) return <div className="splash">{error}</div>;

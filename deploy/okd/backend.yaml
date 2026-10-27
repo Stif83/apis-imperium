@@ -44,6 +44,14 @@ spec:
             - name: KEYCLOAK_CLIENT_ID
               valueFrom:
                 configMapKeyRef: { name: apiculteur-config, key: KEYCLOAK_CLIENT_ID }
+            # Autorité interne qui signe le certificat de Keycloak (ConfigMap facultative « keycloak-ca ») ;
+            # ignorée si la ConfigMap n'existe pas
+            - name: KEYCLOAK_CA_FILE
+              value: /etc/keycloak-ca/ca.crt
+          volumeMounts:
+            - name: keycloak-ca
+              mountPath: /etc/keycloak-ca
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /api/health
@@ -53,3 +61,8 @@ spec:
             requests:
               cpu: 100m
               memory: 192Mi
+      volumes:
+        - name: keycloak-ca
+          configMap:
+            name: keycloak-ca
+            optional: true

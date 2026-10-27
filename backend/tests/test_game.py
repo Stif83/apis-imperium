@@ -1,8 +1,4 @@
-import os
 import random
-
-os.environ["DATABASE_URL"] = "sqlite://"
-os.environ["AUTH_MODE"] = "dev"
 
 import pytest
 from fastapi.testclient import TestClient

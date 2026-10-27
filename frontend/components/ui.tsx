@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useGame } from '@/lib/game';
+import { useContent, useGame } from '@/lib/game';
 import type { Bee, BeeType, Content, Cost, GameState, Genome } from '@/lib/types';
 import { BeeIcon } from './BeeIcon';
 
@@ -229,8 +229,8 @@ export function Honey({ amount }: { amount: number }) {
   );
 }
 
-export function ItemIcon({ id, size = 22 }: { id: string; size?: number }) {
-  const { content } = useGame();
+export const ItemIcon = memo(function ItemIcon({ id, size = 22 }: { id: string; size?: number }) {
+  const content = useContent();
   const item = content.items[id];
   const fill = `#${item?.color ?? '888888'}`;
   const stroke = 'rgba(0,0,0,0.55)';
@@ -249,7 +249,7 @@ export function ItemIcon({ id, size = 22 }: { id: string; size?: number }) {
       {shape}
     </svg>
   );
-}
+});
 
 export function ItemQty({ id, qty }: { id: string; qty?: number }) {
   const { content } = useGame();
@@ -301,7 +301,7 @@ export function alleleLabel(content: ReturnType<typeof useGame>['content'], chro
 }
 
 export function GenomeIcon({ genome, type, size }: { genome: Genome; type: BeeType; size?: number }) {
-  const { content } = useGame();
+  const content = useContent();
   const species = content.species[genome.species[0]];
   return <BeeIcon species={genome.species[0]} color={species?.color ?? '888888'} secondary={species?.secondary ?? 'ffdc16'} type={type} size={size} />;
 }
