@@ -773,6 +773,28 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
 - Vérifié : 40 tests ; migrations 0011 et 0012 (aller et retour) sur une copie de la sauvegarde OKD ; toutes
   les pages dans un navigateur sur la pile locale ; sauvegarde de la prod avant déploiement.
 
+## Demande du 2026-10-24 (2) : page d'aide (1.11.0, déployée)
+
+- Page `/aide` : 16 sections (un mécanisme chacune), sommaire fixe, recherche sans accents, lien vers la page
+  concernée. Les chiffres sont lus dans le contenu du jeu (modules, labo, projets, régions, pedigree, réputation…).
+- Bouton « ❔ Aide » dans la barre du haut ; le « ? » de chaque page renvoie vers sa section (`PageHead guide=`).
+
+## Demande du 2026-10-27 : prix partagés, biomes de serre, robo-ruches (1.12.0, déployée)
+
+- Prix : toutes les ruches comptent ensemble pour le prix d'une ruche (un alvéaire compte en plus les alvéaires
+  et robo-ruches déjà possédés) ; un emplacement ajouté renchérit ceux de toutes les ruches.
+- Biomes de serre (`GREENHOUSE_BIOMES`) : Mangrove, Jardins suspendus (serre 1), Grotte de cristal, Forge (2),
+  Dôme étoilé (3). Une ruche sous serre choisit une température ou l'un de ces biomes (`settings.greenhouse`) ;
+  la condition `biome` des mutations voit le biome de serre. Nouvelle branche Serricoles (Palétuvière,
+  Suspendue, Géodique, Forgeronne, Firmamentale).
+- Abeille Robotique (Forgeronne × Cybernétique sous serre Forge) : microprocesseurs. Grand projet « L'ère de la
+  robotique » : 1) un alvéaire peut évoluer en robo-ruche (`hive_type` « robo » : 6 à 10 emplacements, ×1,6,
+  élevage automatique intégré, configuration `settings.loadout` remontée depuis la réserve), 2) rachat
+  automatique des cadres au marché, 3) production ×1,3. Évolution : 150 000 miel, microprocesseurs, circuits, or,
+  ×1,5 par robo-ruche possédée.
+- Impression génétique ×10 environ (`lab.IMPRINT_COSTS`, exposée au frontend).
+- Pas de migration. Vérifié : 43 tests, pile locale dans un navigateur, sauvegarde de la prod avant déploiement.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

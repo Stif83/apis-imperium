@@ -44,6 +44,7 @@ export default function CommunityPage() {
   return (
     <>
       <PageHead
+        guide="communaute"
         title="Communauté"
         extra={
           <button className="primary" style={{ marginLeft: 'auto' }} onClick={() => setCreating(!creating)}>

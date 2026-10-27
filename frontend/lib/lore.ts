@@ -430,6 +430,20 @@ export const LORE: Record<string, string> = {
   fecund:
     "La Féconde donne naissance à tant de petits que sa ruche déborde chaque printemps. Elle partage son pollen avec toutes les ruches voisines.",
 
+  // Serricoles, et l’abeille robotique qui en descend
+  mangal:
+    "La Palétuvière vit les pattes dans l'eau tiède des mangroves recréées sous verre. Elle ne sort jamais de la brume, et ses rayons sentent la vase et la rosée.",
+  hanging:
+    "La Suspendue butine de terrasse en terrasse dans les jardins suspendus. Elle ne se pose jamais au sol, et ses rayons débordent de pétales et de fruits.",
+  geodic:
+    "La Géodique creuse ses alvéoles dans les parois d'une grotte de cristal. Ses rayons sont froids comme la pierre, et il arrive qu'on y trouve un éclat de lazuli.",
+  smith:
+    "La Forgeronne a appris à voler dans la chaleur des fonderies. Elle rapporte du fer, parfois de l'or, et ne craint ni les étincelles ni le métal en fusion.",
+  starlit:
+    "La Firmamentale ne travaille que sous la coupole du dôme étoilé, quand la nuit est la plus froide. Elle rapporte de la poussière d'étoile et, les nuits claires, une pierre de lune.",
+  robotic:
+    "La Robotique n'est ni tout à fait vivante ni tout à fait machine. Née dans la forge d'une Cybernétique et d'une Forgeronne, elle assemble des microprocesseurs avec une précision d'horloger.",
+
   // Sauvages
   liana:
     "La Lianeuse vit accrochée aux lianes de la jungle profonde, où il pleut sans fin. Elle n'avait jamais vu une ruche avant qu'une équipe ne la ramène.",

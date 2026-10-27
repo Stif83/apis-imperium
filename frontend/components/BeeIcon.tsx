@@ -68,6 +68,7 @@ const BRANCH_LOOKS: Record<string, Look> = {
   Terroirs: { pattern: 'stripes', wings: 'normal', features: ['speckle'] },
   Florales: { pattern: 'spots', wings: 'leaf', features: ['flower'] },
   Sociales: { pattern: 'stripes', wings: 'small', features: [], size: -1 },
+  Serricoles: { pattern: 'spots', wings: 'leaf', features: ['flower', 'shine'] },
   Recluses: { pattern: 'plain', wings: 'small', features: ['crest'] },
   Mécaniques: { pattern: 'bands', wings: 'normal', features: ['rivets', 'shine', 'antennae'] },
   Chaotiques: { pattern: 'spots', wings: 'tattered', features: ['glow', 'sparkle'] },

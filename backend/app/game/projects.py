@@ -25,11 +25,11 @@ PROJECTS = {
         "icon": "🌡️",
         "desc": "Des verrières chauffées ou refroidies : sous serre, une ruche choisit sa température et ne craint plus la pluie.",
         "stages": [
-            {"label": "Châssis", "effect": "Une ruche sous serre, réglable de Froid à Torride.",
+            {"label": "Châssis", "effect": "Une ruche sous serre, réglable de Froid à Torride ; biomes de serre Mangrove et Jardins suspendus.",
              "cost": {"honey": 6000, "items": {"wax": 300, "quartz": 40, "clay": 80, "silk": 40}}},
-            {"label": "Verrière", "effect": "Trois ruches sous serre, toutes les températures (Glacial à Infernal).",
+            {"label": "Verrière", "effect": "Trois ruches sous serre, toutes les températures (Glacial à Infernal) ; biomes Grotte de cristal et Forge.",
              "cost": {"honey": 18000, "items": {"iron": 80, "ice_shard": 60, "refractory_wax": 60, "glowstone": 30}}},
-            {"label": "Jardin d'hiver", "effect": "Toutes les ruches peuvent passer sous serre ; production ×1,25 sous serre.",
+            {"label": "Jardin d'hiver", "effect": "Toutes les ruches peuvent passer sous serre ; production ×1,25 sous serre ; biome Dôme étoilé.",
              "cost": {"honey": 45000, "items": {"platinum": 10, "emerald": 10, "energy": 40, "royal_jelly": 40}}},
         ],
     },
@@ -63,6 +63,23 @@ PROJECTS["sanctuary"] = {
     ],
 }
 
+PROJECTS["robotics"] = {
+    "label": "L'ère de la robotique",
+    "icon": "🤖",
+    "desc": "Des ateliers où les abeilles robotiques assemblent des ruches qui se règlent et s'entretiennent seules.",
+    "stages": [
+        {"label": "Atelier d'assemblage",
+         "effect": "Les alvéaires peuvent évoluer en robo-ruches : élevage automatique intégré, cadres configurés et remplacés depuis la réserve.",
+         "cost": {"honey": 100000, "items": {"microprocessor": 40, "circuit": 40, "gear": 80, "iron": 200}}},
+        {"label": "Chaîne de montage",
+         "effect": "Quand la réserve est vide, les robo-ruches rachètent elles-mêmes au marché les cadres de leur configuration.",
+         "cost": {"honey": 200000, "items": {"microprocessor": 120, "energy": 100, "gold": 60, "copper": 300}}},
+        {"label": "Conscience de ruche", "effect": "Production des robo-ruches ×1,3.",
+         "cost": {"honey": 400000, "items": {"microprocessor": 300, "diamond": 12, "platinum": 25, "prism": 4}}},
+    ],
+}
+
+ROBO_PRODUCTION = 1.3
 SANCTUARY_PRODUCTION = 1.5
 SANCTUARY_BRANCHES = ("Légendaires", "Mythiques")
 

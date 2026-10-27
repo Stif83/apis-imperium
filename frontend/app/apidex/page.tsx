@@ -105,6 +105,7 @@ export default function ApidexPage() {
   return (
     <>
       <PageHead
+        guide="apidex"
         title="Apidex"
         extra={
           <span className="row">

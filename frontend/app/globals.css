@@ -97,7 +97,7 @@ main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 64px; }
   position: absolute; top: -3px; right: -3px; width: 12px; height: 12px; border-radius: 50%;
   background: var(--danger); border: 2px solid #fff;
 }
-.account { display: flex; align-items: center; gap: 8px; }
+.account { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .account .chip, .account .honey-pill, .account button { background: rgba(255, 255, 255, 0.85); border-color: transparent; color: #3b2f1c; }
 .account .honey-pill .honey { color: #b97800; }
 .honey-pill { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; font-size: 15px; }
@@ -732,3 +732,44 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
   .comb-row .hold-col { grid-column: 1 / -1; order: 6; }
   .comb-row .hold-col button { width: 100%; }
 }
+
+/* ---------- aide ---------- */
+.help-link {
+  display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px;
+  font-weight: 700; font-size: 14px; text-decoration: none; color: #3b2f1c; background: rgba(255, 255, 255, 0.85); white-space: nowrap;
+}
+.help-link.active { background: var(--accent); }
+.help-text a { font-weight: 700; color: var(--info); }
+.guide-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 10px; }
+.guide-toc { position: sticky; top: 84px; display: grid; gap: 8px; }
+.guide-toc input { width: 100%; }
+.guide-toc nav { display: grid; gap: 2px; }
+.guide-toc nav a { padding: 6px 10px; border-radius: 10px; color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px; }
+.guide-toc nav a:hover { background: var(--panel); }
+.guide-toc nav a.active { background: var(--accent); color: var(--accent-ink); }
+.guide-sections { display: grid; gap: 14px; }
+.guide-section { scroll-margin-top: 90px; line-height: 1.55; }
+.guide-section.focus { box-shadow: 0 0 0 3px var(--accent), var(--shadow); }
+.guide-section h2 { margin: 0; }
+.guide-section a.chip { text-decoration: none; color: var(--text); font-weight: 700; white-space: nowrap; }
+.guide-section a.chip:hover { box-shadow: 0 0 0 2px var(--accent); }
+.guide-section ul, .guide-section ol { margin: 0 0 10px; padding-left: 22px; display: grid; gap: 4px; }
+.guide-tip { padding: 8px 12px; border-radius: 12px; background: var(--info-bg); color: var(--text); font-size: 14px; }
+.guide-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.guide-table th { text-align: left; color: var(--muted); font-weight: 600; padding: 4px 8px; }
+.guide-table td { padding: 6px 8px; border-top: 1px solid var(--panel-2); vertical-align: top; }
+.guide-table td:last-child { white-space: nowrap; }
+.guide-project { margin-bottom: 10px; }
+.guide-project li { display: grid; gap: 2px; }
+@media (max-width: 820px) {
+  .guide-layout { grid-template-columns: 1fr; }
+  .guide-toc { position: static; }
+  .guide-toc nav { display: flex; flex-wrap: wrap; gap: 4px; }
+  .guide-toc nav a { background: var(--panel); }
+}
+
+/* ---------- robo-ruche ---------- */
+.robo-loadout { flex-direction: column; align-items: stretch; }
+.loadout-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+.loadout-slots select { width: 100%; min-width: 0; }
+.robo-loadout > button { align-self: flex-end; }

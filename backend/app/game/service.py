@@ -6,6 +6,7 @@ la dernière visite (ce qui donne aussi la progression hors-ligne).
 
 import copy
 import random
+from collections import Counter
 import time
 
 from sqlalchemy import func, select
@@ -203,12 +204,24 @@ class Game:
                 mods["production"] *= PR.GREENHOUSE_PRODUCTION
         if self.project_stage("observatory") >= 3:
             mods["mutation"] *= PR.OBSERVATORY_MUTATION
+        if hive.hive_type == "robo" and self.project_stage("robotics") >= 3:
+            mods["production"] *= PR.ROBO_PRODUCTION
         return mods
 
+    def _greenhouse_spot(self, hive: Hive) -> str | None:
+        """Réglage de la serre : une température ou un biome de serre (None hors serre, ou sans serre construite)."""
+        spot = (hive.settings or {}).get("greenhouse")
+        return spot if spot and self.project_stage("greenhouse") >= 1 else None
+
     def _greenhouse(self, hive: Hive) -> str | None:
-        """Température choisie si la ruche est sous serre (et que la serre est construite), sinon None."""
-        temp = (hive.settings or {}).get("greenhouse")
-        return temp if temp and self.project_stage("greenhouse") >= 1 else None
+        """Température imposée par la serre, sinon None."""
+        spot = self._greenhouse_spot(hive)
+        return C.GREENHOUSE_BIOMES[spot]["temp"] if spot in C.GREENHOUSE_BIOMES else spot
+
+    def _biome(self, hive: Hive) -> str:
+        """Biome vu par les mutations : celui de la serre s'il y en a un, sinon celui de la ruche."""
+        spot = self._greenhouse_spot(hive)
+        return spot if spot in C.GREENHOUSE_BIOMES else hive.biome
 
     def _biome_temp(self, hive: Hive) -> str:
         return self._greenhouse(hive) or C.BIOMES[hive.biome]["temp"]
@@ -254,7 +267,7 @@ class Game:
     def _hive_ctx(self, hive: Hive, mods: dict, t_ms: int, world: dict) -> dict:
         return {
             **world,
-            "biome": hive.biome,
+            "biome": self._biome(hive),
             "phase": W.phase(t_ms),
             "hours": W.hour(t_ms),
             "weather": self._weather(hive, t_ms),
@@ -332,7 +345,7 @@ class Game:
                 self.add_bee("princess", princess, hive_id=hive.id)
                 for drone in drones:
                     self.add_bee("drone", drone, hive_id=hive.id)
-            if self._wear_modules(hive):
+            if self._wear_modules(hive) | self._restock(hive):
                 mods = self._mods(hive)
                 auto = mods["automation"]
         hive.output = out
@@ -356,6 +369,50 @@ class Game:
         hive.modules = [m for m, _ in kept]
         self._set_wear(hive, [w for _, w in kept])
         return len(kept) < len(modules)
+
+    def _restock(self, hive: Hive) -> bool:
+        """Robo-ruche : remonte les cadres de sa configuration qui manquent, depuis la réserve puis au marché."""
+        loadout = (hive.settings or {}).get("loadout") or []
+        if hive.hive_type != "robo" or not loadout:
+            return False
+        missing = Counter(loadout) - Counter(hive.modules or [])
+        changed = False
+        for module, n in missing.items():
+            for _ in range(n):
+                if len(hive.modules or []) >= hive.slots:
+                    return changed
+                if not self.qty(module):
+                    offer = C.OFFERS.get(f"item:{module}")
+                    if self.project_stage("robotics") < 2 or offer is None or self.offer_lock(offer):
+                        break
+                    try:
+                        self.pay(self.offer_cost(offer))
+                    except GameError:
+                        break  # pas assez de miel ou de ressources : on réessaiera à la génération suivante
+                    self.add_item(module, 1)
+                    A.bump(self.p, "robo_buys")
+                self.add_module(hive.id, module)
+                changed = True
+        return changed
+
+    def set_loadout(self, hive_id: str, modules: list[str]) -> None:
+        """Configure les cadres d'une robo-ruche : démonte ce qui n'en fait pas partie, puis monte ce qui manque."""
+        hive = self._hive(hive_id)
+        if hive.hive_type != "robo":
+            raise GameError("Seule une robo-ruche se configure.")
+        if len(modules) > hive.slots:
+            raise GameError("Plus de cadres que d'emplacements.")
+        if any(m not in C.MODULES for m in modules):
+            raise GameError("Module inconnu.")
+        hive.settings = {**(hive.settings or {}), "loadout": list(modules)}
+        keep = Counter(modules)
+        for i in reversed(range(len(hive.modules or []))):
+            module = hive.modules[i]
+            if keep[module] > 0:
+                keep[module] -= 1
+            else:
+                self.remove_module(hive.id, i)
+        self._restock(hive)
 
     def _line_drone(self, hive: Hive) -> Bee | None:
         """Pile de réserve du faux-bourdon installé dans la ruche, si on doit la réutiliser et qu'elle existe encore."""
@@ -487,7 +544,8 @@ class Game:
         spec = C.HIVE_TYPES[hive.hive_type]
         if hive.slots >= spec["max_slots"]:
             return None
-        return round(C.SLOT_COST * C.SLOT_SCALE ** (hive.slots - spec["slots"]))
+        added = sum(max(0, h.slots - C.HIVE_TYPES[h.hive_type]["slots"]) for h in self.hives)
+        return round(C.SLOT_COST * C.SLOT_SCALE ** added)
 
     def expand(self, hive_id: str) -> None:
         hive = self._hive(hive_id)
@@ -500,27 +558,39 @@ class Game:
             A.unlock(self.p, "full_alveary")
 
     def upgrade_cost(self, hive: Hive) -> dict | None:
-        """Prix pour transformer un rucher en alvéaire : celui d'un alvéaire neuf."""
-        if hive.hive_type != "apiary":
-            return None
-        return self.offer_cost(C.OFFERS["hive:alveary"])
+        """Prix de l'évolution suivante : un alvéaire neuf pour un rucher, ROBO_COST croissant pour un alvéaire."""
+        target = C.EVOLUTIONS.get(hive.hive_type)
+        if target == "alveary":
+            return self.offer_cost(C.OFFERS["hive:alveary"])
+        if target == "robo" and self.project_stage("robotics") >= 1:
+            factor = C.ROBO_SCALE ** sum(1 for h in self.hives if h.hive_type == "robo")
+            return {"honey": round(C.ROBO_COST["honey"] * factor),
+                    "items": {item: round(n * factor) for item, n in C.ROBO_COST["items"].items()}}
+        return None
 
     def upgrade_hive(self, hive_id: str) -> None:
-        """Le rucher devient un alvéaire et garde sa reine, sa récolte, ses cadres et son biome."""
+        """Rucher -> alvéaire -> robo-ruche ; la ruche garde sa reine, sa récolte, ses cadres et son biome."""
         hive = self._hive(hive_id)
         cost = self.upgrade_cost(hive)
         if cost is None:
-            raise GameError("Seul un rucher peut évoluer en alvéaire.")
-        lock = self.offer_lock(C.OFFERS["hive:alveary"])
-        if lock:
-            raise GameError(lock)
+            if hive.hive_type == "alveary":
+                raise GameError("Il faut d'abord l'atelier d'assemblage (L'ère de la robotique).")
+            raise GameError("Cette ruche ne peut plus évoluer.")
+        if hive.hive_type == "apiary":
+            lock = self.offer_lock(C.OFFERS["hive:alveary"])
+            if lock:
+                raise GameError(lock)
         self.pay(cost)
-        alveary = C.HIVE_TYPES["alveary"]
-        hive.hive_type = "alveary"
-        hive.slots = max(hive.slots, alveary["slots"])
-        old = C.HIVE_TYPES["apiary"]["label"]
+        old, target = C.HIVE_TYPES[hive.hive_type]["label"], C.EVOLUTIONS[hive.hive_type]
+        spec = C.HIVE_TYPES[target]
+        hive.hive_type = target
+        hive.slots = max(hive.slots, spec["slots"])
+        if target == "robo":
+            # La configuration de départ reprend les cadres déjà montés
+            hive.settings = {**(hive.settings or {}), "loadout": list(hive.modules or [])}
+            A.unlock(self.p, "first_robo")
         if hive.name.startswith(f"{old} "):
-            hive.name = f"{alveary['label']} {hive.name[len(old) + 1:]}"[:64]
+            hive.name = f"{spec['label']} {hive.name[len(old) + 1:]}"[:64]
 
     def _line_drone_state(self, hive: Hive) -> dict | None:
         line = (hive.settings or {}).get("line_drone")
@@ -547,7 +617,7 @@ class Game:
             hive.settings = {**(hive.settings or {}), "reuse_drone": reuse_drone}
 
     def _set_greenhouse(self, hive: Hive, temp: str) -> None:
-        """Met une ruche sous serre à la température voulue ; une chaîne vide l'en sort."""
+        """Met une ruche sous serre à une température ou dans un biome de serre ; une chaîne vide l'en sort."""
         settings_ = dict(hive.settings or {})
         if not temp:
             settings_.pop("greenhouse", None)
@@ -556,7 +626,10 @@ class Game:
         stage = self.project_stage("greenhouse")
         if stage < 1:
             raise GameError("Il faut d'abord construire la serre climatique (Grands projets).")
-        if temp not in PR.GREENHOUSE_TEMPS[stage]:
+        if temp in C.GREENHOUSE_BIOMES:
+            if C.GREENHOUSE_BIOMES[temp]["stage"] > stage:
+                raise GameError("La serre ne permet pas encore ce biome : agrandissez-la.")
+        elif temp not in PR.GREENHOUSE_TEMPS[stage]:
             raise GameError("La serre ne permet pas encore cette température.")
         used = sum(1 for h in self.hives if h.id != hive.id and (h.settings or {}).get("greenhouse"))
         if not settings_.get("greenhouse") and used >= PR.GREENHOUSE_SLOTS[stage]:
@@ -706,7 +779,11 @@ class Game:
     def offer_cost(self, offer: dict) -> dict:
         owned = 0
         if offer["kind"] == "hive":
-            owned = sum(1 for h in self.hives if h.hive_type == offer["hive_type"]) - offer.get("free", 0)
+            # Toutes les ruches comptent, quel que soit leur type (celles du départ sont offertes) ;
+            # un alvéaire compte en plus ceux déjà possédés, pour que les évolutions renchérissent aussi
+            owned = len(self.hives) - len(C.STARTER_BIOMES)
+            if offer["hive_type"] == "alveary":
+                owned += sum(1 for h in self.hives if h.hive_type != "apiary")
         elif offer["kind"] == "machine":
             machine = self.machines.get(offer["machine"])
             owned = machine.qty if machine else 0
@@ -1308,7 +1385,8 @@ class Game:
                 "keep_drones": bool((hive.settings or {}).get("keep_drones")),
                 "reuse_drone": bool((hive.settings or {}).get("reuse_drone", True)),
                 "line_drone": self._line_drone_state(hive),
-                "greenhouse": self._greenhouse(hive),
+                "greenhouse": self._greenhouse_spot(hive),
+                "loadout": (hive.settings or {}).get("loadout") if hive.hive_type == "robo" else None,
                 "mutations_now": self._mutations_now(hive, mods, t, world) if observatory >= 2 else None,
                 "mods": mods,
                 "status": status,

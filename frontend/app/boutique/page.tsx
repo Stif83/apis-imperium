@@ -156,7 +156,7 @@ export default function ShopPage() {
 
   return (
     <>
-      <PageHead title="Boutique">
+      <PageHead guide="boutique" title="Boutique">
         Tout se paie en miel, parfois complété par des ressources tirées de vos rayons. Les espèces rares se débloquent au fil de vos
         découvertes.
       </PageHead>

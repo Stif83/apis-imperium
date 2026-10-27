@@ -31,6 +31,10 @@ export type Content = {
   temps: string[];
   temp_labels: Record<string, string>;
   biomes: Record<string, { label: string; temp: string; color: string }>;
+  /** Biomes qu'on ne trouve que sous serre ; stage : étape de la serre qui les ouvre */
+  greenhouse_biomes: Record<string, { label: string; temp: string; color: string; stage: number; desc: string }>;
+  /** Type de ruche obtenu en faisant évoluer chaque type */
+  evolutions: Record<string, string>;
   chromosomes: Record<string, string>;
   alleles: Record<string, Record<string, Allele>>;
   species: Record<string, Species>;
@@ -48,11 +52,10 @@ export type Content = {
   manual_batch: number;
   /** uses : générations avant usure (absent = inusable) */
   modules: Record<string, { frame: boolean; desc: string; uses?: number }>;
-  hive_types: Record<string, { label: string; slots: number; max_slots: number; frames_only: boolean; production: number }>;
+  hive_types: Record<string, { label: string; slots: number; max_slots: number; frames_only: boolean; production: number; automated?: boolean }>;
   machines: Record<string, { label: string; desc: string }>;
   offers: Offer[];
   bee_sell: Record<string, number>;
-  imprint_honey_per_gene: number;
   showcase_max_entries: number;
   world: {
     day_seconds: number;
@@ -70,6 +73,7 @@ export type Content = {
     doses: number;
     fragments: Record<string, Record<string, number>>;
     rarity: Record<string, Record<string, 'common' | 'medium' | 'rare'>>;
+    imprint: { costs: Record<'common' | 'medium' | 'rare' | 'species', Cost>; labware: number; species_combs: number };
   };
   trophies: {
     categories: Record<string, string>;
@@ -171,8 +175,10 @@ export type Hive = {
   modules: string[];
   /** Générations restantes de chaque module monté (null = inusable) */
   wear: (number | null)[];
-  /** Température choisie si la ruche est sous serre */
+  /** Réglage de la serre : une température ou un biome de serre (null hors serre) */
   greenhouse: string | null;
+  /** Robo-ruche : cadres à garder montés (null pour les autres ruches) */
+  loadout: string[] | null;
   /** Mutations possibles en ce moment (Observatoire, étape 2) ; null si non disponible */
   mutations_now: { result: string; chance: number }[] | null;
   queen: Queen | null;

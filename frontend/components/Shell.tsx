@@ -173,6 +173,9 @@ function Header({ hints }: { hints: Hints }) {
         ))}
       </nav>
       <div className="account">
+        <Link href="/aide" className={`help-link${pathname.startsWith('/aide') ? ' active' : ''}`} title="Aide : comment fonctionne chaque mécanisme">
+          ❔ Aide
+        </Link>
         <WorldClock />
         <ThemeToggle />
         <span className="honey-pill">

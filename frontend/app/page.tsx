@@ -173,14 +173,15 @@ function Scene({ hive }: { hive: Hive }) {
   const { content, state } = useGame();
   // Sous serre, il ne pleut pas
   const weather = hive.greenhouse ? 'clear' : (state.world.weather[hive.biome] ?? 'clear');
+  const ground = content.greenhouse_biomes[hive.greenhouse ?? '']?.color ?? content.biomes[hive.biome].color;
   const queen = hive.queen;
   const species = queen ? content.species[queen.genome.species[0]] : null;
   const status = STATUS[hive.status];
   return (
     <div className="scene" data-phase={state.world.phase} data-weather={weather}>
       <span className="astre" />
-      <span className="ground" style={{ background: `#${content.biomes[hive.biome].color}` }} />
-      <HiveArt alveary={hive.hive_type === 'alveary'} />
+      <span className="ground" style={{ background: `#${ground}` }} />
+      <HiveArt alveary={hive.hive_type === 'alveary'} robo={hive.hive_type === 'robo'} />
       {hive.status === 'working' &&
         species &&
         [0, 1, 2].map((i) => (
@@ -210,6 +211,41 @@ function Scene({ hive }: { hive: Hive }) {
   );
 }
 
+/** Robo-ruche : les cadres à garder montés, remplacés depuis la réserve puis achetés au marché. */
+function RoboLoadout({ hive, stage }: { hive: Hive; stage: number }) {
+  const { content, act } = useGame();
+  const saved = hive.loadout ?? [];
+  const [draft, setDraft] = useState<string[]>(() => Array.from({ length: hive.slots }, (_, i) => saved[i] ?? ''));
+  const changed = draft.filter(Boolean).join() !== saved.join();
+  const set = (i: number, m: string) => setDraft(draft.map((d, j) => (j === i ? m : d)));
+  return (
+    <div className="upgrade-box robo-loadout">
+      <div>
+        <b>🤖 Configuration des cadres</b>
+        <div className="muted">
+          Un cadre usé est remplacé depuis la réserve
+          {stage >= 2 ? ', ou acheté au marché si la réserve est vide.' : ' (achat au marché : étape « Chaîne de montage »).'}
+        </div>
+      </div>
+      <div className="loadout-slots">
+        {draft.map((m, i) => (
+          <select key={i} value={m} onChange={(e) => set(i, e.target.value)} aria-label={`Emplacement ${i + 1}`}>
+            <option value="">— vide —</option>
+            {Object.entries(content.modules).map(([id, mod]) => (
+              <option key={id} value={id}>
+                {content.items[id]?.label ?? id} · {mod.desc}
+              </option>
+            ))}
+          </select>
+        ))}
+      </div>
+      <button className="primary compact" disabled={!changed} onClick={() => act(`/hives/${hive.id}/loadout`, { modules: draft.filter(Boolean) })}>
+        Appliquer
+      </button>
+    </div>
+  );
+}
+
 function HiveCard({ hive }: { hive: Hive }) {
   const { content, state, act } = useGame();
   const [picking, setPicking] = useState(false);
@@ -228,6 +264,9 @@ function HiveCard({ hive }: { hive: Hive }) {
   const queen = hive.queen;
   const biome = content.biomes[hive.biome];
   const greenhouseStage = state.projects?.greenhouse?.stage ?? 0;
+  const roboticsStage = state.projects?.robotics?.stage ?? 0;
+  const greenhouseBiome = content.greenhouse_biomes[hive.greenhouse ?? ''];
+  const next = content.evolutions[hive.hive_type];
 
   const collect = async () => {
     const combs = outputs.reduce((n, [, q]) => n + q, 0);
@@ -249,8 +288,11 @@ function HiveCard({ hive }: { hive: Hive }) {
               {BIOME_ICONS[hive.biome]} {biome.label}
             </span>
             {hive.greenhouse && (
-              <span className="chip" title="Sous serre : température choisie, à l'abri de la pluie">
-                🌡️ Serre · {content.temp_labels[hive.greenhouse]}
+              <span
+                className="chip"
+                title={greenhouseBiome ? `Biome de serre : ${greenhouseBiome.desc}` : "Sous serre : température choisie, à l'abri de la pluie"}
+              >
+                🌡️ Serre · {greenhouseBiome?.label ?? content.temp_labels[hive.greenhouse]}
               </span>
             )}
             {hive.modules.map((m, i) => (
@@ -351,13 +393,17 @@ function HiveCard({ hive }: { hive: Hive }) {
                 <span className="muted">Aucun cadre monté. Les cadres s'achètent en boutique.</span>
               )}
             </div>
-            {hive.upgrade_cost && (
+            {hive.loadout && <RoboLoadout hive={hive} stage={roboticsStage} />}
+            {hive.upgrade_cost && next && (
               <div className="upgrade-box">
                 <div>
-                  <b>Faire évoluer en alvéaire</b>
+                  <b>Faire évoluer en {content.hive_types[next].label.toLowerCase()}</b>
                   <div className="muted">
-                    Garde la reine, la récolte, les cadres et le biome. Passe à {content.hive_types.alveary.slots} emplacements (jusqu'à{' '}
-                    {content.hive_types.alveary.max_slots}), production ×{content.hive_types.alveary.production}, et accepte tous les modules.
+                    Garde la reine, la récolte, les cadres et le biome. Passe à {content.hive_types[next].slots} emplacements (jusqu'à{' '}
+                    {content.hive_types[next].max_slots}), production ×{String(content.hive_types[next].production).replace('.', ',')}
+                    {next === 'robo'
+                      ? ', avec élevage automatique intégré et des cadres configurés qui se remplacent seuls.'
+                      : ', et accepte tous les modules.'}
                   </div>
                 </div>
                 <div className="row">
@@ -367,6 +413,9 @@ function HiveCard({ hive }: { hive: Hive }) {
                   </button>
                 </div>
               </div>
+            )}
+            {next === 'robo' && !hive.upgrade_cost && (
+              <span className="muted">🤖 Le grand projet « L'ère de la robotique » permettra de la faire évoluer en robo-ruche.</span>
             )}
             {hive.slot_cost !== null && (
               <div>
@@ -384,11 +433,22 @@ function HiveCard({ hive }: { hive: Hive }) {
                   aria-label="Température sous serre"
                 >
                   <option value="">Hors serre (climat du biome)</option>
-                  {(content.projects.greenhouse_temps[String(Math.min(greenhouseStage, 3))] ?? []).map((t) => (
-                    <option key={t} value={t}>
-                      {content.temp_labels[t]}
-                    </option>
-                  ))}
+                  <optgroup label="Température">
+                    {(content.projects.greenhouse_temps[String(Math.min(greenhouseStage, 3))] ?? []).map((t) => (
+                      <option key={t} value={t}>
+                        {content.temp_labels[t]}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Biomes de serre">
+                    {Object.entries(content.greenhouse_biomes)
+                      .filter(([, b]) => b.stage <= greenhouseStage)
+                      .map(([id, b]) => (
+                        <option key={id} value={id}>
+                          {b.label} ({content.temp_labels[b.temp]})
+                        </option>
+                      ))}
+                  </optgroup>
                 </select>
               </label>
             )}
@@ -506,7 +566,7 @@ export default function ApiaryPage() {
 
   return (
     <>
-      <PageHead title="Rucher">
+      <PageHead guide="ruches" title="Rucher">
         Accouplez une princesse et un faux-bourdon pour obtenir une reine. Elle produit des rayons pendant sa vie, puis laisse une
         princesse et des faux-bourdons qui héritent de ses gènes, parfois avec une mutation. Chaque espèce a son climat : achetez en
         boutique des ruches dans d'autres biomes. Certaines mutations n'arrivent qu'à une heure, par un temps ou dans un lieu précis :

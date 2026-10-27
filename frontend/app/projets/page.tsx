@@ -8,7 +8,7 @@ export default function ProjectsPage() {
 
   return (
     <>
-      <PageHead title="Grands projets">
+      <PageHead guide="projets" title="Grands projets">
         De grands chantiers en trois étapes, qui avalent des ressources de toutes vos branches. Donnez au fur et à mesure : une étape
         s'achève dès que tout ce qu'elle demande est réuni, et son effet s'applique aussitôt.
       </PageHead>

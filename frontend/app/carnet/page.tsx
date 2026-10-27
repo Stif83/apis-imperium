@@ -110,6 +110,7 @@ export default function CarnetPage() {
   return (
     <>
       <PageHead
+        guide="trophees"
         title="Carnet de l'apiculteur"
         extra={
           <span className="row">

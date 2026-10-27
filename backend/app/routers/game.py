@@ -44,6 +44,10 @@ class ModuleIn(BaseModel):
     module_id: str
 
 
+class LoadoutIn(BaseModel):
+    modules: list[str] = Field(default_factory=list, max_length=20)
+
+
 class HiveIn(BaseModel):
     name: str | None = None
     keep_drones: bool | None = None
@@ -230,6 +234,12 @@ def add_module(hive_id: str, body: ModuleIn, game: Game = Depends(current_game))
 @router.delete("/hives/{hive_id}/modules/{index}")
 def remove_module(hive_id: str, index: int, game: Game = Depends(current_game)):
     game.remove_module(hive_id, index)
+    return _done(game)
+
+
+@router.post("/hives/{hive_id}/loadout")
+def set_loadout(hive_id: str, body: LoadoutIn, game: Game = Depends(current_game)):
+    game.set_loadout(hive_id, body.modules)
     return _done(game)
 
 

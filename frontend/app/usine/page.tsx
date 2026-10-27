@@ -54,7 +54,7 @@ export default function FactoryPage() {
 
   return (
     <>
-      <PageHead title="Centrifugeuse">
+      <PageHead guide="centrifugeuse" title="Centrifugeuse">
         Centrifugez les rayons récoltés pour en tirer du miel et des ressources. À la main, maintenez le bouton {HOLD_SECONDS} secondes
         par rayon. Chaque centrifugeuse automatique traite un rayon par cycle ({state.cycle_seconds} s), même en votre absence. Coupez-les
         ou décochez « Auto » sur un rayon pour le garder en stock, pour une commande du Comptoir par exemple.

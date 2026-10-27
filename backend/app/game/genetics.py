@@ -60,7 +60,7 @@ def hive_mods(hive_type: str, biome: str, modules: list[str], base_temp: str | N
         "production": HIVE_TYPES[hive_type]["production"],
         "lifespan": 1.0,
         "mutation": 1.0,
-        "automation": False,
+        "automation": HIVE_TYPES[hive_type].get("automated", False),
         "light": False,
         "shelter": False,
     }

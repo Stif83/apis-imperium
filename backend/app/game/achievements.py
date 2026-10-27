@@ -36,6 +36,7 @@ ACHIEVEMENTS = {
     "snow_worker": ("Abeille des neiges", "Avoir une ruche au travail sous la neige.", "❄️", False, 150),
     "all_biomes": ("Globe-trotteuse", "Posséder une ruche dans chaque biome.", "🗺️", False, 400),
     "full_alveary": ("Tour de miel", "Agrandir un alvéaire au maximum.", "🗼", False, 800),
+    "first_robo": ("Rouages et pollen", "Faire évoluer un alvéaire en robo-ruche.", "🤖", False, 1500),
     # Laboratoire
     "first_extract": ("Échantillon", "Extraire un premier gène.", "🧪", False, 50),
     "first_imprint": ("Docteur Abeille", "Imprimer des gènes sur une abeille.", "🔬", False, 100),

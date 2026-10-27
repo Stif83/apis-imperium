@@ -28,6 +28,21 @@ BIOMES = {
 # Ruches offertes au départ ; les autres biomes s'achètent en boutique
 STARTER_BIOMES = ["plains", "plains"]
 
+# Biomes qu'on ne trouve que sous serre : une ruche sous serre peut en reproduire un au lieu d'une
+# simple température. `stage` : étape de la serre climatique qui l'ouvre.
+GREENHOUSE_BIOMES = {
+    "mangrove_swamp": {"label": "Mangrove", "temp": "warm", "color": "4e8f5a", "stage": 1,
+                       "desc": "Des racines dans l'eau tiède, sous une brume qui ne se lève jamais."},
+    "hanging_gardens": {"label": "Jardins suspendus", "temp": "normal", "color": "9ccc65", "stage": 1,
+                        "desc": "Des terrasses de fleurs et de vergers qui débordent les unes sur les autres."},
+    "crystal_cave": {"label": "Grotte de cristal", "temp": "cold", "color": "9fa8da", "stage": 2,
+                     "desc": "Une caverne fraîche aux parois couvertes de cristaux."},
+    "forge": {"label": "Forge", "temp": "hellish", "color": "bf360c", "stage": 2,
+              "desc": "Une fonderie brûlante où le métal coule jour et nuit."},
+    "star_dome": {"label": "Dôme étoilé", "temp": "icy", "color": "283593", "stage": 3,
+                  "desc": "Une coupole glacée ouverte sur le ciel nocturne."},
+}
+
 CHROMOSOMES = {
     "species": "Espèce",
     "speed": "Vitesse",
@@ -293,6 +308,12 @@ SPECIES = _species([
     ("clockwork", "Horlogère", "Mécaniques", "bf9b30", "normal", "normal", "normal", [("comb_mechanical", 0.35), ("gear", 0.06)], {"secondary": "5d4037", "activity": "cathemeral"}),
     ("steam", "À vapeur", "Mécaniques", "6d4c41", "hot", "slow", "normal", [("comb_mechanical", 0.30), ("coal", 0.15)], {"secondary": "bdbdbd", "tolerance": "one"}),
     ("electric", "Électrique", "Mécaniques", "29b6f6", "normal", "fast", "short", [("comb_mechanical", 0.30), ("comb_storm", 0.20), ("energy", 0.08)], {"secondary": "ffee58", "weatherproof": "yes"}),
+    ("robotic", "Robotique", "Mécaniques", "78909c", "normal", "fast", "long", [("comb_mechanical", 0.40), ("microprocessor", 0.06), ("circuit", 0.04)], {"secondary": "00e676", "activity": "cathemeral", "weatherproof": "yes", "tolerance": "two", "dominant": False}),
+    ("mangal", "Palétuvière", "Serricoles", "4e8f5a", "warm", "normal", "long", [("comb_silky", 0.35), ("comb_mossy", 0.25), ("dew", 0.12)], {"secondary": "a5d6a7", "weatherproof": "yes"}),
+    ("hanging", "Suspendue", "Serricoles", "9ccc65", "normal", "fast", "normal", [("comb_floral", 0.40), ("petal", 0.20), ("fruit", 0.12)], {"secondary": "f8bbd0"}),
+    ("geodic", "Géodique", "Serricoles", "9fa8da", "cold", "slow", "longer", [("comb_frozen", 0.30), ("comb_rocky", 0.30), ("quartz", 0.15), ("lapis", 0.04)], {"secondary": "e8eaf6", "tolerance": "one"}),
+    ("smith", "Forgeronne", "Serricoles", "bf360c", "hellish", "normal", "long", [("comb_simmering", 0.40), ("iron", 0.15), ("gold", 0.04)], {"secondary": "ffab40", "dominant": False}),
+    ("starlit", "Firmamentale", "Serricoles", "283593", "icy", "normal", "longer", [("comb_nocturnal", 0.40), ("stardust", 0.15), ("moonstone", 0.04)], {"secondary": "fff59d", "activity": "nocturnal", "tolerance": "one", "dominant": False}),
     ("cyber", "Cybernétique", "Mécaniques", "00e5ff", "normal", "faster", "normal", [("comb_mechanical", 0.40), ("circuit", 0.06)], {"secondary": "263238", "activity": "cathemeral", "weatherproof": "yes", "dominant": False}),
     ("erratic", "Erratique", "Chaotiques", "cddc39", "normal", "normal", "short", [("comb_chaotic", 0.25)], {"secondary": "7b1fa2", "stability": "erratic"}),
     ("mutant", "Mutante", "Chaotiques", "76ff03", "normal", "normal", "short", [("comb_chaotic", 0.35), ("chaos_shard", 0.03)], {"secondary": "d500f9", "stability": "chaotic"}),
@@ -528,6 +549,13 @@ def _mutations():
         ("floe", "aurora", "boread", 0.05, {"sanctuary": 2}),
         ("mirage", "rainbow", "morgana", 0.05, {"sanctuary": 2}),
         ("imperatrix", "sylph", "aeterna", 0.02, {"sanctuary": 3, "trait": {"stability": "pure"}}),
+        # Biomes de serre
+        ("edenic", "boggy", "mangal", 0.08, {"biome": "mangrove_swamp"}),
+        ("orchard", "sylvan", "hanging", 0.08, {"biome": "hanging_gardens"}),
+        ("wintry", "granite", "geodic", 0.07, {"biome": "crystal_cave"}),
+        ("volcanic", "iron", "smith", 0.06, {"biome": "forge"}),
+        ("snowy", "astral", "starlit", 0.05, {"biome": "star_dome"}),
+        ("smith", "cyber", "robotic", 0.04, {"biome": "forge"}),
     ]
     for a, b, result, chance, cond in rows:
         # Avant la 1.4, la seule condition possible était la température de la ruche
@@ -651,6 +679,7 @@ ITEMS = {
         ("petal", "Pétales", "f48fb1", 5),
         ("gear", "Engrenage", "bf9b30", 20),
         ("circuit", "Circuit", "00e5ff", 45),
+        ("microprocessor", "Microprocesseur", "00e676", 80),
         ("chaos_shard", "Fragment de chaos", "aa00ff", 50),
         ("primordial_essence", "Essence primordiale", "4a148c", 200),
         ("imperial_jelly", "Gelée impériale", "ffc107", 300),
@@ -737,7 +766,14 @@ MODULES = {
 HIVE_TYPES = {
     "apiary": {"label": "Rucher", "slots": 2, "max_slots": 2, "frames_only": True, "production": 1.0},
     "alveary": {"label": "Alvéaire", "slots": 4, "max_slots": 8, "frames_only": False, "production": 1.2},
+    # Évolution d'un alvéaire (projet « L'ère de la robotique ») : élevage automatique intégré et cadres configurés
+    "robo": {"label": "Robo-ruche", "slots": 6, "max_slots": 10, "frames_only": False, "production": 1.6, "automated": True},
 }
+# Ce que devient chaque type de ruche quand on la fait évoluer
+EVOLUTIONS = {"apiary": "alveary", "alveary": "robo"}
+# Prix d'une robo-ruche, multiplié par ROBO_SCALE pour chaque robo-ruche déjà possédée
+ROBO_COST = {"honey": 150000, "items": {"microprocessor": 30, "circuit": 20, "gold": 20}}
+ROBO_SCALE = 1.5
 SLOT_COST = 400
 SLOT_SCALE = 1.5
 
@@ -764,7 +800,7 @@ def _offers():
         out.append({"id": f"bee:{s}:princess", "kind": "bee", "species": s, "type": "princess", "honey": princess, **extra})
         out.append({"id": f"bee:{s}:drone", "kind": "bee", "species": s, "type": "drone", "honey": drone, **extra})
     out += [
-        {"id": "hive:apiary", "kind": "hive", "hive_type": "apiary", "honey": 80, "scale": 1.5, "free": len(STARTER_BIOMES)},
+        {"id": "hive:apiary", "kind": "hive", "hive_type": "apiary", "honey": 80, "scale": 1.5},
         {"id": "hive:alveary", "kind": "hive", "hive_type": "alveary", "honey": 1200, "items": {"wax": 40, "honeydew": 10}, "scale": 1.4},
         {"id": "item:frame_untreated", "kind": "item", "item": "frame_untreated", "honey": 30, "items": {"wax": 3}},
         {"id": "item:frame_impregnated", "kind": "item", "item": "frame_impregnated", "honey": 120, "items": {"propolis": 5}},
@@ -791,7 +827,6 @@ def _offers():
 
 OFFERS = _offers()
 
-IMPRINT_HONEY_PER_GENE = 50
 SHOWCASE_MAX_ENTRIES = 12
 
 _PHASE_TEXT = {
@@ -810,6 +845,8 @@ def cond_text(cond: dict) -> str:
     for key, val in cond.items():
         if key == "temp":
             parts.append(f"ruche « {TEMP_LABELS[val]} »")
+        elif key == "biome" and val in GREENHOUSE_BIOMES:
+            parts.append(f"sous serre « {GREENHOUSE_BIOMES[val]['label']} »")
         elif key == "biome":
             parts.append(f"biome {BIOMES[val]['label']}")
         elif key == "phase":
@@ -891,6 +928,8 @@ def public_content() -> dict:
         "temps": TEMPS,
         "temp_labels": TEMP_LABELS,
         "biomes": BIOMES,
+        "greenhouse_biomes": GREENHOUSE_BIOMES,
+        "evolutions": EVOLUTIONS,
         "chromosomes": CHROMOSOMES,
         "alleles": ALLELES,
         "species": SPECIES,
@@ -903,7 +942,6 @@ def public_content() -> dict:
         "machines": MACHINES,
         "offers": list(OFFERS.values()),
         "bee_sell": BEE_SELL,
-        "imprint_honey_per_gene": IMPRINT_HONEY_PER_GENE,
         "showcase_max_entries": SHOWCASE_MAX_ENTRIES,
         "world": public_world(),
         "achievements": public_achievements(),

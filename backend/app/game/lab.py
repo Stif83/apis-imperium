@@ -97,24 +97,31 @@ def fragments_needed(chromosome: str, allele: str) -> int:
     return {"common": 2, "medium": 4, "rare": 6}[rarity(chromosome, allele)]
 
 
+# Prix d'impression par gène selon sa rareté ; un gène d'espèce demande aussi des rayons de l'espèce
+IMPRINT_COSTS = {
+    "common": {"honey": 500, "items": {}},
+    "medium": {"honey": 1500, "items": {"propolis": 6}},
+    "rare": {"honey": 4000, "items": {"royal_jelly": 6}},
+    "species": {"honey": 10000, "items": {"royal_jelly": 9}},
+}
+IMPRINT_LABWARE = 2
+IMPRINT_SPECIES_COMBS = 15
+
+
 def imprint_cost(genes: dict[str, str]) -> dict:
-    """Prix d'une impression : verrerie, miel par gène, ressources selon la rareté."""
-    items: dict[str, int] = {"labware": 1}
+    """Prix d'une impression : verrerie, puis miel et ressources selon la rareté de chaque gène."""
+    honey, items = 0, {"labware": IMPRINT_LABWARE}
     for chromosome, allele in genes.items():
-        kind = rarity(chromosome, allele)
-        extra: dict[str, int] = {}
-        if kind == "medium":
-            extra = {"propolis": 2}
-        elif kind == "rare":
-            extra = {"royal_jelly": 2}
-        elif kind == "species":
-            extra = {"royal_jelly": 3}
+        cost = IMPRINT_COSTS[rarity(chromosome, allele)]
+        honey += cost["honey"]
+        extra = dict(cost["items"])
+        if chromosome == "species":
             comb = next((item for item, _ in C.SPECIES[allele]["products"] if C.ITEMS[item]["category"] == "comb"), None)
             if comb:
-                extra[comb] = 5
+                extra[comb] = IMPRINT_SPECIES_COMBS
         for item, n in extra.items():
             items[item] = items.get(item, 0) + n
-    return {"honey": 50 * len(genes), "items": items}
+    return {"honey": honey, "items": items}
 
 
 def replicate_cost(chromosome: str, allele: str) -> dict:
@@ -142,4 +149,5 @@ def public_lab() -> dict:
             for c in C.CHROMOSOMES
         },
         "rarity": {c: {a: rarity(c, a) for a in C.ALLELES[c]} for c in C.ALLELES},
+        "imprint": {"costs": IMPRINT_COSTS, "labware": IMPRINT_LABWARE, "species_combs": IMPRINT_SPECIES_COMBS},
     }

@@ -358,7 +358,9 @@ def test_lab_rarity():
     assert LAB.fragments_needed("species", "imperatrix") == 8
     assert LAB.can_extract(1, "speed") and not LAB.can_extract(1, "species") and LAB.can_extract(3, "species")
     cost = LAB.imprint_cost({"species": "noble"})
-    assert cost["items"]["comb_dripping"] == 5 and cost["items"]["royal_jelly"] == 3
+    assert cost == {"honey": 10000, "items": {"labware": 2, "royal_jelly": 9, "comb_dripping": 15}}
+    assert LAB.imprint_cost({"speed": "normal", "activity": "cathemeral"}) == {
+        "honey": 4500, "items": {"labware": 2, "royal_jelly": 6}}
 
 
 def test_rescue(game):
@@ -944,3 +946,92 @@ def test_sanctuary(game):
     game.p.projects = {**game.p.projects, "sanctuary": {"stage": 2, "given": {}}}
     game.advance(10)
     assert boosted > sum(hive.output.values())
+
+
+def test_hive_and_slot_prices_are_shared(game):
+    game.p.honey = 10 ** 7
+    for item in ("wax", "honeydew"):
+        game.add_item(item, 10_000)
+    apiary, alveary = C.OFFERS["hive:apiary"], C.OFFERS["hive:alveary"]
+    first_apiary, first_alveary = game.offer_cost(apiary)["honey"], game.offer_cost(alveary)["honey"]
+    assert first_apiary == apiary["honey"] and first_alveary == alveary["honey"]
+    # Un alvéaire fait monter le prix d'un rucher, et inversement
+    game.buy("hive:alveary")
+    assert game.offer_cost(apiary)["honey"] > first_apiary
+    after_alveary = game.offer_cost(alveary)["honey"]
+    game.buy("hive:apiary")
+    assert game.offer_cost(alveary)["honey"] > after_alveary
+
+    # Emplacements : chaque ajout renchérit ceux de toutes les ruches
+    a = game.hives[-2]
+    game.buy("hive:alveary")
+    b = game.hives[-1]
+    assert game.slot_cost(a) == game.slot_cost(b) == C.SLOT_COST
+    game.expand(a.id)
+    assert game.slot_cost(b) == round(C.SLOT_COST * C.SLOT_SCALE)
+
+
+def test_greenhouse_biomes_open_mutations(game):
+    hive = game.hives[0]
+    game.add_item("alveary_heater", 1)
+    _give_stage(game, "greenhouse")
+    with pytest.raises(GameError):
+        game.update_hive(hive.id, None, None, greenhouse="forge")  # étape 2
+    game.update_hive(hive.id, None, None, greenhouse="mangrove_swamp")
+    assert game._biome(hive) == "mangrove_swamp" and game._mods(hive)["temp"] == "warm"
+    assert game.state()["hives"][0]["greenhouse"] == "mangrove_swamp"
+    # Les espèces de serre ne naissent que dans leur biome de serre
+    game.add_bee("princess", G.pure_genome("edenic"))
+    game.add_bee("drone", G.pure_genome("boggy"))
+    mutation = next(m for m in C.MUTATIONS if m["result"] == "mangal")
+    ctx = game._hive_ctx(hive, game._mods(hive), 0, game._world_ctx())
+    assert G.cond_ok(mutation["cond"], ctx)
+    game.update_hive(hive.id, None, None, greenhouse="")
+    ctx = game._hive_ctx(hive, game._mods(hive), 0, game._world_ctx())
+    assert not G.cond_ok(mutation["cond"], ctx) and "Mangrove" in mutation["cond_text"]
+    for sid in ("mangal", "hanging", "geodic", "smith", "starlit", "robotic"):
+        assert any(m["result"] == sid for m in C.MUTATIONS)
+
+
+def test_robo_hive(game):
+    hive = game.hives[0]
+    game.p.honey = 10 ** 7
+    for item in ("wax", "honeydew", "propolis"):
+        game.add_item(item, 10_000)
+    game.upgrade_hive(hive.id)
+    assert game.upgrade_cost(hive) is None  # il faut l'atelier d'assemblage
+    with pytest.raises(GameError):
+        game.upgrade_hive(hive.id)
+    _give_stage(game, "robotics")
+    cost = game.upgrade_cost(hive)
+    assert cost["honey"] == C.ROBO_COST["honey"]
+    for item, n in cost["items"].items():
+        game.add_item(item, n)
+    game.add_item("frame_untreated", 1)
+    game.add_module(hive.id, "frame_untreated")
+    game.upgrade_hive(hive.id)
+    assert hive.hive_type == "robo" and hive.slots == C.HIVE_TYPES["robo"]["slots"]
+    assert game._mods(hive)["automation"] and hive.settings["loadout"] == ["frame_untreated"]
+    assert "first_robo" in game.p.achievements
+
+    # Configuration : on démonte ce qui n'en fait pas partie, on monte ce qui manque depuis la réserve
+    game.add_item("frame_impregnated", 2)
+    game.set_loadout(hive.id, ["frame_impregnated", "frame_impregnated"])
+    assert sorted(hive.modules) == ["frame_impregnated", "frame_impregnated"] and game.qty("frame_untreated") == 1
+    with pytest.raises(GameError):
+        game.set_loadout(hive.id, ["frame_proven"] * 7)
+
+    # Un cadre usé est remplacé depuis la réserve, puis acheté au marché à l'étape 2
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
+    game.add_item("frame_impregnated", 2)
+    for _ in range(5):
+        game.advance(hive.queen["health"])
+    assert hive.modules.count("frame_impregnated") == 2 and game.qty("frame_impregnated") == 0
+    honey = game.p.honey
+    for _ in range(5):
+        game.advance(hive.queen["health"])
+    assert hive.modules == []  # étape 1 : réserve vide, pas d'achat
+    _give_stage(game, "robotics")
+    game._restock(hive)
+    assert hive.modules.count("frame_impregnated") == 2 and game.p.honey < honey
+    assert game.p.stats["robo_buys"] >= 1

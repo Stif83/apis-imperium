@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useGame } from '@/lib/game';
 import type { Bee, BeeType, Content, Cost, Genome } from '@/lib/types';
@@ -72,8 +73,8 @@ export function climateFit(content: Content, genome: Genome, hiveTemp: string): 
 
 export const BIOME_ICONS: Record<string, string> = { plains: '🌼', taiga: '🌲', tundra: '🧊', jungle: '🌴', desert: '🌵' };
 
-/** Titre de page ; l'explication est rangée derrière un bouton « ? ». */
-export function PageHead({ title, children, extra }: { title: ReactNode; children?: ReactNode; extra?: ReactNode }) {
+/** Titre de page ; l'explication est rangée derrière un bouton « ? », avec un lien vers la section `guide` de l'aide. */
+export function PageHead({ title, children, extra, guide }: { title: ReactNode; children?: ReactNode; extra?: ReactNode; guide?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -86,7 +87,16 @@ export function PageHead({ title, children, extra }: { title: ReactNode; childre
         )}
         {extra}
       </div>
-      {open && <div className="help-text">{children}</div>}
+      {open && (
+        <div className="help-text">
+          {children}
+          {guide && (
+            <div>
+              <Link href={`/aide#${guide}`}>Tout savoir dans l'aide →</Link>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }

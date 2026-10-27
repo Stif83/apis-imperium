@@ -31,7 +31,7 @@ CATEGORIES = {
 }
 
 FIRSTS = ("first_install", "first_harvest", "first_mutation", "first_manual", "first_extract", "first_imprint")
-CURIOSITIES = ("hybrid", "pure_stability", "chaotic_stability", "full_alveary")
+CURIOSITIES = ("hybrid", "pure_stability", "chaotic_stability", "full_alveary", "first_robo")
 ELEMENTS = ("night_worker", "storm_worker", "snow_worker")
 
 
@@ -89,7 +89,7 @@ def _trophies() -> list[dict]:
            "events:firsts", [(1, 20, None), (3, 60, None), (5, 150, None), (len(FIRSTS), 300, None)]),
         _t("dynasty", "breeding", "Dynastie", "🏰", "Génération de reine la plus haute atteinte", "generation",
            [(5, 50, None), (10, 200, None), (25, 800, None), (50, 2000, {"royal_jelly": 5})]),
-        _t("curious", "breeding", "Curiosités", "🔀", "Hybride, lignée pure, lignée chaotique, alvéaire au maximum",
+        _t("curious", "breeding", "Curiosités", "🔀", "Hybride, lignée pure, lignée chaotique, alvéaire au maximum, robo-ruche",
            "events:curiosities", [(1, 50, None), (2, 300, None), (3, 800, None), (len(CURIOSITIES), 1500, None)]),
         _t("elements", "breeding", "Brave les éléments", "⛈️", "Ruche au travail la nuit, sous l'orage, sous la neige",
            "events:elements", [(1, 100, None), (2, 200, None), (len(ELEMENTS), 400, None)]),

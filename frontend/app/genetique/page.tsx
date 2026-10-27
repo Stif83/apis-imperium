@@ -11,18 +11,22 @@ const LEVEL_ICONS = ['🔒', '🧪', '🔬', '🧬'];
 type Tab = 'extract' | 'imprint' | 'bank' | 'lab';
 
 /** Même calcul que le serveur (lab.imprint_cost), pour afficher le prix avant de lancer. */
+/** Même calcul que le serveur (lab.imprint_cost), à partir de la table de prix du contenu. */
 function imprintCost(content: Content, genes: Record<string, string>): Cost {
-  const items: Record<string, number> = { labware: 1 };
+  const table = content.lab.imprint;
+  const items: Record<string, number> = { labware: table.labware };
   const add = (item: string, n: number) => (items[item] = (items[item] ?? 0) + n);
+  let honey = 0;
   for (const [c, a] of Object.entries(genes)) {
+    const cost = table.costs[c === 'species' ? 'species' : (content.lab.rarity[c]?.[a] ?? 'common')];
+    honey += cost.honey;
+    for (const [item, n] of Object.entries(cost.items ?? {})) add(item, n);
     if (c === 'species') {
-      add('royal_jelly', 3);
       const comb = content.species[a]?.products.map(([item]) => item).find((item) => content.items[item]?.category === 'comb');
-      if (comb) add(comb, 5);
-    } else if (content.lab.rarity[c]?.[a] === 'rare') add('royal_jelly', 2);
-    else if (content.lab.rarity[c]?.[a] === 'medium') add('propolis', 2);
+      if (comb) add(comb, table.species_combs);
+    }
   }
-  return { honey: 50 * Object.keys(genes).length, items };
+  return { honey, items };
 }
 
 /** Même calcul que le serveur (lab.replicate_cost). */
@@ -499,7 +503,7 @@ export default function GeneticsPage() {
 
   return (
     <>
-      <PageHead title="Laboratoire">
+      <PageHead guide="laboratoire" title="Laboratoire">
         <b>Extraire</b> sacrifie une abeille pour un fragment de son gène actif ; il faut 2 à 8 fragments selon la rareté pour compléter un
         gène, qui offre alors {content.lab.doses} doses. <b>Imprimer</b> (niveau 2) remplace la copie active d'un gène d'une abeille et
         consomme une dose. Chaque paillasse mène une opération à la fois.

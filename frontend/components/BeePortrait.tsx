@@ -67,6 +67,7 @@ const ANATOMY: Record<string, Anatomy> = {
   Terroirs: A({ antennae: 'antlers' }),
   Florales: A({ eyes: 'big', antennae: 'curly' }),
   Sociales: A({ head: 'small', antennae: 'short' }),
+  Serricoles: A({ eyes: 'big', antennae: 'curly', thorax: 'mane' }),
   Recluses: A({ head: 'hood', eyes: 'tiny', antennae: 'short' }),
   Mécaniques: A({ head: 'helmet', eyes: 'visor', antennae: 'bolt', body: 'segmented', thorax: 'plate', legs: 'thick', tail: 'drill' }),
   Chaotiques: A({ head: 'big', eyes: 'glow', antennae: 'curly', body: 'segmented' }),

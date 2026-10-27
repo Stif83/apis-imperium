@@ -77,6 +77,7 @@ export const BRANCH_LORE: Record<string, string> = {
   Terroirs: 'Les abeilles de terroir sont façonnées par leur paysage : dunes, cimes, canopée ou steppe.',
   Florales: 'Les florales vivent au milieu des fleurs et des vergers, dont elles portent le parfum.',
   Sociales: 'Les sociales forment d’immenses colonies et produisent sans relâche.',
+  Serricoles: 'Les serricoles ne vivent que sous verrière : chacune est née d’un biome recréé de main d’apiculteur.',
   Recluses: 'Les recluses vivent seules et longtemps ; elles transmettent fidèlement leurs caractères.',
   Mécaniques: 'Les mécaniques mêlent l’abeille et l’horlogerie, dans un cliquetis permanent.',
   Chaotiques: 'Les chaotiques mutent à tout va : on ne sait jamais ce que donnera leur descendance.',

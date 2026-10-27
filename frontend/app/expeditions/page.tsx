@@ -42,7 +42,7 @@ export default function ExpeditionsPage() {
   if (stage < 1)
     return (
       <>
-        <PageHead title="Expéditions">Envoyez des équipes d'abeilles explorer des régions hostiles, et rapportez butin et espèces sauvages.</PageHead>
+        <PageHead guide="expeditions" title="Expéditions">Envoyez des équipes d'abeilles explorer des régions hostiles, et rapportez butin et espèces sauvages.</PageHead>
         <div className="notice">
           Il faut d'abord construire le <b>Poste d'expédition</b>, dans les <Link href="/projets">Grands projets</Link>.
         </div>
@@ -55,7 +55,7 @@ export default function ExpeditionsPage() {
 
   return (
     <>
-      <PageHead title="Expéditions">
+      <PageHead guide="expeditions" title="Expéditions">
         Chaque abeille est notée selon la région : climat toléré, résistance à la pluie, activité dans l'obscurité, endurance. Plus l'équipe
         est adaptée, plus la réussite est probable. Au retour : butin, parfois un fragment de gène rare, parfois une espèce sauvage. En cas
         d'échec, chaque abeille a {pct(content.expeditions.loss_chance)} de risque de ne pas revenir.
