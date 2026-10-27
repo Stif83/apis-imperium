@@ -2,7 +2,7 @@
 
 import { Outputs } from '@/components/apidex';
 import { HoldButton } from '@/components/HoldButton';
-import { CostView, ItemIcon, ItemQty, PageHead, Switch, fmt } from '@/components/ui';
+import { CostView, ItemIcon, ItemQty, PageHead, SHORT, Switch, canAfford, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
 
 const HOLD_SECONDS = 3;
@@ -87,7 +87,12 @@ export default function FactoryPage() {
         </div>
         <div className="factory-buy">
           <CostView cost={offer.cost} />
-          <button className="primary" onClick={() => act('/shop/buy', { offer_id: 'machine:centrifuge' })}>
+          <button
+            className="primary"
+            disabled={!!offer.lock || !canAfford(state, offer.cost)}
+            title={offer.lock ?? (canAfford(state, offer.cost) ? undefined : SHORT)}
+            onClick={() => act('/shop/buy', { offer_id: 'machine:centrifuge' })}
+          >
             {hasAuto ? 'Ajouter une centrifugeuse' : 'Acheter une centrifugeuse'}
           </button>
         </div>

@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { BeeIcon } from '@/components/BeeIcon';
 import { HiveArt } from '@/components/HiveArt';
-import { BIOME_ICONS, CostView, Honey, ItemIcon, PageHead, Traits, fmt } from '@/components/ui';
+import { BIOME_ICONS, CostView, Honey, ItemIcon, PageHead, SHORT, Traits, canAfford, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
 import type { Offer } from '@/lib/types';
 
@@ -21,9 +21,9 @@ const QUANTITIES = [1, 5, 10];
 function Buy({ offer, qty = 1, biome, compact, children }: { offer: Offer; qty?: number; biome?: string; compact?: boolean; children: ReactNode }) {
   const { act, state } = useGame();
   const { cost, lock } = state.offers[offer.id];
-  const short = state.player.honey < cost.honey * qty || Object.entries(cost.items).some(([i, n]) => (state.inventory[i] ?? 0) < n * qty);
+  const short = !canAfford(state, cost, qty);
   return (
-    <button className={`primary${compact ? ' compact' : ''}`} disabled={!!lock || short} title={lock ?? undefined} onClick={() => act('/shop/buy', { offer_id: offer.id, qty, biome })}>
+    <button className={`primary${compact ? ' compact' : ''}`} disabled={!!lock || short} title={lock ?? (short ? SHORT : undefined)} onClick={() => act('/shop/buy', { offer_id: offer.id, qty, biome })}>
       {children}
     </button>
   );

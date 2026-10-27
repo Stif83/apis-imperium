@@ -18,6 +18,7 @@ export function Donations({
 }) {
   const { content, state } = useGame();
   const have = (item: string) => (item === 'honey' ? state.player.honey : state.inventory[item] ?? 0);
+  const canGive = needs.some(([item, need]) => need > given(item) && have(item) > 0);
   // « Tout donner » : chaque part reçoit ce qu'on peut lui donner
   const giveAll = async () => {
     for (const [item, need] of needs) {
@@ -62,7 +63,12 @@ export function Donations({
       </div>
       {needs.some(([item, need]) => need > given(item)) && (
         <div>
-          <button className="primary compact" onClick={giveAll}>
+          <button
+            className="primary compact"
+            disabled={!canGive}
+            title={canGive ? undefined : 'Rien en stock de ce qui manque'}
+            onClick={giveAll}
+          >
             Tout donner
           </button>
         </div>

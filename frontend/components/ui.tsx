@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useGame } from '@/lib/game';
-import type { Bee, BeeType, Content, Cost, Genome } from '@/lib/types';
+import type { Bee, BeeType, Content, Cost, GameState, Genome } from '@/lib/types';
 import { BeeIcon } from './BeeIcon';
 
 export const TYPE_LABELS: Record<BeeType, string> = { princess: 'Princesse', drone: 'Faux-bourdon', queen: 'Reine' };
@@ -261,6 +262,15 @@ export function ItemQty({ id, qty }: { id: string; qty?: number }) {
   );
 }
 
+/** Vrai si le joueur a de quoi payer `times` fois ce prix (miel et objets). */
+export function canAfford(state: GameState, cost: Cost | null | undefined, times = 1): boolean {
+  if (!cost) return false;
+  return state.player.honey >= (cost.honey ?? 0) * times && Object.entries(cost.items ?? {}).every(([i, n]) => (state.inventory[i] ?? 0) >= n * times);
+}
+
+/** Message d'un bouton d'achat grisé faute de moyens. */
+export const SHORT = 'Pas assez de miel ou de ressources';
+
 export function CostView({ cost, times = 1 }: { cost: Cost; times?: number }) {
   const { state } = useGame();
   return (
@@ -294,6 +304,96 @@ export function GenomeIcon({ genome, type, size }: { genome: Genome; type: BeeTy
   const { content } = useGame();
   const species = content.species[genome.species[0]];
   return <BeeIcon species={genome.species[0]} color={species?.color ?? '888888'} secondary={species?.secondary ?? 'ffdc16'} type={type} size={size} />;
+}
+
+const plain = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+
+/** Vrai si l'abeille correspond à la recherche : espèces, branche, type ou gènes actifs, sans tenir compte des accents. */
+export function beeMatches(content: Content, bee: { type: BeeType; genome: Genome }, query: string): boolean {
+  const words = plain(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const [active, inactive] = bee.genome.species;
+  const text = plain(
+    [
+      content.species[active]?.label,
+      content.species[inactive]?.label,
+      content.species[active]?.branch,
+      TYPE_LABELS[bee.type],
+      ...Object.keys(content.chromosomes).map((c) => (bee.genome[c] ? alleleLabel(content, c, bee.genome[c][0]) : '')),
+    ].join(' '),
+  );
+  return words.every((w) => text.includes(w));
+}
+
+/** Champ de recherche d'abeilles, avec le nombre de résultats. */
+export function BeeSearch({ value, onChange, shown, total }: { value: string; onChange: (v: string) => void; shown: number; total: number }) {
+  return (
+    <span className="bee-search">
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Rechercher : espèce, branche, gène (rapide, nocturne…)"
+        aria-label="Rechercher une abeille"
+      />
+      {value && (
+        <span className="muted">
+          {shown} / {total}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * Bulle « ⓘ » qui affiche tous les gènes d'une abeille, au survol ou au toucher. Elle est rendue à la racine
+ * de la page, en position fixe, pour ne pas être coupée par les listes qui défilent ni passer sous les tuiles.
+ */
+export function GenesTip({ genome, className = '' }: { genome: Genome; className?: string }) {
+  const anchor = useRef<HTMLSpanElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const show = () => {
+    const r = anchor.current?.getBoundingClientRect();
+    if (!r) return;
+    const width = 260;
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, r.left + r.width / 2 - width / 2));
+    // Sous l'icône, ou au-dessus s'il n'y a plus la place en bas
+    const top = r.bottom + 230 > window.innerHeight ? Math.max(8, r.top - 230) : r.bottom + 6;
+    setPos({ top, left });
+  };
+  const hide = () => setPos(null);
+  useEffect(() => {
+    if (!pos) return;
+    window.addEventListener('scroll', hide, true);
+    return () => window.removeEventListener('scroll', hide, true);
+  }, [pos]);
+  return (
+    <span
+      ref={anchor}
+      className={`genes-tip ${className}`}
+      role="button"
+      tabIndex={0}
+      aria-label="Voir ses gènes"
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (pos) hide();
+        else show();
+      }}
+    >
+      ⓘ
+      {pos &&
+        createPortal(
+          <span className="genes-pop" style={{ top: pos.top, left: pos.left }} role="tooltip">
+            <GenomeTable genome={genome} />
+          </span>,
+          document.body,
+        )}
+    </span>
+  );
 }
 
 export function GenomeTable({ genome }: { genome: Genome }) {

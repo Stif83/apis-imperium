@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { CostView, GenomeIcon, Honey, ItemIcon, PageHead, Switch, TYPE_LABELS, alleleLabel, fmt } from '@/components/ui';
+import { BeeSearch, CostView, GenesTip, GenomeIcon, Honey, ItemIcon, PageHead, SHORT, Switch, TYPE_LABELS, alleleLabel, beeMatches, canAfford, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
 import type { Bee, Content, Cost } from '@/lib/types';
 
@@ -69,6 +69,7 @@ export default function GeneticsPage() {
   const [gene, setGene] = useState('speed');
   const [chain, setChain] = useState(true);
   const [target, setTarget] = useState('');
+  const [beeQuery, setBeeQuery] = useState('');
   const [genes, setGenes] = useState<Record<string, string>>({});
 
   const labware = state.inventory.labware ?? 0;
@@ -147,10 +148,18 @@ export default function GeneticsPage() {
             <ItemIcon id="labware" size={16} /> Verrerie ×{fmt(labware)}
           </span>
           <span className="row" style={{ gap: 4 }}>
-            <button className="small" onClick={() => act('/shop/buy', { offer_id: 'item:labware', qty: 1 })} disabled={level < 1}>
+            <button
+              className="small"
+              onClick={() => act('/shop/buy', { offer_id: 'item:labware', qty: 1 })}
+              disabled={level < 1 || !canAfford(state, state.offers['item:labware'].cost)}
+            >
               +1 (<Honey amount={state.offers['item:labware'].cost.honey} />)
             </button>
-            <button className="small" onClick={() => act('/shop/buy', { offer_id: 'item:labware', qty: 10 })} disabled={level < 1}>
+            <button
+              className="small"
+              onClick={() => act('/shop/buy', { offer_id: 'item:labware', qty: 10 })}
+              disabled={level < 1 || !canAfford(state, state.offers['item:labware'].cost, 10)}
+            >
               +10
             </button>
           </span>
@@ -290,28 +299,33 @@ export default function GeneticsPage() {
     const bee: Bee | undefined = bees.find((b) => b.id === target);
     const chosen = Object.fromEntries(Object.entries(genes).filter(([c, a]) => a && canImprint(c)));
     const usable = Object.entries(content.chromosomes).filter(([c]) => canImprint(c) && Object.values(state.gene_bank[c] ?? {}).some((d) => d > 0));
+    const shownBees = bees.filter((b) => beeMatches(content, b, beeQuery));
     return (
       <div className="imprint-layout">
         <div className="stack">
           <div className="title">1 · L'abeille à modifier</div>
           {bees.length === 0 && <p className="muted">Aucune abeille en réserve.</p>}
+          {bees.length > 0 && <BeeSearch value={beeQuery} onChange={setBeeQuery} shown={shownBees.length} total={bees.length} />}
           <div className="bee-tiles">
-            {bees.map((b) => (
-              <button
-                key={b.id}
-                className={`bee-tile-pick${b.id === target ? ' selected' : ''}`}
-                onClick={() => {
-                  setTarget(b.id);
-                  setGenes({});
-                }}
-              >
-                <GenomeIcon genome={b.genome} type={b.type} size={36} />
-                <span>{content.species[b.genome.species[0]]?.label}</span>
-                <span className="muted">
-                  {TYPE_LABELS[b.type]} ×{b.count}
-                </span>
-              </button>
+            {shownBees.map((b) => (
+              <span key={b.id} className="tile-wrap">
+                <button
+                  className={`bee-tile-pick${b.id === target ? ' selected' : ''}`}
+                  onClick={() => {
+                    setTarget(b.id);
+                    setGenes({});
+                  }}
+                >
+                  <GenomeIcon genome={b.genome} type={b.type} size={36} />
+                  <span>{content.species[b.genome.species[0]]?.label}</span>
+                  <span className="muted">
+                    {TYPE_LABELS[b.type]} ×{b.count}
+                  </span>
+                </button>
+                <GenesTip genome={b.genome} />
+              </span>
             ))}
+            {shownBees.length === 0 && bees.length > 0 && <p className="muted">Aucune abeille ne correspond.</p>}
           </div>
         </div>
 
@@ -365,7 +379,8 @@ export default function GeneticsPage() {
                 <CostView cost={imprintCost(content, chosen)} />
                 <button
                   className="primary"
-                  disabled={Object.keys(chosen).length === 0 || busy}
+                  disabled={Object.keys(chosen).length === 0 || busy || !canAfford(state, imprintCost(content, chosen))}
+                  title={Object.keys(chosen).length && !canAfford(state, imprintCost(content, chosen)) ? SHORT : undefined}
                   onClick={async () => {
                     if (await act('/genetics/imprint', { bee_id: bee.id, genes: chosen })) {
                       setTarget('');
@@ -410,7 +425,7 @@ export default function GeneticsPage() {
                   {level >= 2 && (
                     <button
                       className="small"
-                      disabled={busy}
+                      disabled={busy || !canAfford(state, replicateCost(need(c, allele)))}
                       title={`Répliquer : +${content.lab.doses} doses · ${replicateCost(need(c, allele)).honey} miel, 2 verreries, 1 gelée royale`}
                       onClick={() => act('/genetics/replicate', { chromosome: c, allele })}
                     >
@@ -456,7 +471,12 @@ export default function GeneticsPage() {
                   </span>
                   <CostView cost={l.cost} />
                   {nextUp && (
-                    <button className="primary" disabled={state.discovered.length < l.min_species} onClick={() => act('/genetics/upgrade')}>
+                    <button
+                      className="primary"
+                      disabled={state.discovered.length < l.min_species || !canAfford(state, l.cost)}
+                      title={canAfford(state, l.cost) ? undefined : SHORT}
+                      onClick={() => act('/genetics/upgrade')}
+                    >
                       {level ? 'Améliorer' : 'Construire'}
                     </button>
                   )}
@@ -487,7 +507,12 @@ export default function GeneticsPage() {
                   ) : (
                     <>
                       <CostView cost={offer.cost} />
-                      <button className="primary" onClick={() => act('/shop/buy', { offer_id: `machine:${id}` })}>
+                      <button
+                        className="primary"
+                        disabled={!canAfford(state, offer.cost)}
+                        title={canAfford(state, offer.cost) ? undefined : SHORT}
+                        onClick={() => act('/shop/buy', { offer_id: `machine:${id}` })}
+                      >
                         Acheter
                       </button>
                     </>

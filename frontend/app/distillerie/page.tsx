@@ -1,7 +1,7 @@
 'use client';
 
 import { ActiveEffects } from '@/components/Effects';
-import { CostView, ItemIcon, PageHead, fmt } from '@/components/ui';
+import { CostView, ItemIcon, PageHead, SHORT, canAfford, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
 
 export default function DistilleryPage() {
@@ -27,7 +27,12 @@ export default function DistilleryPage() {
           </div>
           <div className="factory-buy">
             <CostView cost={offer.cost} />
-            <button className="primary" disabled={!!offer.lock} onClick={() => act('/shop/buy', { offer_id: 'machine:distillery' })}>
+            <button
+              className="primary"
+              disabled={!!offer.lock || !canAfford(state, offer.cost)}
+              title={offer.lock ?? (canAfford(state, offer.cost) ? undefined : SHORT)}
+              onClick={() => act('/shop/buy', { offer_id: 'machine:distillery' })}
+            >
               Construire la distillerie
             </button>
           </div>
@@ -51,7 +56,12 @@ export default function DistilleryPage() {
               </div>
               <CostView cost={elixir.cost} />
               <div className="row" style={{ gap: 6 }}>
-                <button className="primary compact" disabled={!owned} onClick={() => act('/distillery/brew', { elixir_id: id, qty: 1 })}>
+                <button
+                  className="primary compact"
+                  disabled={!owned || !canAfford(state, elixir.cost)}
+                  title={!owned ? 'Construisez d’abord la distillerie' : canAfford(state, elixir.cost) ? undefined : SHORT}
+                  onClick={() => act('/distillery/brew', { elixir_id: id, qty: 1 })}
+                >
                   Distiller
                 </button>
                 <button className="compact" disabled={stock < 1} onClick={() => act('/distillery/drink', { elixir_id: id })}>

@@ -4,18 +4,23 @@ import { useState } from 'react';
 import { ActiveEffects } from '@/components/Effects';
 import {
   BIOME_ICONS,
+  BeeSearch,
   BeeSheet,
   BeeTile,
   CostView,
+  GenesTip,
   GenomeIcon,
   GenomeTable,
   Honey,
   ItemIcon,
   ItemQty,
   PageHead,
+  SHORT,
   TYPE_LABELS,
   Traits,
   WEATHER_ICONS,
+  beeMatches,
+  canAfford,
   climateFit,
   fmt,
   groupBees,
@@ -58,6 +63,10 @@ function InstallSheet({ hive, onClose }: { hive: Hive; onClose: () => void }) {
   };
   const usable = princesses.filter((p) => p.fit === 0).length;
   const temp = content.temp_labels[hive.mods.temp];
+  const [princessQuery, setPrincessQuery] = useState('');
+  const [droneQuery, setDroneQuery] = useState('');
+  const shownPrincesses = princesses.filter(({ bee }) => beeMatches(content, bee, princessQuery));
+  const shownDrones = drones.filter((bee) => beeMatches(content, bee, droneQuery));
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -74,30 +83,39 @@ function InstallSheet({ hive, onClose }: { hive: Hive; onClose: () => void }) {
           </button>
         </div>
 
-        <div className="title">1. La princesse</div>
+        <div className="row between">
+          <span className="title">1. La princesse</span>
+          <BeeSearch value={princessQuery} onChange={setPrincessQuery} shown={shownPrincesses.length} total={princesses.length} />
+        </div>
         {usable === 0 && (
           <div className="notice">
             Aucune de vos princesses ne supporte le climat « {temp} ». Achetez une ruche dans un autre biome, ou une princesse adaptée.
           </div>
         )}
         <div className="grid tiles">
-          {princesses.map(({ bee, fit }) => (
-            <button
-              key={bee.id}
-              className={`bee-tile${bee.id === princessId ? ' selected' : ''}`}
-              disabled={fit !== 0}
-              title={fit === 0 ? undefined : fit < 0 ? 'Trop froid pour elle ici' : 'Trop chaud pour elle ici'}
-              onClick={() => choosePrincess(bee.id)}
-            >
-              <GenomeIcon genome={bee.genome} type="princess" size={44} />
-              <span className="name">{content.species[bee.genome.species[0]]?.label}</span>
-              {fit === 0 ? <Traits genome={bee.genome} /> : <span className="badge info">{fit < 0 ? '🥶 Trop froid' : '🥵 Trop chaud'}</span>}
-              <span className="count">×{bee.count}</span>
-            </button>
+          {shownPrincesses.map(({ bee, fit }) => (
+            <span key={bee.id} className="tile-wrap">
+              <button
+                className={`bee-tile${bee.id === princessId ? ' selected' : ''}`}
+                disabled={fit !== 0}
+                title={fit === 0 ? undefined : fit < 0 ? 'Trop froid pour elle ici' : 'Trop chaud pour elle ici'}
+                onClick={() => choosePrincess(bee.id)}
+              >
+                <GenomeIcon genome={bee.genome} type="princess" size={44} />
+                <span className="name">{content.species[bee.genome.species[0]]?.label}</span>
+                {fit === 0 ? <Traits genome={bee.genome} /> : <span className="badge info">{fit < 0 ? '🥶 Trop froid' : '🥵 Trop chaud'}</span>}
+                <span className="count">×{bee.count}</span>
+              </button>
+              <GenesTip genome={bee.genome} />
+            </span>
           ))}
+          {shownPrincesses.length === 0 && princesses.length > 0 && <p className="muted">Aucune princesse ne correspond.</p>}
         </div>
 
-        <div className="title">2. Le faux-bourdon</div>
+        <div className="row between">
+          <span className="title">2. Le faux-bourdon</span>
+          <BeeSearch value={droneQuery} onChange={setDroneQuery} shown={shownDrones.length} total={drones.length} />
+        </div>
         {princess && princess.genome.species[0] !== princess.genome.species[1] && (
           <div className="help-text">
             Cette princesse est hybride : ses descendants risquent de retourner à l'espèce{' '}
@@ -107,19 +125,23 @@ function InstallSheet({ hive, onClose }: { hive: Hive; onClose: () => void }) {
           </div>
         )}
         <div className="grid tiles">
-          {drones.map((bee) => {
+          {shownDrones.length === 0 && drones.length > 0 && <p className="muted">Aucun faux-bourdon ne correspond.</p>}
+          {shownDrones.map((bee) => {
             const fixes =
               princess &&
               bee.genome.species[0] === princess.genome.species[0] &&
               bee.genome.species[1] === princess.genome.species[0];
             return (
-              <button key={bee.id} className={`bee-tile${bee.id === droneId ? ' selected' : ''}`} onClick={() => setDroneId(bee.id)}>
-                <GenomeIcon genome={bee.genome} type="drone" size={44} />
-                <span className="name">{content.species[bee.genome.species[0]]?.label}</span>
-                <Traits genome={bee.genome} />
-                {fixes && <span className="badge ok">Fixe l'espèce</span>}
-                <span className="count">×{bee.count}</span>
-              </button>
+              <span key={bee.id} className="tile-wrap">
+                <button className={`bee-tile${bee.id === droneId ? ' selected' : ''}`} onClick={() => setDroneId(bee.id)}>
+                  <GenomeIcon genome={bee.genome} type="drone" size={44} />
+                  <span className="name">{content.species[bee.genome.species[0]]?.label}</span>
+                  <Traits genome={bee.genome} />
+                  {fixes && <span className="badge ok">Fixe l'espèce</span>}
+                  <span className="count">×{bee.count}</span>
+                </button>
+                <GenesTip genome={bee.genome} />
+              </span>
             );
           })}
         </div>
@@ -409,7 +431,12 @@ function HiveCard({ hive }: { hive: Hive }) {
                 </div>
                 <div className="row">
                   <CostView cost={hive.upgrade_cost} />
-                  <button className="primary compact" onClick={() => act(`/hives/${hive.id}/upgrade`)}>
+                  <button
+                    className="primary compact"
+                    disabled={!canAfford(state, hive.upgrade_cost)}
+                    title={canAfford(state, hive.upgrade_cost) ? undefined : SHORT}
+                    onClick={() => act(`/hives/${hive.id}/upgrade`)}
+                  >
                     Faire évoluer
                   </button>
                 </div>
@@ -420,7 +447,12 @@ function HiveCard({ hive }: { hive: Hive }) {
             )}
             {hive.slot_cost !== null && (
               <div>
-                <button className="small" onClick={() => act(`/hives/${hive.id}/expand`)}>
+                <button
+                  className="small"
+                  disabled={state.player.honey < hive.slot_cost}
+                  title={state.player.honey < hive.slot_cost ? 'Pas assez de miel' : undefined}
+                  onClick={() => act(`/hives/${hive.id}/expand`)}
+                >
                   + 1 emplacement (<Honey amount={hive.slot_cost} />)
                 </button>
               </div>

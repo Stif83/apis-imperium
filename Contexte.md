@@ -807,6 +807,16 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
 - 3 trophées (Conservateur, Bâtisseur de la Ruche-monde, Maître distillateur) ; composant partagé `Donations`.
 - Vérifié : 46 tests, pages dans un navigateur en local, sauvegarde de la prod avant déploiement.
 
+## Demande du 2026-10-27 (3) : recherche d'abeilles, bulle des gènes, boutons grisés (1.14.0 et 1.14.1, déployées)
+
+- Recherche d'abeilles (`BeeSearch`, `beeMatches` dans `ui.tsx`) : espèces, branche, type et gènes actifs, sans
+  accents ; dans l'impression du labo et à l'installation d'une reine (princesses et faux-bourdons).
+- Bulle « ⓘ » (`GenesTip`) sur chaque tuile : tableau complet des gènes au survol ou au toucher, rendue dans un
+  portail en position fixe pour ne pas être coupée par les listes.
+- Boutons d'achat et de don grisés quand on ne peut pas payer (`canAfford`) : boutique, centrifugeuse, labo,
+  distillerie, évolutions et emplacements des ruches, « Tout donner ».
+- Frontend seul (backend 1.13.0). Vérifié dans un navigateur sur la pile locale.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre
