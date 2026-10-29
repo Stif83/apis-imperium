@@ -104,11 +104,7 @@ main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 64px; }
 
 .honey { display: inline-flex; align-items: center; gap: 5px; font-weight: 800; color: var(--honey); }
 .lacking .honey { color: var(--danger); }
-.honey-drop {
-  width: 10px; height: 10px; background: var(--accent);
-  border-radius: 0 50% 50% 50%; transform: rotate(45deg);
-  box-shadow: inset -1px -1px 0 var(--accent-shadow);
-}
+.honey-drop { flex: none; }
 
 /* ---------- commandes ---------- */
 button, select, input, textarea {
@@ -165,7 +161,7 @@ select { max-width: 100%; }
 
 .bee-head { display: flex; align-items: center; gap: 10px; }
 .bee-icon { image-rendering: pixelated; flex: none; }
-.item-icon { flex: none; }
+.item-icon { flex: none; image-rendering: pixelated; }
 
 .genome { width: 100%; border-collapse: collapse; font-size: 13px; }
 .genome th { text-align: left; font-weight: 600; color: var(--muted); padding: 2px 8px 2px 0; }
@@ -242,23 +238,18 @@ button.hold { position: relative; overflow: hidden; flex: 1; user-select: none; 
 .hive-card > .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
 .scene {
   position: relative; height: 150px; overflow: hidden;
-  background: linear-gradient(180deg, var(--sky)); transition: background 2s;
+  background: linear-gradient(180deg, var(--sky)) center bottom / cover;
+  image-rendering: pixelated;
 }
 .scene[data-phase='day'] { --sky: var(--sky-day); }
 .scene[data-phase='dawn'] { --sky: var(--sky-dawn); }
 .scene[data-phase='dusk'] { --sky: var(--sky-dusk); }
 .scene[data-phase='night'] { --sky: var(--sky-night); }
-.scene[data-weather='rain'], .scene[data-weather='storm'], .scene[data-weather='snow'] { filter: saturate(0.6) brightness(0.92); }
-.scene .ground { position: absolute; inset: auto 0 0 0; height: 34px; border-radius: 50% 50% 0 0 / 30% 30% 0 0; }
-.scene .astre { position: absolute; top: 16px; right: 24px; width: 38px; height: 38px; border-radius: 50%; }
-.scene[data-phase='day'] .astre, .scene[data-phase='dawn'] .astre { background: #ffd75a; box-shadow: 0 0 0 9px rgba(255, 233, 163, 0.45); }
-.scene[data-phase='dusk'] .astre { background: #ff9a5a; top: 40px; }
-.scene[data-phase='night'] .astre { background: #f4ecd2; box-shadow: -9px -3px 0 0 #2c386f inset; }
 .scene .hive-art { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); width: 92px; }
 .scene .fly { position: absolute; animation: buzz 2.4s ease-in-out infinite; }
 .scene .zz { position: absolute; font: 700 18px var(--display); color: #e7ecff; animation: zz 2.4s linear infinite; }
-.scene .drop { position: absolute; top: -12px; width: 2px; height: 12px; background: rgba(220, 235, 255, 0.85); border-radius: 2px; animation: rain 0.8s linear infinite; }
-.scene .flake { position: absolute; top: -8px; width: 6px; height: 6px; background: #fff; border-radius: 50%; animation: snow 3s linear infinite; }
+.scene .drop { position: absolute; top: -12px; width: 2px; height: 8px; background: rgba(220, 235, 255, 0.85); animation: rain 0.8s linear infinite; }
+.scene .flake { position: absolute; top: -8px; width: 4px; height: 4px; background: #fff; animation: snow 3s linear infinite; }
 .scene .status { position: absolute; left: 10px; top: 10px; }
 .scene .weather { position: absolute; right: 10px; bottom: 40px; font-size: 13px; }
 @keyframes buzz { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(8px, -6px); } 50% { transform: translate(15px, 1px); } 75% { transform: translate(6px, 6px); } }
@@ -388,8 +379,9 @@ button.primary .honey { color: inherit; }
 .offer .title { font-size: 18px; }
 
 /* ---------- usine ---------- */
-.spin { animation: spin 1.2s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.centrifuge-art { display: block; width: 84px; height: 84px; background-size: 168px 84px; background-position: 0 0; }
+.centrifuge-art.spinning { animation: centrifuge 0.3s steps(1) infinite; }
+@keyframes centrifuge { 50% { background-position: -84px 0; } }
 
 /* ---------- génétique ---------- */
 .bee-tile.selected { box-shadow: 0 0 0 3px var(--accent); }
@@ -401,7 +393,7 @@ button.primary .honey { color: inherit; }
   border-bottom: 6px solid #c98f4a;
 }
 
-@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .centrifuge-art.spinning { animation: none; } }
 button.primary.compact { padding: 6px 10px; font-size: 14px; border-radius: 12px; }
 .link-button {
   display: inline-block; text-decoration: none; white-space: nowrap;
@@ -448,7 +440,6 @@ a.branch-bee.unknown { color: var(--muted); }
 .traits-table th { padding-right: 32px; }
 .back-link { color: var(--muted); font-weight: 700; text-decoration: none; }
 .back-link:hover { color: var(--text); }
-button.primary .honey-drop { background: var(--accent-ink); box-shadow: none; }
 
 /* ---------- Apidex : branches ---------- */
 .tier-head { display: flex; align-items: center; gap: 10px; }
@@ -780,8 +771,6 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 /* ---------- musée, ruche-monde, distillerie ---------- */
 /* Pixel art : dessiné à basse résolution, agrandi sans lissage */
 .pixel { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
-.museum-hall-card { padding: 0; overflow: hidden; margin-bottom: 12px; }
-.museum-hall { width: 100%; aspect-ratio: 240 / 96; max-height: 300px; object-fit: cover; object-position: bottom; }
 .museum-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; align-items: start; }
 .museum-card { gap: 8px; }
 .museum-card.open { grid-column: 1 / -1; }
@@ -821,3 +810,7 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
   position: fixed; z-index: 50; width: 260px; padding: 8px 10px; border-radius: 12px;
   background: var(--panel); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25); cursor: default; text-align: left;
 }
+
+/* Médailles en pixel art */
+.medal { position: relative; display: inline-block; flex: none; }
+.medal-icon { position: absolute; left: 50%; top: 64%; transform: translate(-50%, -50%); line-height: 1; }

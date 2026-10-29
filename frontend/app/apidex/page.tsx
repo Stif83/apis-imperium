@@ -215,13 +215,7 @@ export default function ApidexPage() {
               <div key={comb} className="branch-card">
                 <div className="branch-band" style={{ background: seen ? `#${item.color}` : 'var(--border)' }} />
                 <div className="row">
-                  {seen ? (
-                    <ItemIcon id={comb} size={36} />
-                  ) : (
-                    <svg className="item-icon" width={36} height={36} viewBox="0 0 16 16" aria-hidden>
-                      <polygon points="8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5" fill="var(--border)" />
-                    </svg>
-                  )}
+                  <ItemIcon id={comb} size={36} unknown={!seen} />
                   <span className="title">{seen ? item.label : 'Rayon inconnu'}</span>
                 </div>
                 {seen ? <Outputs comb={comb} /> : <div className="muted">Découvrez une abeille qui le produit pour connaître son contenu.</div>}

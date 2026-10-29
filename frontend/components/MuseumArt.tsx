@@ -29,7 +29,6 @@ const COMB = [
   'FihihihF',
   'FFFFFFFF',
 ];
-const BEE = ['..ww..', '.wwww.', 'ykyky.', 'ykykyk', '.yky..'];
 const STAR = ['.s.', 'sSs', '.s.'];
 
 const CELL = 12;
@@ -112,73 +111,4 @@ export const Vitrine = memo(function Vitrine({ exhibits, color, complete }: { ex
     [key, color, complete],
   );
   return <canvas ref={ref} className="pixel vitrine" style={{ width: w * 3, aspectRatio: `${w} / ${h}` }} aria-hidden />;
-});
-
-const HALL_W = 240;
-const HALL_H = 96;
-
-/** Hall du musée : colonnes, lumière des verrières, un socle doré par collection complète, et des abeilles qui volent. */
-export const MuseumHall = memo(function MuseumHall({ complete, total }: { complete: number; total: number }) {
-  const ref = usePixelCanvas(
-    HALL_W,
-    HALL_H,
-    (ctx, t) => {
-      // Mur et lambris
-      rect(ctx, 0, 0, HALL_W, 58, '#f3e2b3');
-      rect(ctx, 0, 0, HALL_W, 4, '#d9bf86');
-      rect(ctx, 0, 44, HALL_W, 16, '#8d5a2b');
-      for (let x = 0; x < HALL_W; x += 12) rect(ctx, x, 46, 1, 12, '#6d4320');
-      rect(ctx, 0, 44, HALL_W, 1, '#b07a3c');
-      // Verrières en arc et rayons de lumière
-      for (let x = 16; x < HALL_W; x += 52) {
-        rect(ctx, x + 4, 8, 16, 20, '#bfe3f2');
-        rect(ctx, x + 6, 6, 12, 2, '#bfe3f2');
-        rect(ctx, x + 11, 8, 2, 20, '#d9bf86');
-        rect(ctx, x + 4, 17, 16, 1, '#d9bf86');
-        ctx.globalAlpha = 0.18;
-        for (let k = 0; k < 40; k++) rect(ctx, x + 4 + k / 3, 28 + k, 16 + k / 2, 1, '#fffbe6');
-        ctx.globalAlpha = 1;
-      }
-      // Colonnes
-      for (let x = 2; x < HALL_W; x += 52) {
-        rect(ctx, x, 4, 10, 4, '#e8d9b0');
-        rect(ctx, x + 2, 8, 6, 52, '#efe3c2');
-        rect(ctx, x + 2, 8, 1, 52, '#ffffff');
-        rect(ctx, x + 7, 8, 1, 52, '#c9b88f');
-        rect(ctx, x, 58, 10, 3, '#d6c69c');
-      }
-      // Sol en damier
-      for (let y = 60; y < HALL_H; y += 4) {
-        for (let x = 0; x < HALL_W; x += 8) {
-          rect(ctx, x, y, 8, 4, (x / 8 + (y - 60) / 4) % 2 ? '#b07a3c' : '#d9a55c');
-        }
-      }
-      // Un socle par collection complète (jusqu'à 14), puis un socle vide qui attend la suivante
-      const shown = Math.min(complete, 14);
-      const slots = shown + (complete < total ? 1 : 0);
-      const gap = slots ? Math.min(16, (HALL_W - 20) / slots) : 16;
-      const start = (HALL_W - gap * slots) / 2;
-      for (let k = 0; k < slots; k++) {
-        const x = Math.round(start + k * gap);
-        rect(ctx, x, 70, 10, 14, '#e8d9b0');
-        rect(ctx, x - 1, 68, 12, 3, '#f5ecd2');
-        rect(ctx, x - 1, 83, 12, 3, '#c9b88f');
-        if (k < shown) {
-          sprite(ctx, JAR, x + 1, 58, { L: '#b8860b', G: '#fff3b0', i: '#ffc107' });
-          if (Math.floor(t / 400 + k) % 5 === 0) sprite(ctx, STAR, x + 6, 56, { s: '#fff3b0', S: '#ffffff' });
-        }
-      }
-      // Abeilles
-      for (let b = 0; b < 6; b++) {
-        const speed = 0.012 + b * 0.003;
-        const x = ((t * speed + b * 47) % (HALL_W + 20)) - 10;
-        const y = 22 + b * 6 + Math.sin(t / 300 + b * 1.7) * 5;
-        const flap = Math.floor(t / 100 + b) % 2;
-        sprite(ctx, BEE, x, y, { w: flap ? '#ffffff' : '#dfe9f5', y: '#ffd54f', k: '#3e2723' });
-      }
-    },
-    [complete, total],
-    true,
-  );
-  return <canvas ref={ref} className="pixel museum-hall" aria-hidden />;
 });

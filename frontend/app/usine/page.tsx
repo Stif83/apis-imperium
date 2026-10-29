@@ -4,22 +4,37 @@ import { Outputs } from '@/components/apidex';
 import { HoldButton } from '@/components/HoldButton';
 import { CostView, ItemIcon, ItemQty, PageHead, SHORT, Switch, canAfford, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
+import { type Ctx, pixelUrl, rect, shaded } from '@/lib/pixel';
 
 const HOLD_SECONDS = 3;
 
-/** Centrifugeuse dessinée ; le tambour tourne quand elle a du travail. */
+const PX = 28;
+
+/** Une image de la centrifugeuse : tambour aux rayons droits (0) ou en croix (1). */
+function drawCentrifuge(ctx: Ctx, frame: number) {
+  shaded(ctx, PX, PX, (x, y) => y >= 23 && y <= 26 && x >= 2 && x <= 25, '#8a5a2b');
+  shaded(ctx, PX, PX, (x, y) => y >= 3 && y <= 23 && x >= 4 && x <= 23 && !((x < 6 || x > 21) && (y < 5 || y > 21)), '#cfd8dc');
+  shaded(ctx, PX, PX, (x, y) => (x - 13.5) ** 2 + (y - 13) ** 2 <= 42, '#ffd75a', { outline: '#d48f00' });
+  for (let k = -5; k <= 5; k++) {
+    if (frame === 0) {
+      rect(ctx, 13 + k, 13, 1, 1, '#d48f00');
+      rect(ctx, 13, 13 + k, 1, 1, '#d48f00');
+    } else if (Math.abs(k) <= 4) {
+      rect(ctx, 13 + k, 13 + k, 1, 1, '#d48f00');
+      rect(ctx, 13 + k, 13 - k, 1, 1, '#d48f00');
+    }
+  }
+  rect(ctx, 12, 12, 3, 3, '#8a5a2b');
+}
+
+/** Centrifugeuse en pixel art ; le tambour tourne quand elle a du travail. */
 function Centrifuge({ spinning }: { spinning: boolean }) {
-  return (
-    <svg viewBox="0 0 80 80" width={84} height={84} aria-hidden>
-      <rect x="10" y="62" width="60" height="12" rx="4" fill="#8a5a2b" />
-      <rect x="14" y="14" width="52" height="50" rx="14" fill="#cfd8dc" stroke="#0002" strokeWidth="2" />
-      <g className={spinning ? 'spin' : ''} style={{ transformOrigin: '40px 39px' }}>
-        <circle cx="40" cy="39" r="17" fill="#ffd75a" stroke="#d48f00" strokeWidth="3" />
-        <path d="M40 22v34M23 39h34M28 27l24 24M52 27L28 51" stroke="#d48f00" strokeWidth="3" />
-      </g>
-      <circle cx="40" cy="39" r="4" fill="#8a5a2b" />
-    </svg>
-  );
+  const sheet = pixelUrl('centrifuge', PX * 2, PX, (ctx) => {
+    drawCentrifuge(ctx, 0);
+    ctx.translate(PX, 0);
+    drawCentrifuge(ctx, 1);
+  });
+  return <span className={`pixel centrifuge-art${spinning ? ' spinning' : ''}`} style={{ backgroundImage: `url(${sheet})` }} aria-hidden />;
 }
 
 /** Durée lisible pour un nombre de secondes. */

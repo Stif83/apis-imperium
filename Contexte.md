@@ -863,6 +863,16 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
   (`components/MuseumArt.tsx`).
 - Pas de migration. Vérifié : 53 tests, pile locale sur une copie de la sauvegarde dans un navigateur.
 
+## Demande du 2026-10-29 (2) : pixel art partout (frontend 1.15.1, déployée)
+
+- Musée : hall animé retiré, seules les vitrines restent (dessinées une fois).
+- Moteur `lib/pixel.ts` : `shaded` (forme ombrée en quatre tons), `pixelUrl` (dessin mis en cache en data URL,
+  calculé une fois par clé), `noise`, `usePixelCanvas` sans animation.
+- En pixel art : icônes d'objets par famille (`components/ItemArt.ts`), ruches et robo-ruche, décor des cartes
+  de ruche selon l'heure, la météo et le biome (`sceneUrl`), centrifugeuse (deux images), médailles, goutte de miel.
+  Les abeilles l'étaient déjà.
+- Backend inchangé (1.15.0).
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

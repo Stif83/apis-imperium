@@ -42,11 +42,66 @@ export function sprite(
   });
 }
 
+export type Mask = (x: number, y: number) => boolean;
+
 /**
- * Canvas de w × h pixels redessiné quand `deps` change. Avec `animate`, `draw` reçoit le temps (ms) environ
- * dix fois par seconde, et l'animation s'arrête quand l'onglet est caché ou que l'appareil demande moins de mouvement.
+ * Remplit une forme (masque de w × h pixels) avec un ombrage en quatre tons : contour sombre, reflet en haut
+ * à gauche, ombre en bas à droite. `pattern` assombrit certains pixels intérieurs (alvéoles, veines…).
  */
-export function usePixelCanvas(w: number, h: number, draw: (ctx: Ctx, t: number) => void, deps: DependencyList, animate = false) {
+export function shaded(
+  ctx: Ctx,
+  w: number,
+  h: number,
+  mask: Mask,
+  color: string,
+  opts: { x?: number; y?: number; outline?: string; pattern?: Mask } = {},
+) {
+  const { x: ox = 0, y: oy = 0 } = opts;
+  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && mask(x, y);
+  const tones = { edge: opts.outline ?? shade(color, -0.55), light: shade(color, 0.35), dark: shade(color, -0.28), deep: shade(color, -0.18) };
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!inside(x, y)) continue;
+      let c = color;
+      if (!inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1)) c = tones.edge;
+      else if (!inside(x - 2, y) || !inside(x, y - 2)) c = tones.light;
+      else if (!inside(x + 2, y) || !inside(x, y + 2)) c = tones.dark;
+      else if (opts.pattern?.(x, y)) c = tones.deep;
+      rect(ctx, ox + x, oy + y, 1, 1, c);
+    }
+  }
+}
+
+const urls = new Map<string, string>();
+
+/**
+ * Image (data URL) d'un dessin de w × h pixels, calculée une seule fois par clé : des centaines d'icônes ne
+ * coûtent qu'autant de dessins qu'il y a d'objets différents. Chaîne vide côté serveur.
+ */
+export function pixelUrl(key: string, w: number, h: number, draw: (ctx: Ctx) => void): string {
+  const hit = urls.get(key);
+  if (hit !== undefined) return hit;
+  if (typeof document === 'undefined') return '';
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  ctx.imageSmoothingEnabled = false;
+  draw(ctx);
+  const url = canvas.toDataURL();
+  urls.set(key, url);
+  return url;
+}
+
+/** Bruit déterministe 0..1, pour disperser étoiles, brins de paille ou touffes d'herbe toujours au même endroit. */
+export function noise(x: number, y: number, seed = 0) {
+  const n = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+/** Canvas de w × h pixels, redessiné quand `deps` change. */
+export function usePixelCanvas(w: number, h: number, draw: (ctx: Ctx) => void, deps: DependencyList) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current;
@@ -55,24 +110,9 @@ export function usePixelCanvas(w: number, h: number, draw: (ctx: Ctx, t: number)
     canvas.width = w;
     canvas.height = h;
     ctx.imageSmoothingEnabled = false;
-    const paint = (t: number) => {
-      ctx.clearRect(0, 0, w, h);
-      draw(ctx, t);
-    };
-    paint(0);
-    const still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!animate || still) return;
-    let frame = 0;
-    let last = 0;
-    const loop = (t: number) => {
-      frame = requestAnimationFrame(loop);
-      if (document.hidden || t - last < 100) return;
-      last = t;
-      paint(t);
-    };
-    frame = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frame);
+    ctx.clearRect(0, 0, w, h);
+    draw(ctx);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [w, h, animate, ...deps]);
+  }, [w, h, ...deps]);
   return ref;
 }

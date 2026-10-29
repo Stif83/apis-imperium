@@ -15,7 +15,7 @@ export type Species = {
   /** Espèce sauvage : région d'expédition où on la trouve */
   wild?: string;
 };
-export type Item = { label: string; category: 'comb' | 'resource' | 'consumable' | 'module'; color: string; sell: number };
+export type Item = { label: string; category: 'comb' | 'resource' | 'consumable' | 'module' | 'elixir'; color: string; sell: number };
 export type Offer = {
   id: string;
   kind: 'bee' | 'hive' | 'item' | 'machine' | 'unlock' | 'sapling' | 'plot';

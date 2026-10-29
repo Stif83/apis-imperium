@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { BRANCH_LORE } from '@/components/apidex';
 import { Donations, donePercent } from '@/components/Donations';
-import { type Exhibit, MuseumHall, Vitrine } from '@/components/MuseumArt';
+import { type Exhibit, Vitrine } from '@/components/MuseumArt';
 import { PageHead, fmt } from '@/components/ui';
 import { useGame } from '@/lib/game';
 
@@ -46,12 +46,8 @@ export default function MuseumPage() {
       >
         Une vitrine par branche : tout ce que ses abeilles produisent, {fmt(content.late.museum.comb_need)} rayons de chaque sorte et des
         ressources selon leur rareté. Chaque bocal se remplit au fil des dons. Une collection complète fait produire les abeilles de sa
-        branche ×{String(bonus).replace('.', ',')}, pour toujours, et gagne son socle doré dans le hall. Les dons sont définitifs.
+        branche ×{String(bonus).replace('.', ',')}, pour toujours, et sa vitrine se dore. Les dons sont définitifs.
       </PageHead>
-
-      <div className="card museum-hall-card">
-        <MuseumHall complete={done.size} total={branches.length} />
-      </div>
 
       <div className="museum-grid">
         {order.map((branch) => {

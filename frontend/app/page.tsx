@@ -28,7 +28,7 @@ import {
   speciesName,
   type BeeGroup,
 } from '@/components/ui';
-import { HiveArt } from '@/components/HiveArt';
+import { HiveArt, sceneUrl } from '@/components/HiveArt';
 import { useGame } from '@/lib/game';
 import { pedigreeLevel, pedigreeMissing } from '@/lib/trophies';
 import type { Bee, Hive } from '@/lib/types';
@@ -202,9 +202,12 @@ function Scene({ hive }: { hive: Hive }) {
   const species = queen ? content.species[queen.genome.species[0]] : null;
   const status = STATUS[hive.status];
   return (
-    <div className="scene" data-phase={state.world.phase} data-weather={weather}>
-      <span className="astre" />
-      <span className="ground" style={{ background: `#${ground}` }} />
+    <div
+      className="scene"
+      data-phase={state.world.phase}
+      data-weather={weather}
+      style={{ backgroundImage: `url(${sceneUrl(state.world.phase, weather, ground)})` }}
+    >
       <HiveArt alveary={hive.hive_type === 'alveary'} robo={hive.hive_type === 'robo'} />
       {hive.status === 'working' &&
         species &&

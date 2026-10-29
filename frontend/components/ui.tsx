@@ -6,6 +6,8 @@ import { createPortal } from 'react-dom';
 import { useContent, useGame } from '@/lib/game';
 import type { Bee, BeeType, Content, Cost, GameState, Genome } from '@/lib/types';
 import { BeeIcon } from './BeeIcon';
+import { ITEM_PX, drawItem } from './ItemArt';
+import { pixelUrl, sprite } from '@/lib/pixel';
 
 export const TYPE_LABELS: Record<BeeType, string> = { princess: 'Princesse', drone: 'Faux-bourdon', queen: 'Reine' };
 
@@ -220,35 +222,23 @@ export function Switch({ on, onChange, label, title }: { on: boolean; onChange: 
   );
 }
 
+/** Goutte de miel en pixel art. */
+const DROP = ['...o...', '..obo..', '.obbbo.', 'obwbbbo', 'obwbbdo', 'obbbbdo', '.obddo.', '..ooo..'];
+
 export function Honey({ amount }: { amount: number }) {
+  const src = pixelUrl('honey-drop', 7, 8, (ctx) => sprite(ctx, DROP, 0, 0, { o: '#a86a00', b: '#ffb300', w: '#fff3b0', d: '#e08e00' }));
   return (
     <span className="honey">
-      <span className="honey-drop" />
+      <img className="pixel honey-drop" src={src} width={10} height={12} alt="" aria-hidden />
       {fmt(amount)}
     </span>
   );
 }
 
-export const ItemIcon = memo(function ItemIcon({ id, size = 22 }: { id: string; size?: number }) {
+export const ItemIcon = memo(function ItemIcon({ id, size = 22, unknown = false }: { id: string; size?: number; unknown?: boolean }) {
   const content = useContent();
-  const item = content.items[id];
-  const fill = `#${item?.color ?? '888888'}`;
-  const stroke = 'rgba(0,0,0,0.55)';
-  let shape: ReactNode;
-  if (item?.category === 'comb') {
-    shape = <polygon points="8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5" fill={fill} stroke={stroke} />;
-  } else if (item?.category === 'module') {
-    shape = <rect x="2" y="2" width="12" height="12" rx="2" fill={fill} stroke={stroke} />;
-  } else if (item?.category === 'consumable') {
-    shape = <path d="M6 1h4v5l4 8H2l4-8z" fill={fill} stroke={stroke} />;
-  } else {
-    shape = <circle cx="8" cy="8" r="6" fill={fill} stroke={stroke} />;
-  }
-  return (
-    <svg className="item-icon" width={size} height={size} viewBox="0 0 16 16" aria-hidden>
-      {shape}
-    </svg>
-  );
+  const src = pixelUrl(`item|${id}|${unknown}`, ITEM_PX, ITEM_PX, (ctx) => drawItem(ctx, id, content.items[id], unknown));
+  return <img className="pixel item-icon" src={src} width={size} height={size} alt="" aria-hidden />;
 });
 
 export function ItemQty({ id, qty }: { id: string; qty?: number }) {
