@@ -189,7 +189,8 @@ const GUIDES: Guide[] = [
           {Object.keys(content.alleles.stability ?? {})
             .map((a) => `${alleleLabel(content, 'stability', a)} ×${String(content.alleles.stability[a].value).replace('.', ',')}`)
             .join(', ')}
-          . Le Mutateur la double, le Stabilisateur l'annule, et le Grand télescope de l'Observatoire l'augmente encore.
+          . Le Mutateur la double, le Stabilisateur l'annule. Pour une mutation qui demande la pluie, l'orage ou la neige, le Grand
+          télescope de l'Observatoire impose cette météo sur un biome pendant {content.projects.sky.minutes} min.
         </p>
         <p>
           Une princesse qui mute naît de <b>race pure</b> : installez-la avec un faux-bourdon de sa nouvelle espèce pour garder la
@@ -292,7 +293,10 @@ const GUIDES: Guide[] = [
       <>
         <p>
           Chaque rayon donne du miel et parfois des ressources (le détail est dans l'Apidex, onglet Rayons). À la main, maintenez le
-          bouton quelques secondes par rayon. Chaque centrifugeuse automatique traite un rayon par cycle ({cycle} s), même hors ligne.
+          bouton quelques secondes : un rayon par geste, puis jusqu'à {fmt(content.manual_batches[content.manual_batches.length - 1])}{' '}
+          avec les niveaux de la <b>manivelle renforcée</b> ({content.manual_batches.join(' → ')}), payée en miel. Chaque centrifugeuse
+          automatique traite un rayon par cycle ({cycle} s), même hors ligne. Plus un rayon vient de loin dans l'arbre des mutations, plus
+          il rend de miel et de cire.
         </p>
         <p>
           L'interrupteur <b>Automatique</b> arrête ou relance toutes les centrifugeuses ; la case <b>Auto</b> d'un rayon le met de côté.
@@ -348,9 +352,9 @@ const GUIDES: Guide[] = [
       <>
         <p>
           Tout se paie en miel, parfois complété par des ressources. Le prix d'une machine augmente à chaque exemplaire possédé, miel et
-          ressources ensemble. Pour les ruches, toutes comptent ensemble : chaque ruche possédée, quel que soit son type, renchérit la
-          suivante, et un alvéaire compte en plus les alvéaires déjà possédés. Un emplacement ajouté renchérit les emplacements de toutes
-          vos ruches.
+          ressources ensemble. Pour les ruches, toutes comptent ensemble : chaque ruche achetée, quel que soit son type, renchérit
+          d'autant le rucher et l'alvéaire suivants. Faire évoluer un rucher coûte la différence avec un alvéaire. Un emplacement coûte
+          le double du précédent dans la même ruche, et un peu plus pour chaque emplacement ajouté ailleurs.
         </p>
         <p>Les espèces rares ne sont proposées qu'après un certain nombre d'espèces découvertes. Une ruche s'achète dans le biome de votre choix.</p>
       </>
@@ -366,8 +370,9 @@ const GUIDES: Guide[] = [
       <>
         <p>
           Les guildes passent commande : des ressources, une abeille aux gènes précis, ou un pedigree certifié. Une livraison rapporte du
-          miel et de la <b>réputation</b>. Un client repart au bout de {content.orders.lifetime_ms / 3600000} h, et une place libérée se
-          remplit {content.orders.refill_ms / 60000} min plus tard. Refuser une commande libère sa place.
+          miel et de la <b>réputation</b>. Un client repart au bout de {content.orders.lifetime_ms / 3600000} h. Les nouveaux clients
+          arrivent un par un, toutes les {content.orders.refill_ms / 60000} min, tant qu'une place est libre. Refuser une commande libère
+          sa place.
         </p>
         <ul>
           {Object.values(content.orders.guilds).map((g) => (
@@ -393,7 +398,7 @@ const GUIDES: Guide[] = [
     body: (content) => (
       <>
         <p>
-          Des chantiers en trois étapes. Donnez au fur et à mesure : une étape s'achève dès que tout ce qu'elle demande est réuni, et son
+          Des chantiers en plusieurs étapes. Donnez au fur et à mesure : une étape s'achève dès que tout ce qu'elle demande est réuni, et son
           effet s'applique aussitôt.
         </p>
         {Object.entries(content.projects.list).map(([id, p]) => (

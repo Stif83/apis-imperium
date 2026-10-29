@@ -50,6 +50,25 @@ REGIONS = {
         "loot": [("stardust", 1, 3), ("energy", 2, 4), ("moonstone", 0, 1)],
         "rare": [("lightning_shard", 0.10)], "gene": ("activity", "cathemeral"), "wild": "noctiluca",
     },
+    # Bout du monde : ouvert par le Grand poste
+    "sky_isles": {
+        "label": "Îles célestes", "icon": "☁️", "tier": 3, "temp": "cold", "wet": True, "dark": False, "minutes": 240,
+        "desc": "Des rochers qui flottent au-dessus des nuages, battus par des orages permanents.",
+        "loot": [("lightning_shard", 1, 3), ("stardust", 2, 5), ("energy", 4, 8), ("snowflake", 2, 5)],
+        "rare": [("diamond", 0.12), ("prism", 0.08)], "gene": ("speed", "fastest"), "wild": "zephyr",
+    },
+    "world_core": {
+        "label": "Cœur du monde", "icon": "⛏️", "tier": 3, "temp": "hellish", "wet": False, "dark": True, "minutes": 300,
+        "desc": "Au fond des plus profondes galeries, là où la roche fond et où brillent des métaux inconnus.",
+        "loot": [("uranium", 1, 3), ("platinum", 1, 3), ("refractory_wax", 5, 10), ("diamond", 0, 1)],
+        "rare": [("primordial_essence", 0.05), ("ruby", 0.15)], "gene": ("lifespan", "longest"), "wild": "magma",
+    },
+    "sunken_ruins": {
+        "label": "Cité engloutie", "icon": "🏛️", "tier": 3, "temp": "normal", "wet": True, "dark": True, "minutes": 360,
+        "desc": "Les ruines d'un ancien empire apicole, sous la mer, où dorment encore des ruches de pierre.",
+        "loot": [("amber", 2, 5), ("ender_pearl", 1, 3), ("lapis", 4, 8), ("gold", 3, 6)],
+        "rare": [("imperial_jelly", 0.05), ("emerald", 0.12)], "gene": ("fertility", "4"), "wild": "atlantean",
+    },
 }
 
 TEAM_MAX = 3
@@ -59,7 +78,7 @@ WILD_CHANCE = {1: 0.12, 2: 0.12, 3: 0.20}
 LOOT_BONUS = 1.5  # à la dernière étape du poste
 # Équipes simultanées et régions accessibles selon l'étape du Poste d'expédition
 SLOTS = {1: 1, 2: 2, 3: 3}
-TIERS = {1: 1, 2: 2, 3: 2}
+TIERS = {1: 1, 2: 2, 3: 3}
 LOG_SIZE = 8
 
 

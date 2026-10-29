@@ -834,6 +834,35 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
 - Vérifié : 49 tests (dont l'authentification avec de vrais jetons signés), diagnostic contre le Keycloak du
   cluster sans puis avec son autorité, `/api/health/auth` en ligne.
 
+## Demande du 2026-10-29 : équilibrage, Musée en pixel art (1.15.0, pas encore déployée)
+
+- Centrifugation à la main : machine « Manivelle renforcée » (miel seul, ×4 par niveau), 1 → 5 → 10 → 25 → 50
+  → 100 → 250 → 500 → 1000 rayons par geste (`content.MANUAL_BATCHES`, `Game.manual_batch`).
+- Prix des ruches : rucher et alvéaire suivent le même facteur (`HIVE_SCALE` 1,75 par ruche achetée) ; l'alvéaire ne
+  compte plus deux fois les alvéaires possédés. Faire évoluer un rucher coûte la différence (rucher + évolution =
+  alvéaire). Emplacement : 500 × 2^(ajoutés dans cette ruche) × 1,1^(ajoutés ailleurs) ; sur la sauvegarde
+  (29 ajoutés) on passe de 51 M à quelques dizaines de milliers.
+- Rayons : plus un rayon est profond dans l'arbre des mutations, plus il rend de miel et de cire (royal : 30 miel
+  + 4 cire ; mécanique, huileux, putride : 25 miel + 5 cire).
+- Pourcentage des dons (projets, Musée, Ruche-monde) : moyenne des lignes, chaque ressource compte autant.
+- Grand télescope : plus de mutation ×1,15 ; « Maître du ciel » impose pluie, orage, neige ou beau temps sur un
+  biome pendant 1 h contre des ressources d'abeilles (`projects.SKY_WEATHERS`, `/observatory/sky`,
+  `projects.observatory.sky`), prolongeable. Pris en compte par le travail des abeilles, les mutations, les
+  prévisions et la météo affichée ; les ruches sous serre n'en voient rien.
+- Serre : 4e étape « Serres artificielles » (sous serre, les abeilles travaillent à toute heure, comme avec une
+  lanterne).
+- Comptoir : les clients arrivent un par un, 20 min d'écart, quelle que soit la place libérée (`orders.next_ms`,
+  ancien format repris).
+- Module de production : ×2 au lieu de ×1,5, s'use en 10 générations au lieu de 5 (1 500 miel, 20 miellat,
+  5 gelée royale).
+- Poste d'expédition, Grand poste : trois régions du bout du monde (Îles célestes, Cœur du monde, Cité engloutie),
+  4 à 6 h, avec diamant, platine, uranium, essence primordiale, gelée impériale, et trois sauvages (Zéphyrine,
+  Magmatique, Atlante).
+- Musée en pixel art : petit moteur canvas (`lib/pixel.ts`), hall animé (abeilles, un socle doré par collection
+  complète) et une vitrine par branche dont les bocaux et rayons se remplissent au fil des dons
+  (`components/MuseumArt.tsx`).
+- Pas de migration. Vérifié : 53 tests, pile locale sur une copie de la sauvegarde dans un navigateur.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

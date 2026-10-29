@@ -332,6 +332,10 @@ SPECIES = _species([
     ("igneous", "Ignée", "Sauvages", "c2361b", "hellish", "normal", "long", [("comb_simmering", 0.45), ("phosphor", 0.15), ("sunstone", 0.02)], {"secondary": "ffb300", "wild": "volcano", "dominant": False}),
     ("benthic", "Benthique", "Sauvages", "1a3a5c", "cold", "slow", "longer", [("comb_water", 0.40), ("dye", 0.15), ("sapphire", 0.01)], {"secondary": "4dd0e1", "activity": "nocturnal", "weatherproof": "yes", "wild": "abyss"}),
     ("noctiluca", "Noctiluque", "Sauvages", "241a4a", "cold", "normal", "long", [("comb_nocturnal", 0.40), ("stardust", 0.08), ("moonstone", 0.02)], {"secondary": "9effe2", "activity": "nocturnal", "wild": "night_sky", "dominant": False}),
+    # 1.15 : sauvages des régions lointaines (dernière étape du Poste d'expédition)
+    ("zephyr", "Zéphyrine", "Sauvages", "b3d4ff", "cold", "fast", "long", [("comb_storm", 0.35), ("lightning_shard", 0.04), ("diamond", 0.01)], {"secondary": "ffffff", "weatherproof": "yes", "wild": "sky_isles", "dominant": False}),
+    ("magma", "Magmatique", "Sauvages", "8b1a00", "hellish", "normal", "longer", [("comb_simmering", 0.40), ("uranium", 0.03), ("platinum", 0.02)], {"secondary": "ff6d00", "tolerance": "one", "activity": "nocturnal", "wild": "world_core"}),
+    ("atlantean", "Atlante", "Sauvages", "00897b", "normal", "slow", "longest", [("comb_mysterious", 0.35), ("ender_pearl", 0.04), ("imperial_jelly", 0.005)], {"secondary": "ffd54f", "weatherproof": "yes", "activity": "nocturnal", "fertility": "3", "wild": "sunken_ruins", "dominant": False}),
     # 1.9 : espèces mythiques, nées au Sanctuaire de sauvages croisées à des espèces avancées
     ("salamander", "Salamandre", "Mythiques", "ff5722", "hellish", "normal", "longer", [("comb_simmering", 0.50), ("glowstone", 0.20), ("sunstone", 0.06)], {"secondary": "ffd54f", "tolerance": "one", "dominant": False}),
     ("undine", "Ondine", "Mythiques", "26c6da", "normal", "slow", "longer", [("comb_water", 0.50), ("sapphire", 0.04), ("ender_pearl", 0.03)], {"secondary": "e0f7fa", "weatherproof": "yes", "activity": "crepuscular", "dominant": False}),
@@ -711,44 +715,47 @@ ITEMS = {
     ]),
 }
 
-# Centrifugation : rayon -> [(sortie, chance, quantité)] ; "honey" est la monnaie
+# Centrifugation : rayon -> [(sortie, chance, quantité)] ; "honey" est la monnaie.
+# Plus un rayon vient de loin dans l'arbre des mutations, plus il rend de miel et de cire.
 RECIPES = {
     "comb_honey": [("honey", 0.9, 3), ("wax", 1.0, 1)],
-    "comb_dripping": [("honey", 0.4, 4), ("honeydew", 1.0, 1)],
-    "comb_stringy": [("honey", 0.4, 4), ("propolis", 1.0, 1)],
+    "comb_dripping": [("honey", 0.4, 20), ("honeydew", 1.0, 1), ("wax", 1.0, 2)],
+    "comb_stringy": [("honey", 0.4, 20), ("propolis", 1.0, 1), ("wax", 1.0, 2)],
     "comb_cocoa": [("honey", 0.5, 3), ("wax", 1.0, 1), ("cocoa", 0.5, 1)],
     "comb_simmering": [("honey", 0.5, 6), ("refractory_wax", 1.0, 1), ("phosphor", 0.7, 2)],
     "comb_parched": [("honey", 0.9, 4), ("wax", 1.0, 1)],
-    "comb_powdery": [("honey", 0.5, 5), ("gunpowder", 0.2, 1)],
+    "comb_powdery": [("honey", 0.5, 26), ("gunpowder", 0.2, 1), ("wax", 1.0, 3)],
     "comb_silky": [("honey", 1.0, 5), ("silk", 0.8, 1)],
     "comb_frozen": [("honey", 0.7, 4), ("wax", 0.8, 1), ("pollen", 0.2, 1)],
     "comb_mossy": [("honey", 0.9, 4), ("wax", 1.0, 1)],
-    "comb_wheaten": [("honey", 0.5, 3), ("wheat", 0.8, 1), ("wax", 0.2, 1)],
+    "comb_wheaten": [("honey", 0.5, 20), ("wheat", 0.8, 1), ("wax", 0.8, 3)],
     "comb_mellow": [("honey", 0.6, 5), ("honeydew", 0.6, 1), ("quartz", 0.3, 1)],
     "comb_mysterious": [("honey", 0.4, 6), ("propolis", 1.0, 1), ("ender_pearl", 0.1, 1)],
-    "comb_barren": [("honey", 0.5, 3), ("wax", 0.5, 1)],
-    "comb_rotten": [("honey", 0.2, 2), ("bone", 0.6, 1)],
+    "comb_barren": [("honey", 0.5, 26), ("wax", 1.0, 3)],
+    "comb_rotten": [("honey", 0.5, 50), ("bone", 0.6, 1), ("wax", 1.0, 5)],
     "comb_rocky": [("honey", 0.5, 4), ("clay", 0.3, 1)],
     "comb_water": [("honey", 0.6, 4), ("clay", 0.2, 1)],
-    "comb_sweet": [("honey", 1.0, 6), ("sugar", 0.4, 1)],
-    "comb_venomous": [("honey", 0.3, 5), ("venom", 0.5, 1)],
-    "comb_static": [("honey", 0.4, 6), ("energy", 0.3, 1)],
-    "comb_shadow": [("honey", 0.4, 6), ("dye", 0.3, 1)],
-    "comb_fossil": [("honey", 0.5, 6), ("coal", 0.4, 1), ("amber", 0.1, 1)],
-    "comb_oil": [("honey", 0.3, 4), ("oil", 1.0, 1)],
+    "comb_sweet": [("honey", 1.0, 13), ("sugar", 0.4, 1), ("wax", 1.0, 3)],
+    "comb_venomous": [("honey", 0.5, 20), ("venom", 0.5, 1), ("wax", 0.8, 3)],
+    "comb_static": [("honey", 0.5, 26), ("energy", 0.3, 1), ("wax", 1.0, 3)],
+    "comb_shadow": [("honey", 0.5, 12), ("dye", 0.3, 1), ("wax", 0.75, 2)],
+    "comb_fossil": [("honey", 0.5, 20), ("coal", 0.4, 1), ("amber", 0.1, 1), ("wax", 0.8, 3)],
+    "comb_oil": [("honey", 0.5, 50), ("oil", 1.0, 1), ("wax", 1.0, 5)],
     "comb_mystic": [("honey", 0.5, 7), ("wax", 0.5, 1), ("mana", 0.3, 1)],
-    "comb_nocturnal": [("honey", 0.6, 5), ("wax", 0.6, 1), ("moonstone", 0.03, 1)],
-    "comb_solar": [("honey", 0.8, 6), ("wax", 0.6, 1), ("sunstone", 0.03, 1)],
-    "comb_dawn": [("honey", 0.7, 5), ("dew", 0.5, 1), ("wax", 0.3, 1)],
-    "comb_rain": [("honey", 0.6, 4), ("dew", 0.4, 1), ("clay", 0.2, 1)],
-    "comb_storm": [("honey", 0.5, 6), ("energy", 0.2, 1), ("lightning_shard", 0.03, 1)],
-    "comb_floral": [("honey", 0.9, 5), ("petal", 0.6, 1), ("pollen", 0.2, 1)],
-    "comb_mechanical": [("honey", 0.4, 5), ("gear", 0.15, 1), ("iron", 0.1, 1)],
-    "comb_chaotic": [("honey", 0.5, 7), ("dye", 0.3, 1), ("chaos_shard", 0.04, 1)],
-    "comb_royal": [("honey", 1.0, 12), ("royal_jelly", 0.5, 1), ("imperial_jelly", 0.02, 1)],
+    "comb_nocturnal": [("honey", 0.6, 8), ("wax", 1.0, 1), ("moonstone", 0.03, 1)],
+    "comb_solar": [("honey", 0.8, 7), ("wax", 1.0, 1), ("sunstone", 0.03, 1)],
+    "comb_dawn": [("honey", 0.7, 9), ("dew", 0.5, 1), ("wax", 0.75, 2)],
+    "comb_rain": [("honey", 0.6, 8), ("dew", 0.4, 1), ("clay", 0.2, 1), ("wax", 1.0, 1)],
+    "comb_storm": [("honey", 0.5, 32), ("energy", 0.2, 1), ("lightning_shard", 0.03, 1), ("wax", 0.9, 4)],
+    "comb_floral": [("honey", 0.9, 15), ("petal", 0.6, 1), ("pollen", 0.2, 1), ("wax", 1.0, 3)],
+    "comb_mechanical": [("honey", 0.5, 50), ("gear", 0.15, 1), ("iron", 0.1, 1), ("wax", 1.0, 5)],
+    "comb_chaotic": [("honey", 0.5, 40), ("dye", 0.3, 1), ("chaos_shard", 0.04, 1), ("wax", 1.0, 4)],
+    "comb_royal": [("honey", 1.0, 30), ("royal_jelly", 0.5, 1), ("imperial_jelly", 0.02, 1), ("wax", 1.0, 4)],
 }
-# Centrifugation à la main : un rayon par geste (appui maintenu côté interface)
-MANUAL_BATCH = 1
+# Centrifugation à la main : rayons traités par geste (appui maintenu côté interface), selon le niveau
+# de la manivelle renforcée achetée en boutique
+MANUAL_BATCHES = [1, 5, 10, 25, 50, 100, 250, 500, 1000]
+MANUAL_BATCH = MANUAL_BATCHES[0]
 
 # Effets : production / lifespan / mutation sont des multiplicateurs, temp un décalage.
 # "uses" : nombre de générations (morts de reine) avant que le module s'use et disparaisse ; absent = inusable.
@@ -764,7 +771,8 @@ MODULES = {
     "alveary_fan": {"frame": False, "effects": {"temp": -1}, "desc": "Température −1 palier"},
     "alveary_stabiliser": {"frame": False, "effects": {"mutation": 0.0}, "desc": "Empêche toute mutation"},
     "alveary_mutator": {"frame": False, "effects": {"mutation": 2.0}, "desc": "Chance de mutation ×2", "uses": 5},
-    "alveary_production": {"frame": False, "effects": {"production": 1.5}, "desc": "Production ×1,5", "uses": 5},
+    # Presque un cadre éprouvé, mais deux fois plus durable
+    "alveary_production": {"frame": False, "effects": {"production": 2.0}, "desc": "Production ×2", "uses": 10},
     "alveary_lifespan": {"frame": False, "effects": {"lifespan": 0.6}, "desc": "Durée de vie ×0,6 (générations plus rapides)"},
     # Même effet que le module d'élevage, mais trois fois plus durable : il justifie son prix
     "alveary_automation": {"frame": False, "effects": {"automation": True}, "desc": "Récolte et renouvellement de la reine automatiques, très durable", "uses": 300},
@@ -781,13 +789,21 @@ EVOLUTIONS = {"apiary": "alveary", "alveary": "robo"}
 # Prix d'une robo-ruche, multiplié par ROBO_SCALE pour chaque robo-ruche déjà possédée
 ROBO_COST = {"honey": 150000, "items": {"microprocessor": 30, "circuit": 20, "gold": 20}}
 ROBO_SCALE = 1.5
-SLOT_COST = 400
-SLOT_SCALE = 1.5
+# Prix d'un emplacement : double à chaque emplacement déjà ajouté à cette ruche, et augmente un peu
+# avec tous ceux ajoutés ailleurs
+SLOT_COST = 500
+SLOT_SCALE = 2.0
+SLOT_SCALE_ALL = 1.1
+# Prix des ruches : rucher et alvéaire augmentent ensemble à chaque ruche achetée, et faire évoluer un
+# rucher coûte la différence entre les deux
+HIVE_SCALE = 1.75
 
 MACHINES = {
     "centrifuge": {"label": "Centrifugeuse automatique", "desc": "Traite 1 rayon par cycle, sans intervention."},
     "lab_bench": {"label": "Paillasse supplémentaire", "desc": "Une opération de plus en même temps au laboratoire."},
     "distillery": {"label": "Distillerie", "desc": "Distille les ressources de vos branches en élixirs aux effets temporaires."},
+    "manual_press": {"label": "Manivelle renforcée",
+                     "desc": "Plus de rayons par geste à la main : " + " → ".join(map(str, MANUAL_BATCHES)) + "."},
     "lab_chain": {"label": "Passeur d'échantillons",
                   "desc": "Extraction en chaîne : la paillasse reprend une abeille de la même pile jusqu'au gène complet."},
 }
@@ -808,8 +824,8 @@ def _offers():
         out.append({"id": f"bee:{s}:princess", "kind": "bee", "species": s, "type": "princess", "honey": princess, **extra})
         out.append({"id": f"bee:{s}:drone", "kind": "bee", "species": s, "type": "drone", "honey": drone, **extra})
     out += [
-        {"id": "hive:apiary", "kind": "hive", "hive_type": "apiary", "honey": 80, "scale": 1.5},
-        {"id": "hive:alveary", "kind": "hive", "hive_type": "alveary", "honey": 1200, "items": {"wax": 40, "honeydew": 10}, "scale": 1.4},
+        {"id": "hive:apiary", "kind": "hive", "hive_type": "apiary", "honey": 80, "scale": HIVE_SCALE},
+        {"id": "hive:alveary", "kind": "hive", "hive_type": "alveary", "honey": 1200, "items": {"wax": 40, "honeydew": 10}, "scale": HIVE_SCALE},
         {"id": "item:frame_untreated", "kind": "item", "item": "frame_untreated", "honey": 30, "items": {"wax": 3}},
         {"id": "item:frame_impregnated", "kind": "item", "item": "frame_impregnated", "honey": 120, "items": {"propolis": 5}},
         {"id": "item:frame_proven", "kind": "item", "item": "frame_proven", "honey": 400, "items": {"royal_jelly": 5}},
@@ -818,12 +834,14 @@ def _offers():
         {"id": "item:hive_shelter", "kind": "item", "item": "hive_shelter", "honey": 200, "items": {"wax": 20, "propolis": 5}},
         {"id": "item:alveary_heater", "kind": "item", "item": "alveary_heater", "honey": 300, "items": {"wax": 20}},
         {"id": "item:alveary_fan", "kind": "item", "item": "alveary_fan", "honey": 300, "items": {"wax": 20}},
-        {"id": "item:alveary_production", "kind": "item", "item": "alveary_production", "honey": 600, "items": {"honeydew": 10}},
+        {"id": "item:alveary_production", "kind": "item", "item": "alveary_production", "honey": 1500, "items": {"honeydew": 20, "royal_jelly": 5}},
         {"id": "item:alveary_lifespan", "kind": "item", "item": "alveary_lifespan", "honey": 600, "items": {"pollen": 10}},
         {"id": "item:alveary_stabiliser", "kind": "item", "item": "alveary_stabiliser", "honey": 500, "items": {"propolis": 10}},
         {"id": "item:alveary_mutator", "kind": "item", "item": "alveary_mutator", "honey": 800, "items": {"phosphor": 10}},
         {"id": "item:alveary_automation", "kind": "item", "item": "alveary_automation", "honey": 1000, "items": {"wax": 20, "propolis": 20}},
         {"id": "machine:centrifuge", "kind": "machine", "machine": "centrifuge", "honey": 250, "items": {"wax": 10}, "scale": 1.6},
+        {"id": "machine:manual_press", "kind": "machine", "machine": "manual_press", "honey": 2000, "scale": 4,
+         "max": len(MANUAL_BATCHES) - 1},
         {"id": "item:labware", "kind": "item", "item": "labware", "honey": 20, "requires_unlock": "genetics"},
         {"id": "machine:lab_bench", "kind": "machine", "machine": "lab_bench", "honey": 1500, "items": {"wax": 20, "propolis": 10},
          "scale": 1.8, "max": 4, "requires_unlock": "genetics"},
@@ -947,6 +965,7 @@ def public_content() -> dict:
         "items": ITEMS,
         "recipes": RECIPES,
         "manual_batch": MANUAL_BATCH,
+        "manual_batches": MANUAL_BATCHES,
         "modules": MODULES,
         "hive_types": HIVE_TYPES,
         "machines": MACHINES,

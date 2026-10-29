@@ -45,6 +45,9 @@ export default function FactoryPage() {
   const queued = todo.reduce((n, c) => n + state.inventory[c], 0);
   const kept = owned.length - todo.length;
   const working = hasAuto && running && queued > 0;
+  const batch = state.manual_batch;
+  const press = state.offers['machine:manual_press'];
+  const nextBatch = content.manual_batches[(state.machines.manual_press ?? 0) + 1];
 
   let status: string;
   if (!hasAuto) status = 'Aucune centrifugeuse automatique : les rayons se traitent à la main.';
@@ -55,8 +58,8 @@ export default function FactoryPage() {
   return (
     <>
       <PageHead guide="centrifugeuse" title="Centrifugeuse">
-        Centrifugez les rayons récoltés pour en tirer du miel et des ressources. À la main, maintenez le bouton {HOLD_SECONDS} secondes
-        par rayon. Chaque centrifugeuse automatique traite un rayon par cycle ({state.cycle_seconds} s), même en votre absence. Coupez-les
+        Centrifugez les rayons récoltés pour en tirer du miel et des ressources. À la main, maintenez le bouton {HOLD_SECONDS} secondes :
+        {batch > 1 ? ` ${batch} rayons par geste grâce à la manivelle renforcée.` : ' un rayon par geste, davantage avec la manivelle renforcée.'} Chaque centrifugeuse automatique traite un rayon par cycle ({state.cycle_seconds} s), même en votre absence. Coupez-les
         ou décochez « Auto » sur un rayon pour le garder en stock, pour une commande du Comptoir par exemple.
       </PageHead>
 
@@ -95,6 +98,18 @@ export default function FactoryPage() {
           >
             {hasAuto ? 'Ajouter une centrifugeuse' : 'Acheter une centrifugeuse'}
           </button>
+          {nextBatch && (
+            <>
+              <CostView cost={press.cost} />
+              <button
+                disabled={!!press.lock || !canAfford(state, press.cost)}
+                title={press.lock ?? (canAfford(state, press.cost) ? content.machines.manual_press.desc : SHORT)}
+                onClick={() => act('/shop/buy', { offer_id: 'machine:manual_press' })}
+              >
+                Manivelle : {nextBatch} rayons par geste
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -122,8 +137,8 @@ export default function FactoryPage() {
                 <span />
               )}
               <span className="hold-col">
-                <HoldButton seconds={HOLD_SECONDS} onDone={() => act('/factory/process', { comb_id: comb, qty: 1 })}>
-                  Maintenir
+                <HoldButton seconds={HOLD_SECONDS} onDone={() => act('/factory/process', { comb_id: comb, qty: batch })}>
+                  {batch > 1 ? `Maintenir ×${fmt(Math.min(batch, state.inventory[comb]))}` : 'Maintenir'}
                 </HoldButton>
               </span>
             </div>

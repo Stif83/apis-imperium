@@ -154,7 +154,7 @@ export default function ComptoirPage() {
       <PageHead guide="comptoir" title="Comptoir">
         Les guildes passent commande : des ressources, une abeille aux gènes précis, ou un pedigree certifié. Chaque livraison rapporte du miel
         et de la réputation, qui ouvre de nouvelles places au comptoir et la commande de prestige de la semaine. Un client repart au bout de{' '}
-        {content.orders.lifetime_ms / 3600000} h ; une place libérée se remplit {content.orders.refill_ms / 60000} min plus tard.
+        {content.orders.lifetime_ms / 3600000} h ; les nouveaux clients arrivent un par un, toutes les {content.orders.refill_ms / 60000} min.
       </PageHead>
 
       <div className="card reputation-card">

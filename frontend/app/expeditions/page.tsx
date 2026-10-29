@@ -150,7 +150,7 @@ export default function ExpeditionsPage() {
                   <span className="exp-region-icon">{r.icon}</span>
                   <b>{r.label}</b>
                 </span>
-                <span className="badge">{r.tier === 1 ? 'Proche' : 'Lointaine'}</span>
+                <span className="badge">{r.tier === 1 ? 'Proche' : r.tier === 2 ? 'Lointaine' : 'Bout du monde'}</span>
               </div>
               <span className="muted">{r.desc}</span>
               <div className="row" style={{ gap: 4 }}>

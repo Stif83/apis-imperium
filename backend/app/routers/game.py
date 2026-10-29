@@ -58,7 +58,7 @@ class HiveIn(BaseModel):
 
 class ProcessIn(BaseModel):
     comb_id: str
-    qty: int = Field(1, ge=1, le=100)
+    qty: int = Field(1, ge=1, le=1000)
 
 
 class FactoryIn(BaseModel):
@@ -170,6 +170,17 @@ def brew(body: BrewIn, game: Game = Depends(current_game)):
 @router.post("/distillery/drink")
 def drink(body: DrinkIn, game: Game = Depends(current_game)):
     game.drink(body.elixir_id)
+    return _done(game)
+
+
+class SkyIn(BaseModel):
+    biome: str
+    weather: str
+
+
+@router.post("/observatory/sky")
+def set_sky(body: SkyIn, game: Game = Depends(current_game)):
+    game.set_sky(body.biome, body.weather)
     return _done(game)
 
 

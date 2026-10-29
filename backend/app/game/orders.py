@@ -1,7 +1,8 @@
 """Comptoir : commandes des guildes et réputation.
 
 Le tableau compte 3 commandes ouvertes (4 puis 5 avec la réputation) et, à partir du premier niveau
-de réputation, une commande de prestige par semaine. Une commande demande des ressources, une abeille
+de réputation, une commande de prestige par semaine. Les clients arrivent un par un : une place libre
+se remplit REFILL_DELAY après l'arrivée du client précédent, quelle que soit la place libérée. Une commande demande des ressources, une abeille
 aux gènes imposés (elle est livrée, donc consommée) ou un pedigree minimum (simple vérification).
 
 Tout est tiré de ce que le joueur peut déjà produire : les ressources viennent de ses espèces découvertes,
@@ -93,6 +94,17 @@ def level_of(points: int) -> int:
 
 def slots_for(level: int) -> int:
     return BASE_SLOTS + (level >= 2) + (level >= 4)
+
+
+def schedule(slots: list[dict], next_ms: int | None) -> None:
+    """Heure d'arrivée affichée sur chaque place libre : les clients se suivent à REFILL_DELAY d'intervalle."""
+    k = 0
+    for slot in slots:
+        if slot.get("order"):
+            slot.pop("ready_ms", None)
+        else:
+            slot["ready_ms"] = (next_ms or 0) + k * REFILL_DELAY
+            k += 1
 
 
 def item_value(item: str) -> int:

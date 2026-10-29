@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ActiveEffects } from '@/components/Effects';
+import { SkyControl } from '@/components/Sky';
 import {
   BIOME_ICONS,
   BeeSearch,
@@ -587,6 +588,7 @@ function Forecast() {
         </tbody>
       </table>
       <span className="muted">Heures de jeu. Une ruche sous serre ne craint pas la pluie.</span>
+      {(state.projects.observatory?.stage ?? 0) >= content.projects.sky.stage && <SkyControl />}
     </div>
   );
 }

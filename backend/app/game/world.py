@@ -55,8 +55,13 @@ def _roll(period: int) -> float:
     return int.from_bytes(digest[:4], "big") / 2**32
 
 
-def weather(t_ms: int, biome_temp: str) -> str:
-    """Météo d'un biome. Pas de pluie dans les biomes chauds ; elle tombe en neige dans les froids."""
+def weather(t_ms: int, biome_temp: str, forced: dict | None = None) -> str:
+    """Météo d'un biome. Pas de pluie dans les biomes chauds ; elle tombe en neige dans les froids.
+
+    `forced` : météo imposée par le Grand télescope ({"weather", "from", "until"}), prioritaire pendant sa durée.
+    """
+    if forced and forced["from"] <= t_ms < forced["until"]:
+        return forced["weather"]
     roll = _roll(t_ms // (HOUR_MS * WEATHER_HOURS))
     if biome_temp in ("hot", "hellish") or roll >= 0.3:
         return "clear"
@@ -66,7 +71,7 @@ def weather(t_ms: int, biome_temp: str) -> str:
 
 
 def working_cycles(start_ms: int, cycles: int, cycle_ms: int, activity: str, sheltered: bool,
-                   biome_temp: str, always_lit: bool = False) -> int:
+                   biome_temp: str, always_lit: bool = False, forced: dict | None = None) -> int:
     """Nombre de cycles, parmi `cycles` à partir de `start_ms`, où l'abeille travaille.
 
     On avance heure de jeu par heure de jeu : l'heure et la météo y sont constantes.
@@ -81,19 +86,20 @@ def working_cycles(start_ms: int, cycles: int, cycle_ms: int, activity: str, she
         first = -(-(t - start_ms) // cycle_ms)
         last = -(-(boundary - start_ms) // cycle_ms)
         n = last - first
-        if n > 0 and hour(t) in hours and (sheltered or weather(t, biome_temp) == "clear"):
+        if n > 0 and hour(t) in hours and (sheltered or weather(t, biome_temp, forced) == "clear"):
             total += n
         t = boundary
     return total
 
 
-def snapshot(t_ms: int, biomes: dict) -> dict:
-    """État du monde envoyé à l'interface."""
+def snapshot(t_ms: int, biomes: dict, sky: dict | None = None) -> dict:
+    """État du monde envoyé à l'interface ; `sky` : météos imposées, par biome."""
+    sky = sky or {}
     return {
         "hour": hour(t_ms),
         "minute": (t_ms % HOUR_MS) * 60 // HOUR_MS,
         "phase": phase(t_ms),
-        "weather": {b: weather(t_ms, spec["temp"]) for b, spec in biomes.items()},
+        "weather": {b: weather(t_ms, spec["temp"], sky.get(b)) for b, spec in biomes.items()},
         "next_weather_ms": (t_ms // (HOUR_MS * WEATHER_HOURS) + 1) * HOUR_MS * WEATHER_HOURS - t_ms,
     }
 

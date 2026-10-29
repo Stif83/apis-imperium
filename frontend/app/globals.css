@@ -658,6 +658,9 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 .forecast-table { border-collapse: collapse; font-size: 14px; }
 .forecast-table th, .forecast-table td { padding: 4px 12px 4px 0; text-align: left; white-space: nowrap; }
 .forecast-table thead th { color: var(--muted); font-weight: 700; font-size: 13px; }
+.sky { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px; }
+.sky-weathers { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.sky-weather { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 8px; border-radius: 10px; background: var(--panel-2); }
 
 /* ---------- expéditions ---------- */
 .exp-teams, .exp-log { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
@@ -775,16 +778,24 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 .robo-loadout > button { align-self: flex-end; }
 
 /* ---------- musée, ruche-monde, distillerie ---------- */
-.museum-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+/* Pixel art : dessiné à basse résolution, agrandi sans lissage */
+.pixel { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+.museum-hall-card { padding: 0; overflow: hidden; margin-bottom: 12px; }
+.museum-hall { width: 100%; aspect-ratio: 240 / 96; max-height: 300px; object-fit: cover; object-position: bottom; }
+.museum-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; align-items: start; }
 .museum-card { gap: 8px; }
-.museum-card.complete { box-shadow: 0 0 0 2px var(--ok), var(--shadow); }
-.museum-head {
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
-  background: none; border: 0; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer;
+.museum-card.open { grid-column: 1 / -1; }
+.museum-card.complete { box-shadow: 0 0 0 2px #d4a017, var(--shadow); }
+.museum-case {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%;
+  background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer;
 }
+.museum-case:hover .vitrine { filter: brightness(1.08); }
+.vitrine { max-width: 100%; height: auto; }
+.museum-caption { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; }
+.museum-detail { display: flex; flex-direction: column; gap: 8px; }
 .museum-lore { display: block; font-size: 13px; }
-.museum-card > .bar, .world-hive .bar { display: block; height: 6px; background: var(--panel-2); border-radius: 999px; }
-.museum-card > .bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.world-hive .bar { display: block; height: 6px; background: var(--panel-2); border-radius: 999px; }
 .world-hive { gap: 12px; }
 .world-hive-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; }
 .world-hive-head .title { display: block; font-size: 20px; }

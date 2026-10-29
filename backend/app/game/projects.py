@@ -16,7 +16,8 @@ PROJECTS = {
              "cost": {"honey": 5000, "items": {"wax": 200, "quartz": 30, "glowstone": 20}}},
             {"label": "Coupole", "effect": "Sur chaque ruche, les mutations possibles en ce moment (conditions réunies).",
              "cost": {"honey": 15000, "items": {"copper": 60, "tin": 60, "lapis": 10, "moonstone": 3}}},
-            {"label": "Grand télescope", "effect": "Chances de mutation ×1,15 dans toutes les ruches.",
+            {"label": "Grand télescope",
+             "effect": "Maître du ciel : imposez la pluie, l'orage, la neige ou le beau temps sur un biome pendant 1 h, avec les ressources de vos abeilles.",
              "cost": {"honey": 40000, "items": {"silver": 40, "gold": 25, "stardust": 15, "sunstone": 5}}},
         ],
     },
@@ -31,6 +32,9 @@ PROJECTS = {
              "cost": {"honey": 18000, "items": {"iron": 80, "ice_shard": 60, "refractory_wax": 60, "glowstone": 30}}},
             {"label": "Jardin d'hiver", "effect": "Toutes les ruches peuvent passer sous serre ; production ×1,25 sous serre ; biome Dôme étoilé.",
              "cost": {"honey": 45000, "items": {"platinum": 10, "emerald": 10, "energy": 40, "royal_jelly": 40}}},
+            {"label": "Serres artificielles",
+             "effect": "Un soleil artificiel sous chaque verrière : les abeilles sous serre travaillent à toute heure, comme avec une lanterne de ruche.",
+             "cost": {"honey": 120000, "items": {"glowstone": 300, "sunstone": 20, "energy": 100, "circuit": 30, "prism": 3}}},
         ],
     },
 }
@@ -44,7 +48,8 @@ PROJECTS["outpost"] = {
          "cost": {"honey": 8000, "items": {"wax": 250, "propolis": 60, "honeydew": 60, "silk": 30}}},
         {"label": "Relais", "effect": "Deux équipes à la fois ; les régions lointaines s'ouvrent.",
          "cost": {"honey": 20000, "items": {"iron": 60, "coal": 80, "ice_shard": 40, "fuel": 20}}},
-        {"label": "Grand poste", "effect": "Trois équipes à la fois, butin ×1,5 et plus d'espèces sauvages.",
+        {"label": "Grand poste",
+         "effect": "Trois équipes à la fois ; les régions du bout du monde s'ouvrent, avec leurs trois sauvages et leurs trésors ; butin ×1,5.",
          "cost": {"honey": 50000, "items": {"gold": 20, "amber": 10, "energy": 40, "royal_jelly": 30}}},
     ],
 }
@@ -83,12 +88,22 @@ ROBO_PRODUCTION = 1.3
 SANCTUARY_PRODUCTION = 1.5
 SANCTUARY_BRANCHES = ("Légendaires", "Mythiques")
 
-OBSERVATORY_MUTATION = 1.15
 GREENHOUSE_PRODUCTION = 1.25
+GREENHOUSE_LIGHT = 4  # étape à partir de laquelle la serre éclaire comme une lanterne
 # Ruches sous serre et températures permises, selon l'étape atteinte
-GREENHOUSE_SLOTS = {1: 1, 2: 3, 3: 999}
-GREENHOUSE_TEMPS = {1: C.TEMPS[1:5], 2: C.TEMPS, 3: C.TEMPS}
+GREENHOUSE_SLOTS = {1: 1, 2: 3, 3: 999, 4: 999}
+GREENHOUSE_TEMPS = {1: C.TEMPS[1:5], 2: C.TEMPS, 3: C.TEMPS, 4: C.TEMPS}
 FORECAST_PERIODS = 4
+
+# Grand télescope : météo imposée sur un biome, payée en ressources d'abeilles
+SKY_STAGE = 3
+SKY_MINUTES = 60
+SKY_WEATHERS = {
+    "clear": {"items": {"sunstone": 1, "glowstone": 15}},
+    "rain": {"items": {"dew": 30, "comb_rain": 10}},
+    "storm": {"items": {"lightning_shard": 2, "energy": 10}},
+    "snow": {"items": {"snowflake": 10, "ice_shard": 20}},
+}
 
 
 def stage_cost(project_id: str, stage: int) -> dict | None:
@@ -101,4 +116,5 @@ def public_projects() -> dict:
         "list": {pid: p for pid, p in PROJECTS.items()},
         "greenhouse_temps": {str(k): v for k, v in GREENHOUSE_TEMPS.items()},
         "greenhouse_slots": {str(k): v for k, v in GREENHOUSE_SLOTS.items()},
+        "sky": {"stage": SKY_STAGE, "minutes": SKY_MINUTES, "weathers": SKY_WEATHERS},
     }

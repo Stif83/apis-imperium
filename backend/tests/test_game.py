@@ -158,8 +158,16 @@ def test_apiary_upgrades_to_alveary(game):
     assert game.upgrade_cost(hive) is None
     with pytest.raises(GameError):
         game.upgrade_hive(hive.id)
-    # Le prix d'un alvéaire suivant augmente, comme à l'achat
+    # Les évolutions renchérissent avec les achats de ruches, comme les ruches elles-mêmes
+    game.p.honey = 10 ** 6
+    game.buy("hive:apiary")
+    game.buy("hive:apiary")
     assert game.upgrade_cost(game.hives[1])["honey"] > cost["honey"]
+    # Acheter un rucher puis le faire évoluer revient au prix d'un alvéaire
+    alveary = game.offer_cost(C.OFFERS["hive:alveary"])
+    apiary = game.offer_cost(C.OFFERS["hive:apiary"])
+    game.buy("hive:apiary")
+    assert apiary["honey"] + game.upgrade_cost(game.hives[-1])["honey"] == alveary["honey"]
 
 
 def test_automation_module_fits_a_plain_apiary(game):
@@ -752,9 +760,28 @@ def test_orders_board_and_delivery(game):
     assert game.orders_board(t)["slots"][0]["order"] is None
     assert game.orders_board(t + O.REFILL_DELAY)["slots"][0]["order"]
 
-    # Une commande échue est remplacée
-    later = game.orders_board(t + O.ORDER_LIFETIME + O.REFILL_DELAY)
+    # Les commandes échues sont remplacées, un client à la fois
+    end = t + O.ORDER_LIFETIME
+    board = game.orders_board(end + O.REFILL_DELAY)
+    assert sum(1 for s in board["slots"] if s["order"]) == 1
+    later = game.orders_board(end + 3 * O.REFILL_DELAY)
     assert all(s["order"]["created_ms"] > t for s in later["slots"])
+
+
+def test_orders_clients_arrive_one_at_a_time(game):
+    from app.game import orders as O
+
+    t = 1_700_000_000_000
+    board = game.orders_board(t)
+    for slot in board["slots"]:
+        game.discard_order(slot["order"]["id"], now=t)
+    board = game.orders_board(t)
+    # Trois places libres : un client dans 20 min, le suivant 20 min après, et ainsi de suite
+    assert [s["ready_ms"] for s in board["slots"]] == [t + k * O.REFILL_DELAY for k in (1, 2, 3)]
+    assert sum(1 for s in game.orders_board(t + O.REFILL_DELAY)["slots"] if s["order"]) == 1
+    assert sum(1 for s in game.orders_board(t + 2 * O.REFILL_DELAY)["slots"] if s["order"]) == 2
+    # Une absence prolongée : tous les clients attendus sont arrivés
+    assert all(s["order"] for s in game.orders_board(t + 10 * O.REFILL_DELAY)["slots"])
 
 
 def test_orders_bee_discard_and_prestige(game):
@@ -847,11 +874,27 @@ def test_greenhouse_and_observatory_effects(game):
     game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "meadows").id)
     now = game.state()["hives"][0]["mutations_now"]
     assert {"result": "common", "chance": 0.15} in now
-    base = game._mods(hive)["mutation"]
+    with pytest.raises(GameError):
+        game.set_sky("plains", "rain")  # Grand télescope pas encore construit
     _give_stage(game, "observatory")
-    assert game._mods(hive)["mutation"] == pytest.approx(base * PR.OBSERVATORY_MUTATION)
     with pytest.raises(GameError):
         game.contribute("observatory", "honey", 1)  # projet achevé
+
+    # Grand télescope : la pluie tombe sur la prairie pendant une heure, payée en ressources
+    t = 1_700_000_000_000
+    with pytest.raises(GameError):
+        game.set_sky("plains", "rain", now=t)  # pas de rosée
+    for item, n in PR.SKY_WEATHERS["rain"]["items"].items():
+        game.add_item(item, 2 * n)
+    game.set_sky("plains", "rain", now=t)
+    assert game._weather(hive, t + 1) == "rain"
+    assert game._weather(hive, t + PR.SKY_MINUTES * 60_000) != "rain" or W.weather(t + PR.SKY_MINUTES * 60_000, "normal") == "rain"
+    game.set_sky("plains", "rain", now=t + 1000)  # relancée : elle se prolonge
+    assert game._sky()["plains"]["until"] == t + 2 * PR.SKY_MINUTES * 60_000
+    assert game.qty("dew") == 0
+    # La serre protège de la météo imposée
+    game.update_hive(hive.id, None, None, greenhouse="hot")
+    assert game._weather(hive, t + 1) == "clear"
 
 
 def test_expedition_scores():
@@ -958,13 +1001,66 @@ def test_hive_and_slot_prices_are_shared(game):
     game.buy("hive:apiary")
     assert game.offer_cost(alveary)["honey"] > after_alveary
 
-    # Emplacements : chaque ajout renchérit ceux de toutes les ruches
+    # Emplacements : un ajout double le prix dans la même ruche et le relève un peu ailleurs
     a = game.hives[-2]
     game.buy("hive:alveary")
     b = game.hives[-1]
     assert game.slot_cost(a) == game.slot_cost(b) == C.SLOT_COST
     game.expand(a.id)
-    assert game.slot_cost(b) == round(C.SLOT_COST * C.SLOT_SCALE)
+    assert game.slot_cost(a) == round(C.SLOT_COST * C.SLOT_SCALE)
+    assert game.slot_cost(b) == round(C.SLOT_COST * C.SLOT_SCALE_ALL)
+
+
+def test_manual_press_and_production_module(game):
+    game.p.honey = 10 ** 9
+    game.add_item("comb_honey", 100)
+    game.process_manual("comb_honey", 1000)
+    assert game.qty("comb_honey") == 99
+    game.buy("machine:manual_press")
+    assert game.manual_batch == C.MANUAL_BATCHES[1]
+    game.process_manual("comb_honey", 1000)
+    assert game.qty("comb_honey") == 99 - C.MANUAL_BATCHES[1]
+    for _ in C.MANUAL_BATCHES[2:]:
+        game.buy("machine:manual_press")
+    assert game.manual_batch == C.MANUAL_BATCHES[-1]
+    with pytest.raises(GameError):
+        game.buy("machine:manual_press")  # niveau maximum
+
+    # Module de production : ×2, et il s'use
+    game.add_item("wax", 100)
+    game.add_item("honeydew", 100)
+    hive = game.hives[0]
+    game.upgrade_hive(hive.id)
+    game.add_item("alveary_production", 1)
+    game.add_module(hive.id, "alveary_production")
+    assert game._wear(hive) == [C.MODULES["alveary_production"]["uses"]]
+    assert game._mods(hive)["production"] == pytest.approx(C.HIVE_TYPES["alveary"]["production"] * 2)
+
+
+def test_far_regions_open_with_the_grand_outpost(game):
+    from app.game import expeditions as X
+
+    far = [rid for rid, r in X.REGIONS.items() if r["tier"] == 3]
+    assert len(far) == 3 and all(C.SPECIES[X.REGIONS[r]["wild"]]["wild"] == r for r in far)
+    game.add_bee("drone", G.pure_genome("forest"), 1)
+    drone = _bee(game, "drone", "forest")
+    _give_stage(game, "outpost")
+    _give_stage(game, "outpost")
+    with pytest.raises(GameError):
+        game.launch_expedition(far[0], [drone.id])  # bout du monde : Grand poste
+    _give_stage(game, "outpost")
+    game.launch_expedition(far[0], [drone.id])
+
+
+def test_artificial_greenhouse_lights_hives(game):
+    hive = game.hives[0]
+    for _ in range(3):
+        _give_stage(game, "greenhouse")
+    game.update_hive(hive.id, None, None, greenhouse="hot")
+    assert not game._mods(hive)["light"]
+    _give_stage(game, "greenhouse")
+    assert game._mods(hive)["light"]
+    assert not game._mods(game.hives[1])["light"]  # hors serre, rien ne change
 
 
 def test_greenhouse_biomes_open_mutations(game):

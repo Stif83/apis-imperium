@@ -77,9 +77,9 @@ export function Donations({
   );
 }
 
-/** Part déjà réunie, en pourcentage. */
+/** Part déjà réunie, en pourcentage : chaque ligne compte autant, quelle que soit sa quantité. */
 export function donePercent(needs: [string, number][], given: (item: string) => number) {
-  const total = needs.reduce((n, [, need]) => n + need, 0);
-  const got = needs.reduce((n, [item, need]) => n + Math.min(need, given(item)), 0);
-  return total ? Math.floor((100 * got) / total) : 100;
+  if (!needs.length) return 100;
+  const share = needs.reduce((n, [item, need]) => n + Math.min(1, given(item) / need), 0) / needs.length;
+  return Math.floor(100 * share);
 }

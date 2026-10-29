@@ -201,10 +201,11 @@ class Game:
         if greenhouse:
             # Sous verrière, la pluie ne gêne plus personne
             mods["shelter"] = True
-            if self.project_stage("greenhouse") >= 3:
+            stage = self.project_stage("greenhouse")
+            if stage >= 3:
                 mods["production"] *= PR.GREENHOUSE_PRODUCTION
-        if self.project_stage("observatory") >= 3:
-            mods["mutation"] *= PR.OBSERVATORY_MUTATION
+            if stage >= PR.GREENHOUSE_LIGHT:
+                mods["light"] = True
         if hive.hive_type == "robo" and self.project_stage("robotics") >= 3:
             mods["production"] *= PR.ROBO_PRODUCTION
         return mods
@@ -228,7 +229,36 @@ class Game:
         return self._greenhouse(hive) or C.BIOMES[hive.biome]["temp"]
 
     def _weather(self, hive: Hive, t_ms: int) -> str:
-        return "clear" if self._greenhouse(hive) else W.weather(t_ms, C.BIOMES[hive.biome]["temp"])
+        if self._greenhouse(hive):
+            return "clear"
+        return W.weather(t_ms, C.BIOMES[hive.biome]["temp"], self._sky().get(hive.biome))
+
+    def _sky(self) -> dict:
+        """Météos imposées par le Grand télescope, par biome ({"weather", "from", "until"})."""
+        return (self.p.projects or {}).get("observatory", {}).get("sky") or {}
+
+    def set_sky(self, biome: str, weather: str, now: int | None = None) -> None:
+        """Impose une météo sur un biome pendant SKY_MINUTES ; la même météo relancée se prolonge."""
+        now = now or now_ms()
+        if self.project_stage("observatory") < PR.SKY_STAGE:
+            raise GameError("Il faut d'abord le Grand télescope (Observatoire).")
+        if biome not in C.BIOMES:
+            raise GameError("Biome inconnu.")
+        spec = PR.SKY_WEATHERS.get(weather)
+        if spec is None:
+            raise GameError("Météo inconnue.")
+        self.pay({"honey": 0, **spec})
+        projects = copy.deepcopy(self.p.projects or {})
+        observatory = projects.setdefault("observatory", {"stage": PR.SKY_STAGE, "given": {}})
+        sky = {b: f for b, f in (observatory.get("sky") or {}).items() if f["until"] > now}
+        current = sky.get(biome)
+        if current and current["weather"] == weather:
+            sky[biome] = {**current, "until": current["until"] + PR.SKY_MINUTES * 60_000}
+        else:
+            sky[biome] = {"weather": weather, "from": now, "until": now + PR.SKY_MINUTES * 60_000}
+        observatory["sky"] = sky
+        self.p.projects = projects
+        A.bump(self.p, "sky")
 
     # ---- simulation -------------------------------------------------------
 
@@ -291,6 +321,7 @@ class Game:
         sanctified = self.project_stage("sanctuary") >= 3
         museum = self._museum_done()
         world_mult = L.world_multiplier(self._world_hive()["level"])
+        forced = None if self._greenhouse(hive) else self._sky().get(hive.biome)
         out = dict(hive.output or {})
         t = start
         while cycles > 0 and hive.queen:
@@ -302,7 +333,7 @@ class Game:
             # La reine vieillit à chaque cycle, mais ne produit que pendant ses heures et par un temps qu'elle supporte
             working = W.working_cycles(
                 t, n, cycle_ms, genome["activity"][0],
-                mods["shelter"] or genome["weatherproof"][0] == "yes", biome_temp, mods["light"],
+                mods["shelter"] or genome["weatherproof"][0] == "yes", biome_temp, mods["light"], forced,
             )
             rate = G.value(genome, "speed") * mods["production"] * settings.production_mult * W.ACTIVE_BONUS
             # Reliquaire du Sanctuaire : les grandes reines produisent davantage
@@ -363,7 +394,9 @@ class Game:
         modules = hive.modules or []
         wear = list((hive.settings or {}).get("wear") or [])[: len(modules)]
         # Modules montés avant l'usure : ils démarrent neufs
-        return wear + [C.MODULES.get(m, {}).get("uses") for m in modules[len(wear):]]
+        wear += [C.MODULES.get(m, {}).get("uses") for m in modules[len(wear):]]
+        # Un module devenu inusable ne s'use plus
+        return [None if C.MODULES.get(m, {}).get("uses") is None else w for m, w in zip(modules, wear)]
 
     def _set_wear(self, hive: Hive, wear: list[int | None]) -> None:
         hive.settings = {**(hive.settings or {}), "wear": wear}
@@ -528,7 +561,7 @@ class Game:
         # Un exemplaire démonté entamé repart avec son usure : on l'utilise en premier
         worn = dict(self.p.worn_modules or {})
         spare = sorted(worn.get(module, []))
-        uses = spare.pop(0) if spare else C.MODULES[module].get("uses")
+        uses = spare.pop(0) if spare and C.MODULES[module].get("uses") else C.MODULES[module].get("uses")
         worn[module] = spare
         self.p.worn_modules = {m: v for m, v in worn.items() if v}
         hive.modules = [*(hive.modules or []), module]
@@ -549,11 +582,12 @@ class Game:
         self._set_wear(hive, wear)
 
     def slot_cost(self, hive: Hive) -> int | None:
-        spec = C.HIVE_TYPES[hive.hive_type]
-        if hive.slots >= spec["max_slots"]:
+        """Double à chaque emplacement déjà ajouté à cette ruche ; augmente un peu avec ceux ajoutés ailleurs."""
+        if hive.slots >= C.HIVE_TYPES[hive.hive_type]["max_slots"]:
             return None
-        added = sum(max(0, h.slots - C.HIVE_TYPES[h.hive_type]["slots"]) for h in self.hives)
-        return round(C.SLOT_COST * C.SLOT_SCALE ** added)
+        added = {h.id: max(0, h.slots - C.HIVE_TYPES[h.hive_type]["slots"]) for h in self.hives}
+        others = sum(added.values()) - added[hive.id]
+        return round(C.SLOT_COST * C.SLOT_SCALE ** added[hive.id] * C.SLOT_SCALE_ALL ** others)
 
     def expand(self, hive_id: str) -> None:
         hive = self._hive(hive_id)
@@ -566,10 +600,14 @@ class Game:
             A.unlock(self.p, "full_alveary")
 
     def upgrade_cost(self, hive: Hive) -> dict | None:
-        """Prix de l'évolution suivante : un alvéaire neuf pour un rucher, ROBO_COST croissant pour un alvéaire."""
+        """Prix de l'évolution suivante. Rucher : ce qu'un alvéaire coûte de plus, au prix d'avant l'achat de cette
+        ruche (rucher acheté puis évolué = alvéaire acheté). Alvéaire : ROBO_COST croissant."""
         target = C.EVOLUTIONS.get(hive.hive_type)
         if target == "alveary":
-            return self.offer_cost(C.OFFERS["hive:alveary"])
+            owned = max(0, self._hives_bought() - 1)
+            apiary = self.offer_cost(C.OFFERS["hive:apiary"], owned)
+            alveary = self.offer_cost(C.OFFERS["hive:alveary"], owned)
+            return {"honey": alveary["honey"] - apiary["honey"], "items": alveary["items"]}
         if target == "robo" and self.project_stage("robotics") >= 1:
             factor = C.ROBO_SCALE ** sum(1 for h in self.hives if h.hive_type == "robo")
             return {"honey": round(C.ROBO_COST["honey"] * factor),
@@ -844,8 +882,10 @@ class Game:
         """Météo des prochaines périodes, par biome (Observatoire)."""
         period = W.HOUR_MS * W.WEATHER_HOURS
         first = t // period + 1
+        sky = self._sky()
         return [
-            {"in_ms": (first + k) * period - t, "weather": {b: W.weather((first + k) * period, s["temp"]) for b, s in C.BIOMES.items()}}
+            {"in_ms": (first + k) * period - t,
+             "weather": {b: W.weather((first + k) * period, s["temp"], sky.get(b)) for b, s in C.BIOMES.items()}}
             for k in range(PR.FORECAST_PERIODS)
         ]
 
@@ -865,17 +905,16 @@ class Game:
 
     # ---- boutique et usine ------------------------------------------------
 
-    def offer_cost(self, offer: dict) -> dict:
-        owned = 0
-        if offer["kind"] == "hive":
-            # Toutes les ruches comptent, quel que soit leur type (celles du départ sont offertes) ;
-            # un alvéaire compte en plus ceux déjà possédés, pour que les évolutions renchérissent aussi
-            owned = len(self.hives) - len(C.STARTER_BIOMES)
-            if offer["hive_type"] == "alveary":
-                owned += sum(1 for h in self.hives if h.hive_type != "apiary")
-        elif offer["kind"] == "machine":
-            machine = self.machines.get(offer["machine"])
-            owned = machine.qty if machine else 0
+    def _hives_bought(self) -> int:
+        """Ruches achetées, quel que soit leur type (celles du départ sont offertes)."""
+        return len(self.hives) - len(C.STARTER_BIOMES)
+
+    def offer_cost(self, offer: dict, owned: int | None = None) -> dict:
+        """Prix d'une offre ; `owned` remplace le nombre d'exemplaires déjà possédés."""
+        if owned is None:
+            # Rucher et alvéaire augmentent ensemble, à chaque ruche achetée
+            owned = (self._hives_bought() if offer["kind"] == "hive"
+                     else self._machine_qty(offer["machine"]) if offer["kind"] == "machine" else 0)
         # Le miel et les ressources augmentent ensemble à chaque exemplaire possédé
         factor = offer.get("scale", 1) ** max(0, owned)
         items = {item: round(n * factor) for item, n in offer.get("items", {}).items()}
@@ -938,10 +977,15 @@ class Game:
         self._take_bee(bee, qty)
         self.p.honey += price * qty
 
+    @property
+    def manual_batch(self) -> int:
+        """Rayons traités par geste à la main, selon le niveau de la manivelle renforcée."""
+        return C.MANUAL_BATCHES[min(self._machine_qty("manual_press"), len(C.MANUAL_BATCHES) - 1)]
+
     def process_manual(self, comb: str, qty: int) -> None:
         if comb not in C.RECIPES:
             raise GameError("Ce n'est pas un rayon.")
-        n = min(qty, C.MANUAL_BATCH, self.qty(comb))
+        n = min(qty, self.manual_batch, self.qty(comb))
         if n <= 0:
             raise GameError("Vous n'avez plus de ce rayon.")
         self._process(comb, n)
@@ -1289,29 +1333,53 @@ class Game:
         now = now or now_ms()
         data = dict(self.p.orders or {})
         counter = data.get("counter", 0)
+        # Tableau neuf : tous les premiers clients arrivent ensemble ; ensuite, un par un
+        fresh = not data.get("slots")
         slots = [dict(s) for s in data.get("slots") or []]
+        # Heure d'arrivée du prochain client (None : aucune place libre). Avant la 1.15, chaque place libre
+        # avait la sienne : on reprend la plus proche.
+        if "next_ms" in data:
+            next_ms = data["next_ms"]
+        else:
+            waiting = [s["ready_ms"] for s in slots if not s.get("order") and s.get("ready_ms") is not None]
+            next_ms = min(waiting) if waiting else None
         level = O.level_of(self.p.reputation or 0)
         while len(slots) < O.slots_for(level):
-            slots.append({"order": None, "ready_ms": now})
+            slots.append({"order": None})
+            next_ms = now if next_ms is None else next_ms
+        expired = [s["order"]["expires_ms"] for s in slots if s.get("order") and s["order"]["expires_ms"] <= now]
+        if expired:
+            slots = [s if s.get("order") and s["order"]["expires_ms"] > now else {"order": None} for s in slots]
+            # Le premier client attendu arrive après la première commande échue
+            if next_ms is None:
+                next_ms = min(expired) + O.REFILL_DELAY
         ctx = None
         for i, slot in enumerate(slots):
-            order = slot.get("order")
-            if order and order["expires_ms"] <= now:
-                slot = {"order": None, "ready_ms": order["expires_ms"]}
-            if not slot.get("order") and slot["ready_ms"] <= now:
-                ctx = ctx or self._orders_ctx()
-                counter += 1
-                order = O.generate(random.Random(f"{self.p.id}:{counter}"), ctx, now)
-                if order:
-                    slot = {"order": {**order, "id": f"o{counter}", "expires_ms": now + O.ORDER_LIFETIME}, "ready_ms": now}
-            slots[i] = slot
+            if slot.get("order"):
+                continue
+            if not fresh and (next_ms is None or next_ms > now):
+                break
+            ctx = ctx or self._orders_ctx()
+            counter += 1
+            order = O.generate(random.Random(f"{self.p.id}:{counter}"), ctx, now)
+            if not order:
+                counter -= 1
+                break
+            slots[i] = {"order": {**order, "id": f"o{counter}", "expires_ms": now + O.ORDER_LIFETIME}}
+            if not fresh:
+                next_ms += O.REFILL_DELAY
+        if all(s.get("order") for s in slots):
+            next_ms = None
+        elif fresh or next_ms is None:
+            next_ms = now + O.REFILL_DELAY
+        O.schedule(slots, next_ms)
         prestige = data.get("prestige")
         week = O.week_key(now)
         if level >= 1 and (not prestige or prestige.get("week") != week):
             ctx = ctx or self._orders_ctx()
             order = O.generate(random.Random(f"{self.p.id}:{week}"), ctx, now, prestige=True)
             prestige = {"week": week, "done": False, "order": order and {**order, "id": f"p{week}", "expires_ms": O.week_end(now)}}
-        new = {"counter": counter, "slots": slots, "prestige": prestige}
+        new = {"counter": counter, "slots": slots, "next_ms": next_ms, "prestige": prestige}
         if new != self.p.orders:
             self.p.orders = new
         return new
@@ -1365,8 +1433,15 @@ class Game:
             A.bump(self.p, "prestige_orders")
             board["prestige"] = {**board["prestige"], "done": True}
         else:
-            board["slots"][index] = {"order": None, "ready_ms": now + O.REFILL_DELAY}
+            self._free_order_slot(board, index, now)
         self.p.orders = {**board, "slots": [dict(s) for s in board["slots"]]}
+
+    def _free_order_slot(self, board: dict, index: int, now: int) -> None:
+        """Libère une place : le prochain client arrive dans REFILL_DELAY, sauf s'il est déjà attendu."""
+        board["slots"][index] = {"order": None}
+        if board.get("next_ms") is None:
+            board["next_ms"] = now + O.REFILL_DELAY
+        O.schedule(board["slots"], board["next_ms"])
 
     def discard_order(self, order_id: str, now: int | None = None) -> None:
         now = now or now_ms()
@@ -1374,7 +1449,7 @@ class Game:
         order, index = self._find_order(board, order_id)
         if index is None:
             raise GameError("La commande de prestige ne se refuse pas : elle repart à la fin de la semaine.")
-        board["slots"][index] = {"order": None, "ready_ms": now + O.REFILL_DELAY}
+        self._free_order_slot(board, index, now)
         self.p.orders = {**board, "slots": [dict(s) for s in board["slots"]]}
 
     def certify(self, bee_id: str) -> int:
@@ -1499,7 +1574,9 @@ class Game:
             "gene_bank": {c: {a: row.doses for (cc, a), row in sorted(self.gene_rows.items()) if cc == c} for c in C.CHROMOSOMES},
             "server_time": t,
             "cycle_seconds": settings.cycle_seconds,
-            "world": W.snapshot(t, C.BIOMES),
+            "world": W.snapshot(t, C.BIOMES, self._sky()),
+            "sky": {b: f for b, f in self._sky().items() if f["until"] > t},
+            "manual_batch": self.manual_batch,
             "badges": B.player_badges(self.discovered, self.p.trophies),
             "achievements": dict(self.p.achievements or {}),
             "stats": dict(self.p.stats or {}),

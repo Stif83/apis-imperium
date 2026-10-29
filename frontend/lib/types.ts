@@ -50,6 +50,8 @@ export type Content = {
   items: Record<string, Item>;
   recipes: Record<string, [string, number, number][]>;
   manual_batch: number;
+  /** Rayons par geste à la main, selon le niveau de la manivelle renforcée */
+  manual_batches: number[];
   /** uses : générations avant usure (absent = inusable) */
   modules: Record<string, { frame: boolean; desc: string; uses?: number }>;
   hive_types: Record<string, { label: string; slots: number; max_slots: number; frames_only: boolean; production: number; automated?: boolean }>;
@@ -90,6 +92,8 @@ export type Content = {
     list: Record<string, Project>;
     greenhouse_temps: Record<string, string[]>;
     greenhouse_slots: Record<string, number>;
+    /** Grand télescope : météos qu'on peut imposer, et leur prix */
+    sky: { stage: number; minutes: number; weathers: Record<string, { items: Record<string, number> }> };
   };
   late: {
     museum: { collections: Record<string, Record<string, number>>; bonus: number; comb_need: number };
@@ -208,6 +212,10 @@ export type GameState = {
   projects: Record<string, { stage: number; given: Record<string, number> }>;
   /** Météo des prochaines périodes par biome (Observatoire construit) */
   forecast: { in_ms: number; weather: Record<string, string> }[] | null;
+  /** Météos imposées par le Grand télescope, par biome */
+  sky: Record<string, { weather: string; from: number; until: number }>;
+  /** Rayons traités par geste à la main */
+  manual_batch: number;
   expeditions: {
     stage: number;
     teams: { id: string; region: string; bees: { type: BeeType; genome: Genome }[]; scores: number[]; chance: number; start_ms: number; end_ms: number }[];
