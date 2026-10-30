@@ -1,6 +1,6 @@
 'use client';
 
-import { lookOf } from '@/components/BeeIcon';
+import { lookOf } from '@/components/BeeArt';
 import { memo } from 'react';
 import { useContent } from '@/lib/game';
 import type { BeeType } from '@/lib/types';
@@ -531,6 +531,38 @@ function palette(color: string, secondary: string): Record<string, [string, numb
 type Run = { x: number; y: number; w: number; k: string };
 const cache = new Map<string, Run[]>();
 
+/** Regroupe les pixels voisins de même couleur en bandes horizontales, une fois par espèce et par caste. */
+function runsOf(key: string, build: () => Map<number, string>): Run[] {
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const px = build();
+  const out: Run[] = [];
+  for (let y = 0; y < W; y++)
+    for (let x = 0; x < W; ) {
+      const kx = px.get(y * W + x);
+      if (!kx) {
+        x++;
+        continue;
+      }
+      let end = x + 1;
+      while (end < W && px.get(y * W + end) === kx) end++;
+      out.push({ x, y, w: end - x, k: kx });
+      x = end;
+    }
+  cache.set(key, out);
+  return out;
+}
+
+/** Couleur et opacité d'une bande ; une espèce inconnue n'est qu'une silhouette, sans aura ni étincelles. */
+function paintOf(r: Run, colors: Record<string, [string, number?]>, unknown: boolean): { fill: string; opacity?: number } | null {
+  if (!unknown) {
+    const [fill, opacity] = colors[r.k] ?? ['#ff00ff'];
+    return { fill, opacity };
+  }
+  if (['g', 'g2', 'p', 'p2'].includes(r.k)) return null;
+  return { fill: colors[r.k]?.[0] ?? '#ff00ff', opacity: GHOST.has(r.k) && r.k !== 'x' ? 0.45 : 1 };
+}
+
 export const BeePortrait = memo(function BeePortrait({
   species,
   type = 'queen',
@@ -546,26 +578,7 @@ export const BeePortrait = memo(function BeePortrait({
   const spec = content.species[species];
   const { look, size: sizeIndex, seed } = lookOf(spec, species, type, (allele) => content.alleles.lifespan?.[allele]?.value ?? 30);
   const anatomy = ANATOMY[spec?.branch] ?? BASE;
-  const key = `${species}|${type}`;
-  let runs = cache.get(key);
-  if (!runs) {
-    const px = draw(look, anatomy, sizeIndex, type, seed);
-    const out: Run[] = [];
-    for (let y = 0; y < W; y++)
-      for (let x = 0; x < W; ) {
-        const kx = px.get(y * W + x);
-        if (!kx) {
-          x++;
-          continue;
-        }
-        let end = x + 1;
-        while (end < W && px.get(y * W + end) === kx) end++;
-        out.push({ x, y, w: end - x, k: kx });
-        x = end;
-      }
-    cache.set(key, out);
-    runs = out;
-  }
+  const runs = runsOf(`${species}|${type}`, () => draw(look, anatomy, sizeIndex, type, seed));
   const colors = palette(spec.color, spec.secondary);
   return (
     <svg
@@ -577,19 +590,18 @@ export const BeePortrait = memo(function BeePortrait({
       role="img"
       aria-label={unknown ? 'Espèce inconnue' : spec.label}
     >
-      {runs.map((r, i) => {
-        // Une espèce inconnue n'est qu'une silhouette : ni aura ni étincelles autour d'elle
-        if (unknown && ['g', 'g2', 'p', 'p2'].includes(r.k)) return null;
-        const [fill, opacity] = colors[r.k] ?? ['#ff00ff'];
+      {runs.map((r) => {
+        const paint = paintOf(r, colors, unknown);
+        if (!paint) return null;
         return (
           <rect
-            key={i}
+            key={`${r.x},${r.y}`}
             x={r.x}
             y={r.y}
             width={r.w + 0.02}
             height={1.02}
-            fill={fill}
-            fillOpacity={unknown ? (GHOST.has(r.k) && r.k !== 'x' ? 0.45 : 1) : opacity}
+            fill={paint.fill}
+            fillOpacity={paint.opacity}
             style={unknown ? { fill: 'var(--unknown)' } : undefined}
           />
         );

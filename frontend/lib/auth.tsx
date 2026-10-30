@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type Keycloak from 'keycloak-js';
 
 type Auth = {
@@ -42,6 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Formulaire : comptes locaux proposés à côté de Keycloak
   const [loginForm, setLoginForm] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [loggingIn, setLoggingIn] = useState(false);
+  // Verrou immédiat : deux clics dans la même image passeraient tous deux le test sur l'état
+  const submitting = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [cfg, setCfg] = useState<{ keycloakUrl: string; keycloakRealm: string; keycloakClientId: string } | null>(null);
 
@@ -102,7 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const config = await (await fetch('/config')).json();
+      const res = await fetch('/config');
+      if (!res.ok) throw new Error(`/config : ${res.status}`);
+      const config = await res.json();
       setCfg(config);
       if (config.authMode === 'dev') {
         const saved = localStorage.getItem(DEV_USER_KEY);
@@ -126,15 +131,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (
       <div className="splash">
         <p>{error}</p>
-        <button onClick={() => window.location.reload()}>Réessayer</button>
+        <button type="button" onClick={() => window.location.reload()}>
+          Réessayer
+        </button>
       </div>
     );
   }
   if (loginForm) {
     const submit = async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
+      if (submitting.current) return;
+      submitting.current = true;
       const form = new FormData(e.currentTarget);
       setLoginError(null);
+      setLoggingIn(true);
       try {
         const res = await fetch('/api/auth/local', {
           method: 'POST',
@@ -146,19 +156,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         else setLoginError(typeof data.detail === 'string' ? data.detail : 'Connexion impossible.');
       } catch {
         setLoginError('Le serveur de jeu est injoignable.');
+      } finally {
+        submitting.current = false;
+        setLoggingIn(false);
       }
     };
     return (
       <div className="splash">
         <h1>Apis Imperium</h1>
         <form className="login-form" onSubmit={submit}>
-          <input name="username" placeholder="Pseudo" autoComplete="username" maxLength={64} required autoFocus />
-          <input name="password" type="password" placeholder="Mot de passe" autoComplete="current-password" maxLength={256} required />
+          <input
+            name="username"
+            placeholder="Pseudo"
+            aria-label="Pseudo"
+            autoComplete="username"
+            maxLength={64}
+            required
+          />
+          <input
+            name="password"
+            type="password"
+            placeholder="Mot de passe"
+            aria-label="Mot de passe"
+            autoComplete="current-password"
+            maxLength={256}
+            required
+          />
           {loginError && <p className="login-error">{loginError}</p>}
-          <button className="primary">Se connecter</button>
+          <button type="submit" className="primary" disabled={loggingIn}>
+            {loggingIn ? 'Connexion…' : 'Se connecter'}
+          </button>
         </form>
         {cfg && (
           <button
+            type="button"
             onClick={() => {
               setLoginForm(false);
               enterKeycloak(cfg);
@@ -180,8 +211,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       <form className="splash" onSubmit={submit}>
         <h1>Apis Imperium</h1>
         <p className="muted">Mode développement : choisissez un pseudo.</p>
-        <input name="name" placeholder="Pseudo" maxLength={32} autoFocus />
-        <button className="primary">Entrer</button>
+        <input name="name" placeholder="Pseudo" aria-label="Pseudo" maxLength={32} />
+        <button type="submit" className="primary">
+          Entrer
+        </button>
       </form>
     );
   }

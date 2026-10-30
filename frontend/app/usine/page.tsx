@@ -2,7 +2,8 @@
 
 import { Outputs } from '@/components/apidex';
 import { HoldButton } from '@/components/HoldButton';
-import { CostView, ItemIcon, ItemQty, PageHead, SHORT, Switch, canAfford, fmt } from '@/components/ui';
+import { CostView, ItemIcon, ItemQty, PageHead, Switch } from '@/components/ui';
+import { SHORT, canAfford, fmt } from '@/lib/format';
 import { useGame } from '@/lib/game';
 import { type Ctx, pixelUrl, rect, shaded } from '@/lib/pixel';
 
@@ -45,30 +46,143 @@ function duration(s: number) {
   return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`;
 }
 
-export default function FactoryPage() {
-  const { content, state, act } = useGame();
+/** Rayons en stock et leur traitement : ce qui attend les centrifugeuses, ce qui est mis de côté. */
+function useFactory() {
+  const { content, state } = useGame();
   const owned = Object.keys(content.recipes).filter((c) => (state.inventory[c] ?? 0) > 0);
+  const centrifuges = state.machines.centrifuge ?? 0;
+  const skip = new Set(state.factory.skip);
+  const todo = owned.filter((c) => !skip.has(c));
+  return {
+    owned,
+    skip,
+    centrifuges,
+    hasAuto: centrifuges > 0,
+    running: state.factory.on,
+    queued: todo.reduce((n, c) => n + state.inventory[c], 0),
+    kept: owned.length - todo.length,
+  };
+}
+
+/** Phrase d'état des centrifugeuses automatiques. */
+function factoryStatus(f: ReturnType<typeof useFactory>, cycleSeconds: number): string {
+  if (!f.hasAuto) return 'Aucune centrifugeuse automatique : les rayons se traitent à la main.';
+  if (!f.running) return 'À l’arrêt : les rayons restent en stock.';
+  if (!f.queued) return f.owned.length ? 'En attente : tous les rayons en stock sont mis de côté.' : 'En attente : plus de rayons à traiter.';
+  return `En marche : ${f.centrifuges} rayon${f.centrifuges > 1 ? 's' : ''} toutes les ${cycleSeconds} s.`;
+}
+
+/** Achat d'une centrifugeuse automatique, puis des manivelles qui traitent plus de rayons par geste. */
+function FactoryBuy() {
+  const { content, state, act } = useGame();
+  const { hasAuto } = useFactory();
+  const offer = state.offers['machine:centrifuge'];
+  const press = state.offers['machine:manual_press'];
+  const nextBatch = content.manual_batches[(state.machines.manual_press ?? 0) + 1];
+  return (
+    <div className="factory-buy">
+      <CostView cost={offer.cost} />
+      <button
+        className="primary"
+        disabled={!!offer.lock || !canAfford(state, offer.cost)}
+        title={offer.lock ?? (canAfford(state, offer.cost) ? undefined : SHORT)}
+        onClick={() => act('/shop/buy', { offer_id: 'machine:centrifuge' })}
+      >
+        {hasAuto ? 'Ajouter une centrifugeuse' : 'Acheter une centrifugeuse'}
+      </button>
+      {nextBatch && (
+        <>
+          <CostView cost={press.cost} />
+          <button
+            disabled={!!press.lock || !canAfford(state, press.cost)}
+            title={press.lock ?? (canAfford(state, press.cost) ? content.machines.manual_press.desc : SHORT)}
+            onClick={() => act('/shop/buy', { offer_id: 'machine:manual_press' })}
+          >
+            Manivelle : {nextBatch} rayons par geste
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** En-tête : la centrifugeuse, son interrupteur, son état et la file d'attente. */
+function FactoryHead() {
+  const { content, state, act } = useGame();
+  const factory = useFactory();
+  const { centrifuges, hasAuto, running, queued, kept } = factory;
+  const working = hasAuto && running && queued > 0;
+  return (
+    <div className="card factory-head">
+      <Centrifuge spinning={working} />
+      <div style={{ minWidth: 0 }}>
+        <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+          <span className="title">
+            {content.machines.centrifuge.label} {hasAuto && <span className="badge ok">×{centrifuges}</span>}
+          </span>
+          {hasAuto && (
+            <Switch
+              on={running}
+              onChange={(on) => act('/factory/settings', { on })}
+              label={running ? 'Automatique' : 'À l’arrêt'}
+              title={running ? 'Arrêter les centrifugeuses automatiques' : 'Remettre les centrifugeuses en marche'}
+            />
+          )}
+        </div>
+        <div className="muted">{factoryStatus(factory, state.cycle_seconds)}</div>
+        {hasAuto && (
+          <div className="factory-stats">
+            <span className="chip">{fmt(queued)} rayons en file</span>
+            {working && <span className="chip">≈ {duration(Math.ceil(queued / centrifuges) * state.cycle_seconds)} pour tout traiter</span>}
+            {kept > 0 && <span className="chip">{kept} sorte{kept > 1 ? 's' : ''} mise{kept > 1 ? 's' : ''} de côté</span>}
+          </div>
+        )}
+      </div>
+      <FactoryBuy />
+    </div>
+  );
+}
+
+/** Un rayon en stock : ce qu'il donne, s'il passe aux centrifugeuses, et le bouton à maintenir. */
+function CombRow({ comb }: { comb: string }) {
+  const { content, state, act } = useGame();
+  const { skip, hasAuto, running } = useFactory();
+  const auto = !skip.has(comb);
+  const batch = state.manual_batch;
+  return (
+    <div className={`comb-row${hasAuto && (!auto || !running) ? ' paused' : ''}`}>
+      <ItemIcon id={comb} size={44} />
+      <span>
+        <div className="title">{content.items[comb].label}</div>
+        <b>×{fmt(state.inventory[comb])}</b>
+      </span>
+      <Outputs comb={comb} />
+      {hasAuto ? (
+        <Switch
+          on={auto}
+          onChange={(on) => act('/factory/combs', { comb_id: comb, auto: on })}
+          label="Auto"
+          title={auto ? 'Traité par les centrifugeuses automatiques' : 'Mis de côté : les centrifugeuses n’y touchent pas'}
+        />
+      ) : (
+        <span />
+      )}
+      <span className="hold-col">
+        <HoldButton seconds={HOLD_SECONDS} onDone={() => act('/factory/process', { comb_id: comb, qty: batch })}>
+          {batch > 1 ? `Maintenir ×${fmt(Math.min(batch, state.inventory[comb]))}` : 'Maintenir'}
+        </HoldButton>
+      </span>
+    </div>
+  );
+}
+
+export default function FactoryPage() {
+  const { content, state } = useGame();
+  const { owned } = useFactory();
   const resources = Object.entries(state.inventory)
     .filter(([id, qty]) => content.items[id]?.category === 'resource' && qty > 0)
     .sort((a, b) => b[1] - a[1]);
-  const centrifuges = state.machines.centrifuge ?? 0;
-  const hasAuto = centrifuges > 0;
-  const offer = state.offers['machine:centrifuge'];
-  const running = state.factory.on;
-  const skip = new Set(state.factory.skip);
-  const todo = owned.filter((c) => !skip.has(c));
-  const queued = todo.reduce((n, c) => n + state.inventory[c], 0);
-  const kept = owned.length - todo.length;
-  const working = hasAuto && running && queued > 0;
   const batch = state.manual_batch;
-  const press = state.offers['machine:manual_press'];
-  const nextBatch = content.manual_batches[(state.machines.manual_press ?? 0) + 1];
-
-  let status: string;
-  if (!hasAuto) status = 'Aucune centrifugeuse automatique : les rayons se traitent à la main.';
-  else if (!running) status = 'À l’arrêt : les rayons restent en stock.';
-  else if (!queued) status = owned.length ? 'En attente : tous les rayons en stock sont mis de côté.' : 'En attente : plus de rayons à traiter.';
-  else status = `En marche : ${centrifuges} rayon${centrifuges > 1 ? 's' : ''} toutes les ${state.cycle_seconds} s.`;
 
   return (
     <>
@@ -78,87 +192,14 @@ export default function FactoryPage() {
         ou décochez « Auto » sur un rayon pour le garder en stock, pour une commande du Comptoir par exemple.
       </PageHead>
 
-      <div className="card factory-head">
-        <Centrifuge spinning={working} />
-        <div style={{ minWidth: 0 }}>
-          <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
-            <span className="title">
-              {content.machines.centrifuge.label} {hasAuto && <span className="badge ok">×{centrifuges}</span>}
-            </span>
-            {hasAuto && (
-              <Switch
-                on={running}
-                onChange={(on) => act('/factory/settings', { on })}
-                label={running ? 'Automatique' : 'À l’arrêt'}
-                title={running ? 'Arrêter les centrifugeuses automatiques' : 'Remettre les centrifugeuses en marche'}
-              />
-            )}
-          </div>
-          <div className="muted">{status}</div>
-          {hasAuto && (
-            <div className="factory-stats">
-              <span className="chip">{fmt(queued)} rayons en file</span>
-              {working && <span className="chip">≈ {duration(Math.ceil(queued / centrifuges) * state.cycle_seconds)} pour tout traiter</span>}
-              {kept > 0 && <span className="chip">{kept} sorte{kept > 1 ? 's' : ''} mise{kept > 1 ? 's' : ''} de côté</span>}
-            </div>
-          )}
-        </div>
-        <div className="factory-buy">
-          <CostView cost={offer.cost} />
-          <button
-            className="primary"
-            disabled={!!offer.lock || !canAfford(state, offer.cost)}
-            title={offer.lock ?? (canAfford(state, offer.cost) ? undefined : SHORT)}
-            onClick={() => act('/shop/buy', { offer_id: 'machine:centrifuge' })}
-          >
-            {hasAuto ? 'Ajouter une centrifugeuse' : 'Acheter une centrifugeuse'}
-          </button>
-          {nextBatch && (
-            <>
-              <CostView cost={press.cost} />
-              <button
-                disabled={!!press.lock || !canAfford(state, press.cost)}
-                title={press.lock ?? (canAfford(state, press.cost) ? content.machines.manual_press.desc : SHORT)}
-                onClick={() => act('/shop/buy', { offer_id: 'machine:manual_press' })}
-              >
-                Manivelle : {nextBatch} rayons par geste
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+      <FactoryHead />
 
       <h2>Rayons en stock</h2>
       {owned.length === 0 && <p className="muted">Aucun rayon en stock. Récoltez vos ruches dans l'onglet Rucher.</p>}
       <div className="comb-list">
-        {owned.map((comb) => {
-          const auto = !skip.has(comb);
-          return (
-            <div key={comb} className={`comb-row${hasAuto && (!auto || !running) ? ' paused' : ''}`}>
-              <ItemIcon id={comb} size={44} />
-              <span>
-                <div className="title">{content.items[comb].label}</div>
-                <b>×{fmt(state.inventory[comb])}</b>
-              </span>
-              <Outputs comb={comb} />
-              {hasAuto ? (
-                <Switch
-                  on={auto}
-                  onChange={(on) => act('/factory/combs', { comb_id: comb, auto: on })}
-                  label="Auto"
-                  title={auto ? 'Traité par les centrifugeuses automatiques' : 'Mis de côté : les centrifugeuses n’y touchent pas'}
-                />
-              ) : (
-                <span />
-              )}
-              <span className="hold-col">
-                <HoldButton seconds={HOLD_SECONDS} onDone={() => act('/factory/process', { comb_id: comb, qty: batch })}>
-                  {batch > 1 ? `Maintenir ×${fmt(Math.min(batch, state.inventory[comb]))}` : 'Maintenir'}
-                </HoldButton>
-              </span>
-            </div>
-          );
-        })}
+        {owned.map((comb) => (
+          <CombRow key={comb} comb={comb} />
+        ))}
       </div>
 
       <h2>Ressources</h2>

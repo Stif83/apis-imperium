@@ -284,6 +284,10 @@ button.hold { position: relative; overflow: hidden; flex: 1; user-select: none; 
   background: var(--overlay);
   display: grid; place-items: center; padding: 16px;
 }
+/* <dialog> modale : elle couvre tout l'écran, son propre fond sert de voile */
+dialog.overlay { width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: none; color: inherit; }
+dialog.overlay:not([open]) { display: none; }
+dialog.overlay::backdrop { background: transparent; }
 .sheet {
   background: var(--bg); border-radius: 20px; padding: 18px; width: min(560px, 100%);
   max-height: calc(100vh - 32px); overflow: auto; display: flex; flex-direction: column; gap: 12px;
@@ -489,7 +493,8 @@ a.branch-bee.unknown { color: var(--muted); }
 .achievement-icon { font-size: 28px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--panel-2); flex: none; }
 .achievement.got .achievement-icon { background: linear-gradient(135deg, #ffe27a, #ffb81c); }
 .achievement-icon.big { font-size: 64px; width: 112px; height: 112px; background: #fff8d6; }
-.logo-bee { display: inline-flex; cursor: pointer; }
+.logo-bee { display: inline-flex; background: none; border: none; padding: 0; }
+.logo-bee:active:not(:disabled) { transform: none; }
 .logo-bee.buzzing { animation: buzzing 0.4s linear; }
 @keyframes buzzing { 25% { transform: translate(-2px, 1px) rotate(-8deg); } 50% { transform: translate(2px, -1px) rotate(8deg); } 75% { transform: translate(-1px, 0) rotate(-4deg); } }
 .bee-rain { position: fixed; inset: 0; z-index: 50; pointer-events: none; overflow: hidden; }
@@ -794,12 +799,14 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 .bee-search { display: inline-flex; align-items: center; gap: 8px; flex: 1; max-width: 420px; }
 .bee-search input { flex: 1; min-width: 0; }
 .tile-wrap { position: relative; display: grid; }
-.tile-wrap > button { width: 100%; height: 100%; }
+.tile-wrap > button:not(.genes-tip) { width: 100%; height: 100%; }
 .genes-tip {
   position: absolute; top: 4px; right: 4px; z-index: 1;
   width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%;
   font-size: 13px; font-weight: 700; color: var(--info); background: var(--info-bg); cursor: help;
+  padding: 0; border: none;
 }
+.genes-tip:active:not(:disabled) { transform: none; }
 .genes-tip:focus-visible { outline: 2px solid var(--accent); }
 .genes-pop {
   position: fixed; z-index: 50; width: 260px; padding: 8px 10px; border-radius: 12px;

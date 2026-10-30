@@ -1,35 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActiveEffects } from '@/components/Effects';
 import { SkyControl } from '@/components/Sky';
-import {
-  BIOME_ICONS,
-  BeeSearch,
-  BeeSheet,
-  BeeTile,
-  CostView,
-  GenesTip,
-  GenomeIcon,
-  GenomeTable,
-  Honey,
-  ItemIcon,
-  ItemQty,
-  PageHead,
-  SHORT,
-  TYPE_LABELS,
-  Traits,
-  WEATHER_ICONS,
-  beeMatches,
-  canAfford,
-  climateFit,
-  fmt,
-  groupBees,
-  speciesName,
-  type BeeGroup,
-} from '@/components/ui';
-import { HiveArt, sceneUrl } from '@/components/HiveArt';
+import { BeeSearch, BeeSheet, BeeTile, CostView, GenesTip, GenomeIcon, GenomeTable, Honey, ItemIcon, ItemQty, Modal, PageHead, Traits } from '@/components/ui';
+import { BIOME_ICONS, SHORT, WEATHER_ICONS, canAfford, fmt } from '@/lib/format';
+import { TYPE_LABELS, beeMatches, climateFit, groupBees, speciesName, type BeeGroup } from '@/lib/bees';
+import { HiveArt } from '@/components/HiveArt';
+import { sceneUrl } from '@/components/SceneArt';
 import { useGame } from '@/lib/game';
+import { keyed } from '@/lib/keys';
 import { pedigreeLevel, pedigreeMissing } from '@/lib/trophies';
 import type { Bee, Hive } from '@/lib/types';
 
@@ -50,7 +30,7 @@ function InstallSheet({ hive, onClose }: { hive: Hive; onClose: () => void }) {
     .map((b) => ({ bee: b, fit: climateFit(content, b.genome, hive.mods.temp) }))
     .sort((a, b) => Math.abs(a.fit) - Math.abs(b.fit));
   const drones = reserve.filter((b) => b.type === 'drone');
-  const [princessId, setPrincessId] = useState(princesses.find((p) => p.fit === 0)?.bee.id ?? '');
+  const [princessId, setPrincessId] = useState(() => princesses.find((p) => p.fit === 0)?.bee.id ?? '');
   const princess = reserve.find((b) => b.id === princessId);
   // Par défaut, un faux-bourdon de la même espèce que la princesse, de race pure si possible
   const sameSpecies = (id: string) =>
@@ -70,8 +50,8 @@ function InstallSheet({ hive, onClose }: { hive: Hive; onClose: () => void }) {
   const shownDrones = drones.filter((bee) => beeMatches(content, bee, droneQuery));
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet wide" role="dialog" aria-label={`Installer une reine dans ${hive.name}`} onClick={(e) => e.stopPropagation()}>
+    <Modal label={`Installer une reine dans ${hive.name}`} onClose={onClose}>
+      <div className="sheet wide">
         <div className="row between">
           <div>
             <div style={{ font: '600 22px/1.2 var(--display)' }}>Installer une reine</div>
@@ -157,13 +137,18 @@ function InstallSheet({ hive, onClose }: { hive: Hive; onClose: () => void }) {
           Accoupler et installer
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }
 
 function HiveName({ hive }: { hive: Hive }) {
   const { act } = useGame();
   const [draft, setDraft] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const editing = draft !== null;
+  useEffect(() => {
+    if (editing) input.current?.focus();
+  }, [editing]);
 
   if (draft === null) {
     return (
@@ -179,10 +164,11 @@ function HiveName({ hive }: { hive: Hive }) {
   };
   return (
     <input
+      ref={input}
       className="hive-name-input"
+      aria-label="Nom de la ruche"
       value={draft}
       maxLength={64}
-      autoFocus
       onChange={(e) => setDraft(e.target.value)}
       onBlur={save}
       onKeyDown={(e) => {
@@ -255,8 +241,8 @@ function RoboLoadout({ hive, stage }: { hive: Hive; stage: number }) {
         </div>
       </div>
       <div className="loadout-slots">
-        {draft.map((m, i) => (
-          <select key={i} value={m} onChange={(e) => set(i, e.target.value)} aria-label={`Emplacement ${i + 1}`}>
+        {draft.map((m, slot) => ({ m, slot })).map(({ m, slot }) => (
+          <select key={slot} value={m} onChange={(e) => set(slot, e.target.value)} aria-label={`Emplacement ${slot + 1}`}>
             <option value="">— vide —</option>
             {Object.entries(content.modules).map(([id, mod]) => (
               <option key={id} value={id}>
@@ -273,27 +259,90 @@ function RoboLoadout({ hive, stage }: { hive: Hive; stage: number }) {
   );
 }
 
-function HiveCard({ hive }: { hive: Hive }) {
-  const { content, state, act } = useGame();
-  const [picking, setPicking] = useState(false);
-  const [details, setDetails] = useState(false);
-  const [gain, setGain] = useState<string | null>(null);
+/** Biome, serre éventuelle et cadres montés, à côté du nom de la ruche. */
+function HiveChips({ hive }: { hive: Hive }) {
+  const { content } = useGame();
+  const biome = content.biomes[hive.biome];
+  const greenhouseBiome = content.greenhouse_biomes[hive.greenhouse ?? ''];
+  return (
+    <span className="row" style={{ gap: 4 }}>
+      <span className="chip" title={`${biome.label} · climat ${content.temp_labels[hive.mods.temp]}`}>
+        {BIOME_ICONS[hive.biome]} {biome.label}
+      </span>
+      {hive.greenhouse && (
+        <span
+          className="chip"
+          title={greenhouseBiome ? `Biome de serre : ${greenhouseBiome.desc}` : "Sous serre : température choisie, à l'abri de la pluie"}
+        >
+          🌡️ Serre · {greenhouseBiome?.label ?? content.temp_labels[hive.greenhouse]}
+        </span>
+      )}
+      {keyed(hive.modules, (m) => m).map(({ item: m, key }) => (
+        <span key={key} title={`${content.items[m]?.label} : ${content.modules[m]?.desc}`}>
+          <ItemIcon id={m} size={16} />
+        </span>
+      ))}
+    </span>
+  );
+}
 
-  const type = content.hive_types[hive.hive_type];
-  const inventory = state.bees.filter((b) => b.hive_id === null);
-  const princesses = inventory.filter((b) => b.type === 'princess');
-  const drones = inventory.filter((b) => b.type === 'drone');
+/** La reine au travail, avec sa santé et les mutations possibles ; sinon de quoi en installer une. */
+function QueenPanel({ hive }: { hive: Hive }) {
+  const { content, state } = useGame();
+  const [picking, setPicking] = useState(false);
+  const queen = hive.queen;
+  const discovered = new Set(state.discovered);
+  const reserve = state.bees.filter((b) => b.hive_id === null);
+  const canInstall = reserve.some((b) => b.type === 'princess') && reserve.some((b) => b.type === 'drone');
+  if (!queen)
+    return (
+      <>
+        {canInstall ? (
+          <button className="primary" onClick={() => setPicking(true)}>
+            Installer une reine
+          </button>
+        ) : (
+          <div className="muted">Il faut une princesse et un faux-bourdon en réserve.</div>
+        )}
+        {picking && <InstallSheet hive={hive} onClose={() => setPicking(false)} />}
+      </>
+    );
+  return (
+    <div className="bee-head">
+      <GenomeIcon genome={queen.genome} type="queen" size={44} />
+      <div className="grow">
+        <div className="row between">
+          <b>{content.species[queen.genome.species[0]]?.label}</b>
+          <Traits genome={queen.genome} />
+        </div>
+        <div className="bar" title={`Reste ${queen.health} cycles sur ${queen.max_health}`}>
+          <div style={{ width: `${(100 * queen.health) / queen.max_health}%` }} />
+        </div>
+        {hive.mutations_now && (
+          <div className="mutations-now" title="Observatoire : mutations dont les parents et les conditions sont réunis en ce moment">
+            🔭{' '}
+            {hive.mutations_now.length === 0
+              ? 'Aucune mutation possible en ce moment'
+              : hive.mutations_now.map((m) => (
+                  <span key={m.result} className="chip">
+                    {discovered.has(m.result) ? content.species[m.result]?.label : '???'} {Math.round(m.chance * 1000) / 10} %
+                  </span>
+                ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Rayons et jeunes abeilles qui attendent d'être récoltés. */
+function Harvest({ hive }: { hive: Hive }) {
+  const { content, state, act } = useGame();
+  const [gain, setGain] = useState<string | null>(null);
   const waiting = state.bees.filter((b) => b.hive_id === hive.id);
   const outputs = Object.entries(hive.output);
-  const fittable = Object.keys(content.modules).filter(
-    (m) => (state.inventory[m] ?? 0) > 0 && (!type.frames_only || content.modules[m].frame),
-  );
-  const queen = hive.queen;
-  const biome = content.biomes[hive.biome];
-  const greenhouseStage = state.projects?.greenhouse?.stage ?? 0;
-  const roboticsStage = state.projects?.robotics?.stage ?? 0;
-  const greenhouseBiome = content.greenhouse_biomes[hive.greenhouse ?? ''];
-  const next = content.evolutions[hive.hive_type];
+  const ready = outputs.length > 0 || waiting.length > 0;
+  if (!ready && !gain) return null;
 
   const collect = async () => {
     const combs = outputs.reduce((n, [, q]) => n + q, 0);
@@ -305,230 +354,217 @@ function HiveCard({ hive }: { hive: Hive }) {
   };
 
   return (
+    <div className="row">
+      {outputs.map(([item, n]) => (
+        <ItemQty key={item} id={item} qty={n} />
+      ))}
+      {waiting.map((b) => (
+        <span key={b.id} className="chip" title={`${TYPE_LABELS[b.type]} ${speciesName(content, b.genome)}`}>
+          <GenomeIcon genome={b.genome} type={b.type} size={18} />
+          {b.type === 'princess' ? '♀' : '♂'} ×{b.count}
+        </span>
+      ))}
+      <span className="gains" style={{ marginLeft: 'auto' }}>
+        {gain && <span className="float-gain">{gain}</span>}
+        {ready && (
+          <button className="primary" onClick={collect}>
+            Récolter
+          </button>
+        )}
+      </span>
+    </div>
+  );
+}
+
+/** Cadres montés (avec leur usure) et cadres de la réserve qu'on peut encore monter. */
+function MountedModules({ hive }: { hive: Hive }) {
+  const { content, state, act } = useGame();
+  const type = content.hive_types[hive.hive_type];
+  const fittable = Object.keys(content.modules).filter((m) => (state.inventory[m] ?? 0) > 0 && (!type.frames_only || content.modules[m].frame));
+  return (
+    <div className="slots">
+      {keyed(hive.modules, (m) => m).map(({ item: m, key }, i) => {
+        const wear = hive.wear[i];
+        return (
+          <span key={key} className="slot filled" title={content.modules[m]?.desc}>
+            <ItemIcon id={m} size={14} />
+            {content.items[m]?.label ?? m}
+            {wear != null && (
+              <span className={`badge${wear <= 1 ? ' warn' : ''}`} title="Générations restantes avant usure">
+                {wear}/{content.modules[m]?.uses} gén.
+              </span>
+            )}
+            <button className="small" title="Démonter (il garde son usure)" onClick={() => act(`/hives/${hive.id}/modules/${i}`, undefined, 'DELETE')}>
+              ×
+            </button>
+          </span>
+        );
+      })}
+      {hive.modules.length < hive.slots &&
+        fittable.map((m) => {
+          const spare = state.worn_modules[m] ?? [];
+          return (
+            <button key={m} className="small" title={content.modules[m].desc} onClick={() => act(`/hives/${hive.id}/modules`, { module_id: m })}>
+              + {content.items[m].label} (×{state.inventory[m]})
+              {spare.length > 0 && ` · entamé : ${Math.min(...spare)} gén.`}
+            </button>
+          );
+        })}
+      {hive.modules.length === 0 && fittable.length === 0 && <span className="muted">Aucun cadre monté. Les cadres s'achètent en boutique.</span>}
+    </div>
+  );
+}
+
+/** Évolution vers le type de ruche suivant, et emplacement supplémentaire. */
+function HiveUpgrades({ hive }: { hive: Hive }) {
+  const { content, state, act } = useGame();
+  const next = content.evolutions[hive.hive_type];
+  const nextType = next ? content.hive_types[next] : null;
+  return (
+    <>
+      {hive.upgrade_cost && nextType && (
+        <div className="upgrade-box">
+          <div>
+            <b>Faire évoluer en {nextType.label.toLowerCase()}</b>
+            <div className="muted">
+              Garde la reine, la récolte, les cadres et le biome. Passe à {nextType.slots} emplacements (jusqu'à {nextType.max_slots}), production ×
+              {String(nextType.production).replace('.', ',')}
+              {next === 'robo' ? ', avec élevage automatique intégré et des cadres configurés qui se remplacent seuls.' : ', et accepte tous les modules.'}
+            </div>
+          </div>
+          <div className="row">
+            <CostView cost={hive.upgrade_cost} />
+            <button
+              className="primary compact"
+              disabled={!canAfford(state, hive.upgrade_cost)}
+              title={canAfford(state, hive.upgrade_cost) ? undefined : SHORT}
+              onClick={() => act(`/hives/${hive.id}/upgrade`)}
+            >
+              Faire évoluer
+            </button>
+          </div>
+        </div>
+      )}
+      {next === 'robo' && !hive.upgrade_cost && (
+        <span className="muted">🤖 Le grand projet « L'ère de la robotique » permettra de la faire évoluer en robo-ruche.</span>
+      )}
+      {hive.slot_cost !== null && (
+        <div>
+          <button
+            className="small"
+            disabled={state.player.honey < hive.slot_cost}
+            title={state.player.honey < hive.slot_cost ? 'Pas assez de miel' : undefined}
+            onClick={() => act(`/hives/${hive.id}/expand`)}
+          >
+            + 1 emplacement (<Honey amount={hive.slot_cost} />)
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Serre : une température choisie, ou un biome de serre débloqué par le grand projet. */
+function GreenhouseSelect({ hive, stage }: { hive: Hive; stage: number }) {
+  const { content, act } = useGame();
+  return (
+    <label className="row muted">
+      🌡️ Serre
+      <select value={hive.greenhouse ?? ''} onChange={(e) => act(`/hives/${hive.id}`, { greenhouse: e.target.value })} aria-label="Température sous serre">
+        <option value="">Hors serre (climat du biome)</option>
+        <optgroup label="Température">
+          {(content.projects.greenhouse_temps[String(Math.min(stage, 3))] ?? []).map((t) => (
+            <option key={t} value={t}>
+              {content.temp_labels[t]}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="Biomes de serre">
+          {Object.entries(content.greenhouse_biomes)
+            .filter(([, b]) => b.stage <= stage)
+            .map(([id, b]) => (
+              <option key={id} value={id}>
+                {b.label} ({content.temp_labels[b.temp]})
+              </option>
+            ))}
+        </optgroup>
+      </select>
+    </label>
+  );
+}
+
+/** Options de l'élevage automatique. */
+function AutomationOptions({ hive }: { hive: Hive }) {
+  const { content, act } = useGame();
+  const line = hive.line_drone;
+  return (
+    <>
+      <label className="row muted">
+        <input type="checkbox" checked={hive.keep_drones} onChange={(e) => act(`/hives/${hive.id}`, { keep_drones: e.target.checked })} />
+        Conserver les faux-bourdons en surplus
+      </label>
+      <label className="row muted">
+        <input type="checkbox" checked={hive.reuse_drone} onChange={(e) => act(`/hives/${hive.id}`, { reuse_drone: e.target.checked })} />
+        Réinjecter le faux-bourdon installé tant qu'il en reste en réserve
+        {line && <span className="badge">{line.genome ? `${speciesName(content, line.genome)} ×${line.count}` : 'réserve épuisée'}</span>}
+      </label>
+    </>
+  );
+}
+
+/** Lignée et génome de la reine, et de quoi la retirer. */
+function QueenDetails({ hive }: { hive: Hive }) {
+  const { content, act } = useGame();
+  const queen = hive.queen;
+  if (!queen) return null;
+  return (
+    <>
+      <div className="muted">
+        Génération {queen.generation} · reste {queen.health} / {queen.max_health} cycles · accouplée avec {speciesName(content, queen.mate)}
+      </div>
+      <GenomeTable genome={queen.genome} />
+      <div>
+        <button className="small danger" title="La princesse revient en réserve, le faux-bourdon est perdu" onClick={() => act(`/hives/${hive.id}/eject`)}>
+          Retirer la reine
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** Réglages dépliables d'une ruche. */
+function HiveSettings({ hive }: { hive: Hive }) {
+  const { state } = useGame();
+  const greenhouseStage = state.projects?.greenhouse?.stage ?? 0;
+  const roboticsStage = state.projects?.robotics?.stage ?? 0;
+  return (
+    <div className="stack">
+      <MountedModules hive={hive} />
+      {hive.loadout && <RoboLoadout hive={hive} stage={roboticsStage} />}
+      <HiveUpgrades hive={hive} />
+      {greenhouseStage >= 1 && <GreenhouseSelect hive={hive} stage={greenhouseStage} />}
+      {hive.mods.automation && <AutomationOptions hive={hive} />}
+      <QueenDetails hive={hive} />
+    </div>
+  );
+}
+
+function HiveCard({ hive }: { hive: Hive }) {
+  const [details, setDetails] = useState(false);
+  return (
     <div className="card hive-card">
       <Scene hive={hive} />
       <div className="body">
         <div className="row between">
           <HiveName hive={hive} />
-          <span className="row" style={{ gap: 4 }}>
-            <span className="chip" title={`${biome.label} · climat ${content.temp_labels[hive.mods.temp]}`}>
-              {BIOME_ICONS[hive.biome]} {biome.label}
-            </span>
-            {hive.greenhouse && (
-              <span
-                className="chip"
-                title={greenhouseBiome ? `Biome de serre : ${greenhouseBiome.desc}` : "Sous serre : température choisie, à l'abri de la pluie"}
-              >
-                🌡️ Serre · {greenhouseBiome?.label ?? content.temp_labels[hive.greenhouse]}
-              </span>
-            )}
-            {hive.modules.map((m, i) => (
-              <span key={i} title={`${content.items[m]?.label} : ${content.modules[m]?.desc}`}>
-                <ItemIcon id={m} size={16} />
-              </span>
-            ))}
-          </span>
+          <HiveChips hive={hive} />
         </div>
-
-        {queen ? (
-          <div className="bee-head">
-            <GenomeIcon genome={queen.genome} type="queen" size={44} />
-            <div className="grow">
-              <div className="row between">
-                <b>{content.species[queen.genome.species[0]]?.label}</b>
-                <Traits genome={queen.genome} />
-              </div>
-              <div className="bar" title={`Reste ${queen.health} cycles sur ${queen.max_health}`}>
-                <div style={{ width: `${(100 * queen.health) / queen.max_health}%` }} />
-              </div>
-              {hive.mutations_now && (
-                <div className="mutations-now" title="Observatoire : mutations dont les parents et les conditions sont réunis en ce moment">
-                  🔭{' '}
-                  {hive.mutations_now.length === 0
-                    ? 'Aucune mutation possible en ce moment'
-                    : hive.mutations_now.map((m) => (
-                        <span key={m.result} className="chip">
-                          {state.discovered.includes(m.result) ? content.species[m.result]?.label : '???'} {Math.round(m.chance * 1000) / 10} %
-                        </span>
-                      ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : princesses.length && drones.length ? (
-          <button className="primary" onClick={() => setPicking(true)}>
-            Installer une reine
-          </button>
-        ) : (
-          <div className="muted">Il faut une princesse et un faux-bourdon en réserve.</div>
-        )}
-        {picking && <InstallSheet hive={hive} onClose={() => setPicking(false)} />}
-
-        {(outputs.length > 0 || waiting.length > 0 || gain) && (
-          <div className="row">
-            {outputs.map(([item, n]) => (
-              <ItemQty key={item} id={item} qty={n} />
-            ))}
-            {waiting.map((b) => (
-              <span key={b.id} className="chip" title={`${TYPE_LABELS[b.type]} ${speciesName(content, b.genome)}`}>
-                <GenomeIcon genome={b.genome} type={b.type} size={18} />
-                {b.type === 'princess' ? '♀' : '♂'} ×{b.count}
-              </span>
-            ))}
-            <span className="gains" style={{ marginLeft: 'auto' }}>
-              {gain && <span className="float-gain">{gain}</span>}
-              {(outputs.length > 0 || waiting.length > 0) && (
-                <button className="primary" onClick={collect}>
-                  Récolter
-                </button>
-              )}
-            </span>
-          </div>
-        )}
-
+        <QueenPanel hive={hive} />
+        <Harvest hive={hive} />
         <button className="small link" onClick={() => setDetails(!details)}>
           {details ? '▾' : '▸'} Réglages · modules {hive.modules.length}/{hive.slots}
         </button>
-        {details && (
-          <div className="stack">
-            <div className="slots">
-              {hive.modules.map((m, i) => (
-                <span key={i} className="slot filled" title={content.modules[m]?.desc}>
-                  <ItemIcon id={m} size={14} />
-                  {content.items[m]?.label ?? m}
-                  {hive.wear[i] != null && (
-                    <span className={`badge${hive.wear[i]! <= 1 ? ' warn' : ''}`} title="Générations restantes avant usure">
-                      {hive.wear[i]}/{content.modules[m]?.uses} gén.
-                    </span>
-                  )}
-                  <button className="small" title="Démonter (il garde son usure)" onClick={() => act(`/hives/${hive.id}/modules/${i}`, undefined, 'DELETE')}>
-                    ×
-                  </button>
-                </span>
-              ))}
-              {hive.modules.length < hive.slots &&
-                fittable.map((m) => {
-                  const spare = state.worn_modules[m] ?? [];
-                  return (
-                    <button key={m} className="small" title={content.modules[m].desc} onClick={() => act(`/hives/${hive.id}/modules`, { module_id: m })}>
-                      + {content.items[m].label} (×{state.inventory[m]})
-                      {spare.length > 0 && ` · entamé : ${Math.min(...spare)} gén.`}
-                    </button>
-                  );
-                })}
-              {hive.modules.length === 0 && fittable.length === 0 && (
-                <span className="muted">Aucun cadre monté. Les cadres s'achètent en boutique.</span>
-              )}
-            </div>
-            {hive.loadout && <RoboLoadout hive={hive} stage={roboticsStage} />}
-            {hive.upgrade_cost && next && (
-              <div className="upgrade-box">
-                <div>
-                  <b>Faire évoluer en {content.hive_types[next].label.toLowerCase()}</b>
-                  <div className="muted">
-                    Garde la reine, la récolte, les cadres et le biome. Passe à {content.hive_types[next].slots} emplacements (jusqu'à{' '}
-                    {content.hive_types[next].max_slots}), production ×{String(content.hive_types[next].production).replace('.', ',')}
-                    {next === 'robo'
-                      ? ', avec élevage automatique intégré et des cadres configurés qui se remplacent seuls.'
-                      : ', et accepte tous les modules.'}
-                  </div>
-                </div>
-                <div className="row">
-                  <CostView cost={hive.upgrade_cost} />
-                  <button
-                    className="primary compact"
-                    disabled={!canAfford(state, hive.upgrade_cost)}
-                    title={canAfford(state, hive.upgrade_cost) ? undefined : SHORT}
-                    onClick={() => act(`/hives/${hive.id}/upgrade`)}
-                  >
-                    Faire évoluer
-                  </button>
-                </div>
-              </div>
-            )}
-            {next === 'robo' && !hive.upgrade_cost && (
-              <span className="muted">🤖 Le grand projet « L'ère de la robotique » permettra de la faire évoluer en robo-ruche.</span>
-            )}
-            {hive.slot_cost !== null && (
-              <div>
-                <button
-                  className="small"
-                  disabled={state.player.honey < hive.slot_cost}
-                  title={state.player.honey < hive.slot_cost ? 'Pas assez de miel' : undefined}
-                  onClick={() => act(`/hives/${hive.id}/expand`)}
-                >
-                  + 1 emplacement (<Honey amount={hive.slot_cost} />)
-                </button>
-              </div>
-            )}
-            {greenhouseStage >= 1 && (
-              <label className="row muted">
-                🌡️ Serre
-                <select
-                  value={hive.greenhouse ?? ''}
-                  onChange={(e) => act(`/hives/${hive.id}`, { greenhouse: e.target.value })}
-                  aria-label="Température sous serre"
-                >
-                  <option value="">Hors serre (climat du biome)</option>
-                  <optgroup label="Température">
-                    {(content.projects.greenhouse_temps[String(Math.min(greenhouseStage, 3))] ?? []).map((t) => (
-                      <option key={t} value={t}>
-                        {content.temp_labels[t]}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Biomes de serre">
-                    {Object.entries(content.greenhouse_biomes)
-                      .filter(([, b]) => b.stage <= greenhouseStage)
-                      .map(([id, b]) => (
-                        <option key={id} value={id}>
-                          {b.label} ({content.temp_labels[b.temp]})
-                        </option>
-                      ))}
-                  </optgroup>
-                </select>
-              </label>
-            )}
-            {hive.mods.automation && (
-              <label className="row muted">
-                <input type="checkbox" checked={hive.keep_drones} onChange={(e) => act(`/hives/${hive.id}`, { keep_drones: e.target.checked })} />
-                Conserver les faux-bourdons en surplus
-              </label>
-            )}
-            {hive.mods.automation && (
-              <label className="row muted">
-                <input type="checkbox" checked={hive.reuse_drone} onChange={(e) => act(`/hives/${hive.id}`, { reuse_drone: e.target.checked })} />
-                Réinjecter le faux-bourdon installé tant qu'il en reste en réserve
-                {hive.line_drone &&
-                  (hive.line_drone.genome ? (
-                    <span className="badge">
-                      {speciesName(content, hive.line_drone.genome)} ×{hive.line_drone.count}
-                    </span>
-                  ) : (
-                    <span className="badge">réserve épuisée</span>
-                  ))}
-              </label>
-            )}
-            {queen && (
-              <>
-                <div className="muted">
-                  Génération {queen.generation} · reste {queen.health} / {queen.max_health} cycles · accouplée avec{' '}
-                  {speciesName(content, queen.mate)}
-                </div>
-                <GenomeTable genome={queen.genome} />
-                <div>
-                  <button
-                    className="small danger"
-                    title="La princesse revient en réserve, le faux-bourdon est perdu"
-                    onClick={() => act(`/hives/${hive.id}/eject`)}
-                  >
-                    Retirer la reine
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        {details && <HiveSettings hive={hive} />}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { memo } from 'react';
 import { type Ctx, rect, shade, sprite, usePixelCanvas } from '@/lib/pixel';
+import { CELL, PER_SHELF, SHELF, vitrineSize } from './MuseumLayout';
 
 /** Un objet exposé : sa couleur, sa forme (rayon ou bocal) et la part déjà donnée (0 à 1). */
 export type Exhibit = { color: string; comb: boolean; frac: number };
@@ -31,10 +32,6 @@ const COMB = [
 ];
 const STAR = ['.s.', 'sSs', '.s.'];
 
-const CELL = 12;
-const PER_SHELF = 6;
-const SHELF = 14;
-
 function drawExhibit(ctx: Ctx, e: Exhibit, x: number, y: number, back: string) {
   const rows = e.comb ? COMB : JAR;
   // Lignes de l'intérieur remplies, en partant du bas ; une part entamée montre au moins une ligne
@@ -56,12 +53,6 @@ function drawExhibit(ctx: Ctx, e: Exhibit, x: number, y: number, back: string) {
     },
   );
   if (e.frac >= 1) sprite(ctx, STAR, x + 6, y - 2, { s: '#fff3b0', S: '#ffffff' });
-}
-
-/** Taille d'une vitrine, en pixels de jeu, selon le nombre d'objets exposés. */
-export function vitrineSize(n: number) {
-  const shelves = Math.max(1, Math.ceil(n / PER_SHELF));
-  return { w: PER_SHELF * CELL + 8, h: 14 + shelves * SHELF + 9 };
 }
 
 /** Vitrine d'une branche : un cadre en bois (doré une fois complète), une étagère par rangée d'objets. */

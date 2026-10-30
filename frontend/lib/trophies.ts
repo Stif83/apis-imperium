@@ -33,3 +33,5 @@ export function claimableTrophies(content: Content, state: GameState): Trophy[] 
     return s && reachedTiers(t, s.progress) > s.claimed;
   });
 }
+
+export const METAL_LABELS: Record<string, string> = { bronze: 'bronze', silver: 'argent', gold: 'or', diamond: 'diamant' };

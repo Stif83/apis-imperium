@@ -893,6 +893,23 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
 - Frontend : session locale dans `localStorage` ; Keycloak n'est retenu qu'après une connexion réussie, pour ne
   pas boucler sur un Keycloak injoignable.
 
+## Demande du 2026-10-30 : corrections React Doctor (frontend 1.16.1, déployée)
+
+- React Doctor : 69 remarques → 4 (fausses alertes : relais API ×2, `fetch('/config')` au démarrage, clic sur le
+  fond d'une modale). `npx -y react-doctor@latest frontend --yes` pour relancer.
+- Bug corrigé : une abeille vendue alors qu'elle était dans l'équipe d'expédition en préparation faisait planter
+  la page. Connexion : erreur affichée si `/config` répond mal, plus de double envoi du formulaire.
+- Modales en `<dialog>` natif (`Modal` dans `components/ui.tsx`) : Échap ferme, focus piégé ; la bulle des gènes
+  se rend dans la modale ouverte.
+- Code sans composant sorti des `.tsx` : `lib/bees.ts`, `lib/format.ts`, `lib/apidex.ts`, `lib/keys.ts`
+  (clés stables), `components/BeeArt.ts`, `SceneArt.ts`, `WorldTreeArt.ts`, `MuseumLayout.ts`.
+- Gros composants découpés : Laboratoire (un composant par onglet, `useLab`), carte de ruche, fiche Apidex,
+  arbre des mutations (`usePanZoom`), Centrifugeuse, Boutique, portrait d'abeille.
+- Déploiement : seule l'image frontend a été reconstruite (`dist/images-1.16.1.tar`), backend 1.16.0 inchangé.
+  Vérifié : types, `next build`, pages servies en 200 sur le cluster. Non vérifié : les écrans à la souris.
+- 1.16.2 (déployée) : la bulle « ⓘ » des gènes, devenue un `<button>`, prenait toute la tuile à cause de
+  `.tile-wrap > button { width: 100%; height: 100% }` ; la règle l'exclut désormais (`:not(.genes-tip)`).
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

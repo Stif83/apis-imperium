@@ -1,10 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { BRANCH_LORE } from '@/components/apidex';
-import { Donations, donePercent } from '@/components/Donations';
+import { BRANCH_LORE } from '@/lib/apidex';
+import { Donations } from '@/components/Donations';
+import { donePercent } from '@/lib/format';
 import { type Exhibit, Vitrine } from '@/components/MuseumArt';
-import { PageHead, fmt } from '@/components/ui';
+import { PageHead } from '@/components/ui';
+import { fmt } from '@/lib/format';
 import { useGame } from '@/lib/game';
 
 export default function MuseumPage() {

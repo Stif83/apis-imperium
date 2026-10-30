@@ -1,7 +1,8 @@
 'use client';
 
-import { Donations, donePercent } from '@/components/Donations';
-import { worldTreeUrl } from '@/components/PlaceArt';
+import { Donations } from '@/components/Donations';
+import { donePercent } from '@/lib/format';
+import { worldTreeUrl } from '@/components/WorldTreeArt';
 import { PageHead } from '@/components/ui';
 import { useGame } from '@/lib/game';
 

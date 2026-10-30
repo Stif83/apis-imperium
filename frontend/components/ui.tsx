@@ -4,17 +4,14 @@ import Link from 'next/link';
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useContent, useGame } from '@/lib/game';
-import type { Bee, BeeType, Content, Cost, GameState, Genome } from '@/lib/types';
+import { type BeeGroup, TYPE_LABELS, alleleLabel, notableTraits, speciesName } from '@/lib/bees';
+import { fmt } from '@/lib/format';
+import type { Bee, BeeType, Cost, Genome } from '@/lib/types';
 import { BeeIcon } from './BeeIcon';
 import { ITEM_PX, drawItem } from './ItemArt';
 import { pixelUrl, sprite } from '@/lib/pixel';
 
-export const TYPE_LABELS: Record<BeeType, string> = { princess: 'Princesse', drone: 'Faux-bourdon', queen: 'Reine' };
-
-export const fmt = (n: number) => n.toLocaleString('fr-FR');
-
 const PHASE_ICONS: Record<string, string> = { dawn: '🌅', day: '☀️', dusk: '🌇', night: '🌙' };
-export const WEATHER_ICONS: Record<string, string> = { clear: '', rain: '🌧️', storm: '⛈️', snow: '❄️' };
 
 /** Heure du monde, commune à tous les joueurs (une journée de jeu = 24 minutes). */
 export function WorldClock() {
@@ -65,17 +62,6 @@ export function ThemeToggle() {
   );
 }
 
-/** Écart entre le climat d'une ruche et ce que supporte l'abeille : 0 si elle s'y plaît, sinon -1 (trop froid) ou +1 (trop chaud). */
-export function climateFit(content: Content, genome: Genome, hiveTemp: string): -1 | 0 | 1 {
-  const wanted = content.temps.indexOf(content.species[genome.species[0]]?.temp ?? 'normal');
-  const tolerance = content.alleles.tolerance?.[genome.tolerance?.[0] ?? 'none']?.value ?? 0;
-  const diff = content.temps.indexOf(hiveTemp) - wanted;
-  if (Math.abs(diff) <= tolerance) return 0;
-  return diff < 0 ? -1 : 1;
-}
-
-export const BIOME_ICONS: Record<string, string> = { plains: '🌼', taiga: '🌲', tundra: '🧊', jungle: '🌴', desert: '🌵' };
-
 /** Titre de page ; l'explication est rangée derrière un bouton « ? », avec un lien vers la section `guide` de l'aide. */
 export function PageHead({ title, children, extra, guide }: { title: ReactNode; children?: ReactNode; extra?: ReactNode; guide?: string }) {
   const [open, setOpen] = useState(false);
@@ -104,25 +90,6 @@ export function PageHead({ title, children, extra, guide }: { title: ReactNode; 
   );
 }
 
-const ACTIVITY_ICONS: Record<string, string> = { diurnal: '☀️', nocturnal: '🌙', crepuscular: '🌅', cathemeral: '♾️' };
-
-/** Gènes qui méritent d'être vus d'un coup d'œil ; le reste est dans la fiche complète. */
-export function notableTraits(content: Content, genome: Genome): { icon: string; label: string }[] {
-  const label = (c: string) => `${content.chromosomes[c]} : ${alleleLabel(content, c, genome[c]?.[0] ?? '')}`;
-  const out: { icon: string; label: string }[] = [];
-  const active = (c: string): string => genome[c]?.[0] ?? '';
-  if (genome.species[0] !== genome.species[1]) out.push({ icon: '🧬', label: `Hybride de ${content.species[genome.species[1]]?.label}` });
-  if (active('activity')) out.push({ icon: ACTIVITY_ICONS[active('activity')] ?? '☀️', label: label('activity') });
-  if (active('weatherproof') === 'yes') out.push({ icon: '☂️', label: label('weatherproof') });
-  if (['fast', 'faster', 'fastest'].includes(active('speed'))) out.push({ icon: '⚡', label: label('speed') });
-  if (['long', 'longer', 'longest'].includes(active('lifespan'))) out.push({ icon: '⏳', label: label('lifespan') });
-  if (Number(active('fertility')) >= 3) out.push({ icon: `♂${active('fertility')}`, label: label('fertility') });
-  if (['one', 'two'].includes(active('tolerance'))) out.push({ icon: '🌡️', label: label('tolerance') });
-  if (['chaotic', 'erratic', 'unstable'].includes(active('stability'))) out.push({ icon: '🎲', label: label('stability') });
-  if (['stable', 'ordered', 'pure'].includes(active('stability'))) out.push({ icon: '🛡️', label: label('stability') });
-  return out;
-}
-
 export function Traits({ genome }: { genome: Genome }) {
   const { content } = useGame();
   return (
@@ -134,25 +101,6 @@ export function Traits({ genome }: { genome: Genome }) {
       ))}
     </span>
   );
-}
-
-export type BeeGroup = { key: string; genome: Genome; bees: Bee[]; princesses: number; drones: number };
-
-/** Regroupe les abeilles par espèce (active + inactive) ; chaque génome distinct reste une variante. */
-export function groupBees(bees: Bee[]): BeeGroup[] {
-  const groups = new Map<string, BeeGroup>();
-  for (const bee of bees) {
-    const key = bee.genome.species.join('|');
-    let group = groups.get(key);
-    if (!group) {
-      group = { key, genome: bee.genome, bees: [], princesses: 0, drones: 0 };
-      groups.set(key, group);
-    }
-    group.bees.push(bee);
-    if (bee.type === 'princess') group.princesses += bee.count;
-    else group.drones += bee.count;
-  }
-  return [...groups.values()];
 }
 
 export function BeeTile({ group, onClick }: { group: BeeGroup; onClick: () => void }) {
@@ -169,13 +117,42 @@ export function BeeTile({ group, onClick }: { group: BeeGroup; onClick: () => vo
   );
 }
 
+/**
+ * Fenêtre modale native : Échap la ferme, le focus y reste, et un clic sur le fond (le `<dialog>` lui-même,
+ * étiré sur tout l'écran) aussi. `children` est la carte affichée au centre.
+ */
+export function Modal({ label, onClose, children }: { label?: string; onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="overlay"
+      aria-label={label}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      {children}
+    </dialog>
+  );
+}
+
 /** Fiche complète d'un groupe d'abeilles : chaque variante avec son génome et ses actions. */
 export function BeeSheet({ group, onClose, actions }: { group: BeeGroup; onClose: () => void; actions?: (bee: Bee) => ReactNode }) {
   const { content } = useGame();
   const species = content.species[group.genome.species[0]];
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-label={species?.label} onClick={(e) => e.stopPropagation()}>
+    <Modal label={species?.label} onClose={onClose}>
+      <div className="sheet">
         <div className="row between">
           <div className="bee-head">
             <GenomeIcon genome={group.genome} type="queen" size={56} />
@@ -205,7 +182,7 @@ export function BeeSheet({ group, onClose, actions }: { group: BeeGroup; onClose
           </div>
         ))}
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -252,15 +229,6 @@ export function ItemQty({ id, qty }: { id: string; qty?: number }) {
   );
 }
 
-/** Vrai si le joueur a de quoi payer `times` fois ce prix (miel et objets). */
-export function canAfford(state: GameState, cost: Cost | null | undefined, times = 1): boolean {
-  if (!cost) return false;
-  return state.player.honey >= (cost.honey ?? 0) * times && Object.entries(cost.items ?? {}).every(([i, n]) => (state.inventory[i] ?? 0) >= n * times);
-}
-
-/** Message d'un bouton d'achat grisé faute de moyens. */
-export const SHORT = 'Pas assez de miel ou de ressources';
-
 export function CostView({ cost, times = 1 }: { cost: Cost; times?: number }) {
   const { state } = useGame();
   return (
@@ -279,40 +247,10 @@ export function CostView({ cost, times = 1 }: { cost: Cost; times?: number }) {
   );
 }
 
-export function speciesName(content: ReturnType<typeof useGame>['content'], genome: Genome) {
-  const [active, inactive] = genome.species;
-  const name = content.species[active]?.label ?? active;
-  return active === inactive ? name : `${name} (hybride ${content.species[inactive]?.label ?? inactive})`;
-}
-
-export function alleleLabel(content: ReturnType<typeof useGame>['content'], chromosome: string, allele: string) {
-  if (chromosome === 'species') return content.species[allele]?.label ?? allele;
-  return content.alleles[chromosome]?.[allele]?.label ?? allele;
-}
-
 export function GenomeIcon({ genome, type, size }: { genome: Genome; type: BeeType; size?: number }) {
   const content = useContent();
   const species = content.species[genome.species[0]];
   return <BeeIcon species={genome.species[0]} color={species?.color ?? '888888'} secondary={species?.secondary ?? 'ffdc16'} type={type} size={size} />;
-}
-
-const plain = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
-
-/** Vrai si l'abeille correspond à la recherche : espèces, branche, type ou gènes actifs, sans tenir compte des accents. */
-export function beeMatches(content: Content, bee: { type: BeeType; genome: Genome }, query: string): boolean {
-  const words = plain(query).split(/\s+/).filter(Boolean);
-  if (!words.length) return true;
-  const [active, inactive] = bee.genome.species;
-  const text = plain(
-    [
-      content.species[active]?.label,
-      content.species[inactive]?.label,
-      content.species[active]?.branch,
-      TYPE_LABELS[bee.type],
-      ...Object.keys(content.chromosomes).map((c) => (bee.genome[c] ? alleleLabel(content, c, bee.genome[c][0]) : '')),
-    ].join(' '),
-  );
-  return words.every((w) => text.includes(w));
 }
 
 /** Champ de recherche d'abeilles, avec le nombre de résultats. */
@@ -337,19 +275,21 @@ export function BeeSearch({ value, onChange, shown, total }: { value: string; on
 
 /**
  * Bulle « ⓘ » qui affiche tous les gènes d'une abeille, au survol ou au toucher. Elle est rendue à la racine
- * de la page, en position fixe, pour ne pas être coupée par les listes qui défilent ni passer sous les tuiles.
+ * de la page (ou de la modale ouverte, qui passe au-dessus de tout), en position fixe, pour ne pas être coupée
+ * par les listes qui défilent ni passer sous les tuiles.
  */
 export function GenesTip({ genome, className = '' }: { genome: Genome; className?: string }) {
-  const anchor = useRef<HTMLSpanElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const anchor = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; root: Element } | null>(null);
   const show = () => {
-    const r = anchor.current?.getBoundingClientRect();
-    if (!r) return;
+    const el = anchor.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
     const width = 260;
     const left = Math.max(8, Math.min(window.innerWidth - width - 8, r.left + r.width / 2 - width / 2));
     // Sous l'icône, ou au-dessus s'il n'y a plus la place en bas
     const top = r.bottom + 230 > window.innerHeight ? Math.max(8, r.top - 230) : r.bottom + 6;
-    setPos({ top, left });
+    setPos({ top, left, root: el.closest('dialog') ?? document.body });
   };
   const hide = () => setPos(null);
   useEffect(() => {
@@ -358,11 +298,10 @@ export function GenesTip({ genome, className = '' }: { genome: Genome; className
     return () => window.removeEventListener('scroll', hide, true);
   }, [pos]);
   return (
-    <span
+    <button
+      type="button"
       ref={anchor}
       className={`genes-tip ${className}`}
-      role="button"
-      tabIndex={0}
       aria-label="Voir ses gènes"
       onMouseEnter={show}
       onMouseLeave={hide}
@@ -380,9 +319,9 @@ export function GenesTip({ genome, className = '' }: { genome: Genome; className
           <span className="genes-pop" style={{ top: pos.top, left: pos.left }} role="tooltip">
             <GenomeTable genome={genome} />
           </span>,
-          document.body,
+          pos.root,
         )}
-    </span>
+    </button>
   );
 }
 

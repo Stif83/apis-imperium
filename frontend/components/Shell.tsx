@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { GameProvider, useGame } from '@/lib/game';
 import { claimableTrophies } from '@/lib/trophies';
 import { BeeIcon } from './BeeIcon';
-import { Honey, ThemeToggle, WorldClock } from './ui';
+import { Honey, Modal, ThemeToggle, WorldClock } from './ui';
 
 type Tab = { href: string; label: string; icon: string };
 type Hints = Record<string, { text: string; alert?: boolean } | undefined>;
@@ -164,9 +164,9 @@ function Header({ hints }: { hints: Hints }) {
   return (
     <header className="topbar" data-phase={state.world.phase}>
       <div className="brand">
-        <span className={`logo-bee${buzzing ? ' buzzing' : ''}`} onClick={tease}>
+        <button type="button" className={`logo-bee${buzzing ? ' buzzing' : ''}`} onClick={tease} aria-label="L'abeille du logo">
           <BeeIcon color="ffb81c" secondary="3b2f1c" type="queen" size={32} />
-        </span>
+        </button>
         Apis Imperium
       </div>
       {rain && <BeeRain onDone={stopRain} />}
@@ -219,17 +219,17 @@ function Celebration() {
     detail = `Branche ${s.branch}`;
   }
   return (
-    <div className="overlay" onClick={dismissCelebration}>
-      <div key={`${next.kind}:${next.id}`} className="reveal" role="dialog" aria-label={kicker} onClick={(e) => e.stopPropagation()}>
+    <Modal label={kicker} onClose={dismissCelebration}>
+      <div key={`${next.kind}:${next.id}`} className="reveal">
         <span className="kicker">{kicker}</span>
         {icon}
         <span className="species">{name}</span>
         {detail && <span className="muted">{detail}</span>}
-        <button className="primary" autoFocus onClick={dismissCelebration}>
+        <button className="primary" onClick={dismissCelebration}>
           {celebrations.length > 1 ? `Suivante (${celebrations.length - 1})` : 'Super !'}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }
 

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { BIOME_ICONS, CostView, SHORT, WEATHER_ICONS, canAfford } from '@/components/ui';
+import { CostView } from '@/components/ui';
+import { BIOME_ICONS, SHORT, WEATHER_ICONS, canAfford } from '@/lib/format';
 import { useGame } from '@/lib/game';
 
 /** Grand télescope : impose une météo sur un biome, payée en ressources d'abeilles. */

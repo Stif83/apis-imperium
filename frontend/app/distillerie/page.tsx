@@ -1,7 +1,8 @@
 'use client';
 
 import { ActiveEffects } from '@/components/Effects';
-import { CostView, ItemIcon, PageHead, SHORT, canAfford, fmt } from '@/components/ui';
+import { CostView, ItemIcon, PageHead } from '@/components/ui';
+import { SHORT, canAfford, fmt } from '@/lib/format';
 import { useGame } from '@/lib/game';
 
 export default function DistilleryPage() {

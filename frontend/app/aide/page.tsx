@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { CostView, PageHead, alleleLabel, fmt } from '@/components/ui';
+import { CostView, PageHead } from '@/components/ui';
+import { alleleLabel } from '@/lib/bees';
+import { fmt } from '@/lib/format';
 import { useGame } from '@/lib/game';
 import type { Content } from '@/lib/types';
 
@@ -590,7 +592,10 @@ export default function HelpPage() {
   const shown = useMemo(() => {
     const words = query.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').split(/\s+/).filter(Boolean);
     const plain = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
-    return GUIDES.filter((g) => words.every((w) => plain(`${g.title} ${g.keywords}`).includes(w)));
+    return GUIDES.filter((g) => {
+      const text = plain(`${g.title} ${g.keywords}`);
+      return words.every((w) => text.includes(w));
+    });
   }, [query]);
 
   return (

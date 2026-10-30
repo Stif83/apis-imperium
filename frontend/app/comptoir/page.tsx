@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { BeeIcon } from '@/components/BeeIcon';
-import { GenomeIcon, Honey, ItemQty, PageHead, TYPE_LABELS, alleleLabel, fmt } from '@/components/ui';
+import { GenomeIcon, Honey, ItemQty, PageHead } from '@/components/ui';
+import { TYPE_LABELS, alleleLabel } from '@/lib/bees';
+import { fmt } from '@/lib/format';
 import { GuildCrest, ShopDoor } from '@/components/PlaceArt';
 import { useGame } from '@/lib/game';
+import { keyed } from '@/lib/keys';
 import type { Bee, Order } from '@/lib/types';
 
 function useNow(serverTime: number) {
@@ -198,11 +201,11 @@ export default function ComptoirPage() {
 
       <h2>Commandes</h2>
       <div className="order-grid">
-        {board.slots.map((slot, i) =>
+        {keyed(board.slots, (slot) => slot.order?.id ?? 'place-libre').map(({ item: slot, key }) =>
           slot.order ? (
             card(slot.order)
           ) : (
-            <div key={`empty-${i}`} className="card order-card empty">
+            <div key={key} className="card order-card empty">
               <ShopDoor />
               <span className="muted">Place libre · un client arrive dans {duration(slot.ready_ms - now)}</span>
             </div>

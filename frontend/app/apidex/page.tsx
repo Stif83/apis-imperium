@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { BeeIcon } from '@/components/BeeIcon';
-import { Outputs, computeTiers } from '@/components/apidex';
+import { Outputs } from '@/components/apidex';
+import { computeTiers } from '@/lib/apidex';
 import { ItemIcon, PageHead } from '@/components/ui';
 import { TreeView } from '@/components/TreeView';
 import { useGame } from '@/lib/game';

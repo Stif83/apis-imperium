@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { METAL_LABELS, Medal } from '@/components/Badges';
-import { Honey, ItemQty, PageHead, fmt } from '@/components/ui';
+import { Medal } from '@/components/Badges';
+import { METAL_LABELS } from '@/lib/trophies';
+import { Honey, ItemQty, PageHead } from '@/components/ui';
+import { fmt } from '@/lib/format';
 import { useGame } from '@/lib/game';
 import { claimableTrophies, reachedTiers } from '@/lib/trophies';
 import type { Cost, Trophy } from '@/lib/types';
@@ -35,6 +37,7 @@ export default function CarnetPage() {
   const list = content.trophies.list;
   const progress = (t: Trophy) => state.trophies?.[t.id] ?? { progress: 0, claimed: 0 };
   const ready = claimableTrophies(content, state);
+  const readySet = new Set(ready);
   const tiersTotal = list.reduce((n, t) => n + t.tiers.length, 0);
   const tiersClaimed = list.reduce((n, t) => n + Math.min(progress(t).claimed, t.tiers.length), 0);
   const byMetal = (metal: string) =>
@@ -184,7 +187,7 @@ export default function CarnetPage() {
       </div>
 
       {shown.map(([id, label]) => {
-        const members = list.filter((t) => t.category === id && !ready.includes(t));
+        const members = list.filter((t) => t.category === id && !readySet.has(t));
         if (!members.length) return null;
         const found = members.filter((t) => !t.secret || progress(t).progress > 0).length;
         return (

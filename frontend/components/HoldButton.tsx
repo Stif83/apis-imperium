@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 /** Bouton à maintenir enfoncé : déclenche `onDone` à chaque fois que la durée s'écoule. */
 export function HoldButton({
@@ -17,11 +17,17 @@ export function HoldButton({
   const [progress, setProgress] = useState(0);
   const frame = useRef<number | undefined>(undefined);
   const done = useRef(onDone);
-  done.current = onDone;
+  useLayoutEffect(() => {
+    done.current = onDone;
+  });
 
-  const stop = () => {
+  const cancel = () => {
     if (frame.current !== undefined) cancelAnimationFrame(frame.current);
     frame.current = undefined;
+  };
+
+  const stop = () => {
+    cancel();
     setProgress(0);
   };
 
@@ -42,9 +48,10 @@ export function HoldButton({
     frame.current = requestAnimationFrame(tick);
   };
 
-  useEffect(() => stop, []);
+  useEffect(() => cancel, []);
+  // Désactivé en cours d'appui : on arrête l'animation, la jauge s'affiche vide
   useEffect(() => {
-    if (disabled) stop();
+    if (disabled) cancel();
   }, [disabled]);
 
   return (
@@ -62,7 +69,7 @@ export function HoldButton({
       onKeyUp={stop}
       onBlur={stop}
     >
-      <span className="hold-fill" style={{ width: `${progress * 100}%` }} />
+      <span className="hold-fill" style={{ width: `${disabled ? 0 : progress * 100}%` }} />
       <span className="hold-label">{children}</span>
     </button>
   );

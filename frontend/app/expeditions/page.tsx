@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { BeeIcon } from '@/components/BeeIcon';
-import { GenomeIcon, ItemQty, PageHead, TYPE_LABELS, alleleLabel } from '@/components/ui';
+import { GenomeIcon, ItemQty, PageHead } from '@/components/ui';
+import { TYPE_LABELS, alleleLabel } from '@/lib/bees';
 import { useScoutBonus } from '@/components/Effects';
 import { beeScore, teamChance } from '@/lib/expeditions';
 import { RegionBanner } from '@/components/PlaceArt';
 import { useGame } from '@/lib/game';
+import { keyed } from '@/lib/keys';
 import type { Bee } from '@/lib/types';
 
 function useNow(serverTime: number) {
@@ -52,9 +54,16 @@ export default function ExpeditionsPage() {
       </>
     );
 
-  const picked = (bee: Bee) => team.filter((id) => id === bee.id).length;
+  const byId = new Map(reserve.map((b) => [b.id, b]));
+  // Une abeille vendue ou installée entre-temps quitte l'équipe ; une même abeille peut y figurer plusieurs fois
+  const members = team.flatMap((id, i) => {
+    const bee = byId.get(id);
+    return bee ? [{ bee, key: `${id}-${team.slice(0, i).filter((t) => t === id).length}` }] : [];
+  });
+  const memberIds = members.map((m) => m.bee.id);
+  const picked = (bee: Bee) => memberIds.filter((id) => id === bee.id).length;
   const chosen = region ? content.expeditions.regions[region] : null;
-  const scores = chosen ? team.map((id) => beeScore(content, reserve.find((b) => b.id === id)!.genome, chosen).total) : [];
+  const scores = chosen ? members.map(({ bee }) => beeScore(content, bee.genome, chosen).total) : [];
 
   return (
     <>
@@ -80,8 +89,8 @@ export default function ExpeditionsPage() {
                 <span className="badge">{pct(t.chance)} de réussite</span>
               </div>
               <div className="row">
-                {t.bees.map((b, i) => (
-                  <GenomeIcon key={i} genome={b.genome} type={b.type} size={30} />
+                {keyed(t.bees, (b) => `${b.type}:${b.genome.species.join('/')}`).map(({ item: b, key }) => (
+                  <GenomeIcon key={key} genome={b.genome} type={b.type} size={30} />
                 ))}
               </div>
               <span className="bar">
@@ -206,9 +215,9 @@ export default function ExpeditionsPage() {
                           <button
                             key={bee.id}
                             className="exp-candidate"
-                            disabled={left <= 0 || team.length >= content.expeditions.team_max}
+                            disabled={left <= 0 || memberIds.length >= content.expeditions.team_max}
                             title={`Climat ${score.climate}/40 · pluie ${score.weather}/20 · obscurité ${score.dark}/20 · endurance ${score.endurance}/20`}
-                            onClick={() => setTeam([...team, bee.id])}
+                            onClick={() => setTeam([...memberIds, bee.id])}
                           >
                             <GenomeIcon genome={bee.genome} type={bee.type} size={26} />
                             <span className="grow">
@@ -225,26 +234,28 @@ export default function ExpeditionsPage() {
                   </div>
                   <div className="row between">
                     <span className="row" style={{ gap: 4 }}>
-                      {team.length === 0 && <span className="muted">Équipe vide</span>}
-                      {team.map((id, i) => {
-                        const bee = reserve.find((b) => b.id === id)!;
-                        return (
-                          <button key={i} className="chip pick selected" title={`Retirer · ${TYPE_LABELS[bee.type]}`} onClick={() => setTeam(team.filter((_, j) => j !== i))}>
-                            <GenomeIcon genome={bee.genome} type={bee.type} size={18} /> ×
-                          </button>
-                        );
-                      })}
+                      {members.length === 0 && <span className="muted">Équipe vide</span>}
+                      {members.map(({ bee, key }, i) => (
+                        <button
+                          key={key}
+                          className="chip pick selected"
+                          title={`Retirer · ${TYPE_LABELS[bee.type]}`}
+                          onClick={() => setTeam(memberIds.filter((_, j) => j !== i))}
+                        >
+                          <GenomeIcon genome={bee.genome} type={bee.type} size={18} /> ×
+                        </button>
+                      ))}
                     </span>
                     <span className="badge" title={scout ? `Élixir d'éclaireur : +${pct(scout)}` : undefined}>
-                      {team.length ? pct(Math.min(0.98, teamChance(scores) + scout)) : '—'} de réussite{scout > 0 && ' ⚗️'}
+                      {members.length ? pct(Math.min(0.98, teamChance(scores) + scout)) : '—'} de réussite{scout > 0 && ' ⚗️'}
                     </span>
                   </div>
                   <div className="row">
                     <button
                       className="primary compact"
-                      disabled={team.length === 0}
+                      disabled={members.length === 0}
                       onClick={async () => {
-                        if (await act('/expeditions/launch', { region: rid, bee_ids: team })) {
+                        if (await act('/expeditions/launch', { region: rid, bee_ids: memberIds })) {
                           setRegion(null);
                           setTeam([]);
                         }

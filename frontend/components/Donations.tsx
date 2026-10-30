@@ -1,6 +1,7 @@
 'use client';
 
-import { Honey, ItemIcon, fmt } from '@/components/ui';
+import { Honey, ItemIcon } from '@/components/ui';
+import { fmt } from '@/lib/format';
 import { useGame } from '@/lib/game';
 
 /**
@@ -77,9 +78,3 @@ export function Donations({
   );
 }
 
-/** Part déjà réunie, en pourcentage : chaque ligne compte autant, quelle que soit sa quantité. */
-export function donePercent(needs: [string, number][], given: (item: string) => number) {
-  if (!needs.length) return 100;
-  const share = needs.reduce((n, [item, need]) => n + Math.min(1, given(item) / need), 0) / needs.length;
-  return Math.floor(100 * share);
-}

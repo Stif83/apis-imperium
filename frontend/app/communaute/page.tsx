@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { BadgeStrip, RankChip } from '@/components/Badges';
-import { GenomeIcon, PageHead, TYPE_LABELS, speciesName } from '@/components/ui';
+import { GenomeIcon, PageHead } from '@/components/ui';
+import { TYPE_LABELS, speciesName } from '@/lib/bees';
 import { useGame } from '@/lib/game';
+import { keyed } from '@/lib/keys';
 import type { Showcase } from '@/lib/types';
 
 export default function CommunityPage() {
@@ -24,6 +26,7 @@ export default function CommunityPage() {
     return list !== null;
   };
 
+  const pickedSet = new Set(picked);
   const toggle = (id: string) => {
     if (picked.includes(id)) setPicked(picked.filter((p) => p !== id));
     else if (picked.length < content.showcase_max_entries) setPicked([...picked, id]);
@@ -71,7 +74,7 @@ export default function CommunityPage() {
           </div>
           <div className="row">
             {state.bees.map((b) => (
-              <button key={b.id} className={`chip pick${picked.includes(b.id) ? ' selected' : ''}`} onClick={() => toggle(b.id)}>
+              <button key={b.id} className={`chip pick${pickedSet.has(b.id) ? ' selected' : ''}`} onClick={() => toggle(b.id)}>
                 <GenomeIcon genome={b.genome} type={b.type} size={24} />
                 {label(b.type, b.genome)}
               </button>
@@ -112,8 +115,8 @@ export default function CommunityPage() {
             </div>
             <BadgeStrip badges={s.badges} />
             <div className="shelf">
-              {s.entries.map((entry, i) => (
-                <span key={i} title={label(entry.type, entry.genome)}>
+              {keyed(s.entries, (e) => `${e.type}:${e.genome.species.join('/')}`).map(({ item: entry, key }) => (
+                <span key={key} title={label(entry.type, entry.genome)}>
                   <GenomeIcon genome={entry.genome} type={entry.type as 'drone'} size={48} />
                 </span>
               ))}

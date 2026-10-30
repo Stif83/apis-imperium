@@ -1,4 +1,5 @@
 import { type Ctx, pixelUrl, shade, shaded } from '@/lib/pixel';
+import { METAL_LABELS } from '@/lib/trophies';
 import type { Badge, PlayerBadges } from '@/lib/types';
 
 const METALS: Record<string, [string, string, string]> = {
@@ -8,7 +9,6 @@ const METALS: Record<string, [string, string, string]> = {
   gold: ['#ffe27a', '#d49a00', '#c0392b'],
   diamond: ['#e3fbff', '#5fc8e8', '#2c3e8f'],
 };
-export const METAL_LABELS: Record<string, string> = { bronze: 'bronze', silver: 'argent', gold: 'or', diamond: 'diamant' };
 
 /** Médaille en pixel art (20 × 25) : ruban, disque ombré et liseré clair. */
 function drawMedal(ctx: Ctx, light: string, dark: string, ribbon: string, branch: boolean) {

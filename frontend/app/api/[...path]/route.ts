@@ -21,6 +21,8 @@ async function relay(req: NextRequest, ctx: { params: Promise<{ path: string[] }
       headers,
       body: hasBody ? await req.text() : undefined,
       cache: 'no-store',
+      // Le backend ne redirige pas : une redirection est renvoyée telle quelle, jamais suivie
+      redirect: 'manual',
     });
     return new NextResponse(await res.text(), {
       status: res.status,

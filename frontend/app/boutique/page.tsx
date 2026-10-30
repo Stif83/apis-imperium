@@ -3,9 +3,10 @@
 import { useState, type ReactNode } from 'react';
 import { BeeIcon } from '@/components/BeeIcon';
 import { HiveArt } from '@/components/HiveArt';
-import { BIOME_ICONS, CostView, Honey, ItemIcon, PageHead, SHORT, Traits, canAfford, fmt } from '@/components/ui';
+import { CostView, Honey, ItemIcon, PageHead, Traits } from '@/components/ui';
+import { BIOME_ICONS, SHORT, canAfford, fmt } from '@/lib/format';
 import { useGame } from '@/lib/game';
-import type { Offer } from '@/lib/types';
+import type { Content, Offer } from '@/lib/types';
 
 const TABS = [
   { id: 'bees', label: 'Abeilles' },
@@ -97,29 +98,37 @@ function HiveOffer({ offer }: { offer: Offer }) {
   );
 }
 
+type OfferText = { icon: ReactNode; title: string; desc: string; tag?: string };
+
+/** Objet en vente : un cadre ou un module dit où il se monte et combien de générations il dure. */
+function itemText(content: Content, item: string): OfferText {
+  const module = content.modules[item];
+  const wear = module?.uses ? ` · s'use en ${module.uses} générations` : '';
+  return {
+    icon: <ItemIcon id={item} size={40} />,
+    title: content.items[item].label,
+    desc: (module?.desc ?? 'Consommée à chaque opération du laboratoire.') + wear,
+    tag: module && (module.frame ? 'Rucher et alvéaire' : 'Alvéaire'),
+  };
+}
+
+/** Icône, titre et description d'une offre d'objet, de machine ou du laboratoire. */
+function offerText(content: Content, offer: Offer): OfferText {
+  if (offer.kind === 'item' && offer.item) return itemText(content, offer.item);
+  if (offer.kind === 'machine' && offer.machine) {
+    const machine = content.machines[offer.machine];
+    return { icon: <span style={{ fontSize: 34 }}>⚙️</span>, title: machine.label, desc: machine.desc };
+  }
+  if (offer.kind === 'unlock') {
+    return { icon: <span style={{ fontSize: 34 }}>🧪</span>, title: 'Laboratoire de génétique', desc: 'Extraction et impression de gènes (Atelier › Laboratoire).' };
+  }
+  return { icon: null, title: '', desc: '' };
+}
+
 function ItemOffer({ offer, qty }: { offer: Offer; qty: number }) {
   const { content, state } = useGame();
   const { cost, lock } = state.offers[offer.id];
-  let icon: ReactNode = null;
-  let title = '';
-  let desc = '';
-  let tag = '';
-  if (offer.kind === 'item' && offer.item) {
-    icon = <ItemIcon id={offer.item} size={40} />;
-    title = content.items[offer.item].label;
-    const module = content.modules[offer.item];
-    desc = module?.desc ?? 'Consommée à chaque opération du laboratoire.';
-    if (module?.uses) desc += ` · s'use en ${module.uses} générations`;
-    if (module) tag = module.frame ? 'Rucher et alvéaire' : 'Alvéaire';
-  } else if (offer.kind === 'machine' && offer.machine) {
-    icon = <span style={{ fontSize: 34 }}>⚙️</span>;
-    title = content.machines[offer.machine].label;
-    desc = content.machines[offer.machine].desc;
-  } else if (offer.kind === 'unlock') {
-    icon = <span style={{ fontSize: 34 }}>🧪</span>;
-    title = 'Laboratoire de génétique';
-    desc = "Extraction et impression de gènes (Atelier › Laboratoire).";
-  }
+  const { icon, title, desc, tag } = offerText(content, offer);
   const stackable = offer.kind === 'item';
   return (
     <div className={`card offer${lock ? ' locked' : ''}`}>

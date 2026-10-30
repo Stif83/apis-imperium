@@ -1,6 +1,7 @@
 'use client';
 
-import { Donations, donePercent } from '@/components/Donations';
+import { Donations } from '@/components/Donations';
+import { donePercent } from '@/lib/format';
 import { PageHead } from '@/components/ui';
 import { useGame } from '@/lib/game';
 
@@ -37,7 +38,7 @@ export default function ProjectsPage() {
 
               <ol className="project-stages">
                 {project.stages.map((s, i) => (
-                  <li key={i} className={i < progress.stage ? 'done' : i === progress.stage ? 'current' : ''}>
+                  <li key={s.label} className={i < progress.stage ? 'done' : i === progress.stage ? 'current' : ''}>
                     <span className="project-step">{i < progress.stage ? '✓' : i + 1}</span>
                     <span>
                       <b>{s.label}</b>

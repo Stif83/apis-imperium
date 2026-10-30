@@ -1,4 +1,4 @@
-import { climateFit } from '@/components/ui';
+import { climateFit } from './bees';
 import type { Content, Genome, Region } from '@/lib/types';
 
 // Mêmes règles que le serveur (game/expeditions.py), pour annoncer la chance avant le départ
