@@ -4,7 +4,7 @@ import hashlib
 import json
 import math
 
-from .content import ALLELES, BIOMES, CHROMOSOMES, HIVE_TYPES, MODULES, MUTATIONS, SPECIES, TEMPS
+from .content import ALLELES, BIOMES, CHROMOSOMES, HIVE_TYPES, MODULES, MUTATIONS, OVERFLOW, SPECIES, TEMPS
 
 
 def pure_genome(species_id: str) -> dict:
@@ -54,12 +54,27 @@ def products(genome: dict) -> list[tuple[str, float]]:
     return out
 
 
+def overflow(chance: float, boost: float) -> float:
+    """Surplus par cycle d'un produit de chance `chance` (non plafonnée), dont `boost` vient des modules
+    "overflow" : seuls les doublements de ces modules au-delà de 100 % comptent."""
+    if chance <= 1:
+        return 0.0
+    return OVERFLOW * (math.log2(chance) - max(0.0, math.log2(chance / boost)))
+
+
+def scale(rng, n: int, mult: float) -> int:
+    """Multiplie une quantité par `mult` ; la partie fractionnaire est tirée au sort, objet par objet."""
+    whole = int(mult)
+    return n * whole + binomial(rng, n, mult - whole)
+
+
 def hive_mods(hive_type: str, biome: str, modules: list[str], base_temp: str | None = None) -> dict:
     """Effets d'une ruche ; `base_temp` remplace la température du biome (ruche sous serre)."""
     mods = {
         "production": HIVE_TYPES[hive_type]["production"],
         "lifespan": 1.0,
         "mutation": 1.0,
+        "overflow": 1.0,
         "automation": HIVE_TYPES[hive_type].get("automated", False),
         "light": False,
         "shelter": False,
@@ -69,6 +84,8 @@ def hive_mods(hive_type: str, biome: str, modules: list[str], base_temp: str | N
         effects = MODULES.get(module, {}).get("effects", {})
         for key in ("production", "lifespan", "mutation"):
             mods[key] *= effects.get(key, 1.0)
+        if MODULES.get(module, {}).get("overflow"):
+            mods["overflow"] *= effects.get("production", 1.0)
         temp += effects.get("temp", 0)
         for flag in ("automation", "light", "shelter"):
             mods[flag] = mods[flag] or effects.get(flag, False)

@@ -4,10 +4,47 @@ import { useMemo, useState } from 'react';
 import { BRANCH_LORE } from '@/lib/apidex';
 import { Donations } from '@/components/Donations';
 import { donePercent } from '@/lib/format';
-import { type Exhibit, Vitrine } from '@/components/MuseumArt';
+import { type Exhibit, GrandJar, Vitrine } from '@/components/MuseumArt';
 import { PageHead } from '@/components/ui';
 import { fmt } from '@/lib/format';
 import { useGame } from '@/lib/game';
+
+// Clé du Bocal commun dans les dons du musée (late.JAR côté serveur)
+const JAR = '_jar';
+
+/** Œuf de Pâques : le Bocal commun, qui n'apparaît qu'une fois toutes les collections complètes. */
+function CommonJar() {
+  const { content, state, act } = useGame();
+  const needs = Object.entries(content.late.museum.jar);
+  const given = (item: string) => state.museum.given[JAR]?.[item] ?? 0;
+  const full = state.museum.jar_full;
+  const layers = needs.map(([item, need]) => ({ color: content.items[item]?.color ?? 'e8d56a', frac: given(item) / need }));
+  return (
+    <div className={`card museum-jar${full ? ' complete' : ''}`}>
+      <GrandJar layers={layers} full={full} />
+      <div className="museum-detail">
+        <span className="museum-caption">
+          <b>Le Bocal commun</b>
+          {full ? <span className="stamp">Plein</span> : <span className="badge">{donePercent(needs, given)} %</span>}
+        </span>
+        {full ? (
+          <p className="muted">
+            {fmt(needs.length * 1_000_000)} rayons, une couche par sorte : le plus grand pot de miel jamais rempli. Les abeilles du monde
+            entier viennent le contempler, et le conservateur du musée n&apos;a plus rien à vous demander.
+          </p>
+        ) : (
+          <>
+            <p className="muted">
+              Toutes les vitrines brillent… et au fond de la réserve, le conservateur a déniché un bocal immense. Il attend{' '}
+              {fmt(1_000_000)} rayons de chaque sorte.
+            </p>
+            <Donations needs={needs} given={given} onGive={(item, qty) => act('/museum/donate', { branch: JAR, item, qty })} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function MuseumPage() {
   const { content, state, act } = useGame();
@@ -50,6 +87,8 @@ export default function MuseumPage() {
         ressources selon leur rareté. Chaque bocal se remplit au fil des dons. Une collection complète fait produire les abeilles de sa
         branche ×{String(bonus).replace('.', ',')}, pour toujours, et sa vitrine se dore. Les dons sont définitifs.
       </PageHead>
+
+      {done.size === branches.length && <CommonJar />}
 
       <div className="museum-grid">
         {order.map((branch) => {

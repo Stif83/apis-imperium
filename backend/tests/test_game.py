@@ -1035,6 +1035,26 @@ def test_manual_press_and_production_module(game):
     game.add_module(hive.id, "alveary_production")
     assert game._wear(hive) == [C.MODULES["alveary_production"]["uses"]]
     assert game._mods(hive)["production"] == pytest.approx(C.HIVE_TYPES["alveary"]["production"] * 2)
+    assert game._mods(hive)["overflow"] == 2
+
+
+def test_production_modules_overflow_the_cap():
+    # Sous le plafond, rien en surplus ; au-delà, seuls les doublements des modules "overflow" comptent
+    assert G.overflow(0.8, 4) == 0
+    assert G.overflow(2.0, 4) == pytest.approx(C.OVERFLOW)  # 0,5 → 2 : un seul doublement dépasse 100 %
+    assert G.overflow(8.0, 4) == pytest.approx(2 * C.OVERFLOW)  # déjà à 2 sans les modules
+    assert G.overflow(8.0, 1) == 0  # cadres seuls : plafonné
+    mods = G.hive_mods("alveary", "plains", ["alveary_production"] * 3 + ["frame_proven"])
+    assert mods["overflow"] == 8 and mods["production"] == pytest.approx(1.2 * 8 * 2.2)
+
+
+def test_world_hive_scales_the_harvest_past_the_cap():
+    import random
+
+    rng = random.Random(1)
+    assert G.scale(rng, 10, 1.0) == 10
+    assert G.scale(rng, 10, 3.0) == 30
+    assert 1150 <= G.scale(rng, 1000, 1.2) <= 1250  # +20 % en moyenne, même sur un produit déjà à 100 %
 
 
 def test_far_regions_open_with_the_grand_outpost(game):
@@ -1144,6 +1164,27 @@ def test_museum(game):
     hive = game.hives[0]
     game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
     assert game.trophy_value(T.TROPHIES["conservator"]) == 1
+
+
+def test_museum_common_jar(game):
+    from app.game import late as L
+
+    assert len(L.JAR_ITEMS) == sum(1 for i in C.ITEMS.values() if i["category"] == "comb")
+    game.add_item("comb_honey", 5)
+    with pytest.raises(GameError):
+        game.museum_donate(L.JAR, "comb_honey", 5)  # fermé tant qu'il reste une collection
+    for branch, collection in L.MUSEUM.items():
+        for item, need in collection.items():
+            game.add_item(item, need)
+            game.museum_donate(branch, item, need)
+    assert not game.state()["museum"]["jar_full"]
+    with pytest.raises(GameError):
+        game.museum_donate(L.JAR, "royal_jelly", 1)  # seulement des rayons
+    for item, need in L.JAR_ITEMS.items():
+        game.add_item(item, need)
+        game.museum_donate(L.JAR, item, need)
+    state = game.state()["museum"]
+    assert state["jar_full"] and len(state["complete"]) == len(L.MUSEUM)
 
 
 def test_world_hive(game):

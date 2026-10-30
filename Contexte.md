@@ -910,6 +910,33 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
 - 1.16.2 (déployée) : la bulle « ⓘ » des gènes, devenue un `<button>`, prenait toute la tuile à cause de
   `.tile-wrap > button { width: 100%; height: 100% }` ; la règle l'exclut désormais (`:not(.genes-tip)`).
 
+## Demande du 2026-10-30 : rentabilité des 8 modules de production (backend 1.16.3)
+
+- Constat : un produit sort au plus une fois par cycle (`min(1, chance × vitesse × production × 5)`).
+  Un alvéaire nu multiplie déjà la chance par 6 × vitesse : le plafond est atteint en 0 à 2 modules sur
+  les rayons courants. Le 8ᵉ module ne rapportait rien, sur aucune espèce ; le 7ᵉ seulement sur l'Atlante.
+- Rééquilibrage : chaque doublement qu'un **module de production** apporte au-delà de 100 % donne
+  `OVERFLOW` = 0,025 produit de plus par cycle (`genetics.overflow`, `mods["overflow"]`). Les cadres restent
+  plafonnés : sinon 8 cadres bruts (33 miel) ajoutaient +20 à +35 % de revenu à presque toutes les ruches.
+- Effet calculé (reines pures, travail permanent, sous-produits au prix de vente) : le 8ᵉ module de
+  production devient rentable sur 19 espèces sur 190 (Aeterna, Atlante, Imperatrix, Primordiale,
+  Robotique, Magma, Céleste, Zéphyr, Diamant, Ondine, Dryade, Justicière, Boréade, Éclipse, Firmamentale,
+  Fantasmagorique, Chimère, Salamandre, Sylphe). Gain maximal : +20 % sur un produit au plafond. À 0,05 :
+  44 espèces.
+- Ruche-monde (+2 %/niveau) : elle multipliait la chance **avant** le plafond, donc ne rapportait rien sur un
+  rayon déjà à 100 %. Elle multiplie désormais la récolte elle-même, **après** le plafond et le surplus
+  (`genetics.scale`) : +2 % de rayons par niveau sur toutes les ruches. Le surplus étant multiplié aussi, le
+  8ᵉ module devient rentable sur 19 espèces au niveau 0, 27 au niveau 10, 30 au niveau 20, 38 au niveau 30.
+  Musée, Sanctuaire et élixirs restent appliqués avant le plafond.
+
+## Demande du 2026-10-30 : œuf de Pâques du Musée, le Bocal commun
+
+- Une fois les 53 collections complètes, une carte « Le Bocal commun » apparaît en tête du Musée : un grand
+  bocal en pixel art (`GrandJar`, `MuseumArt.tsx`) qui se remplit d'une couche colorée par sorte de rayon.
+- Il demande 1 000 000 de chaque rayon (`late.JAR_ITEMS`, 33 rayons). Les dons passent par
+  `/museum/donate` avec la branche `_jar`, refusés tant qu'une collection manque ; l'état expose
+  `museum.jar_full`. Aucune récompense de jeu : la vitrine se dore, c'est tout. Absent du guide, exprès.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

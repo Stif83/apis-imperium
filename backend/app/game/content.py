@@ -771,12 +771,16 @@ MODULES = {
     "alveary_fan": {"frame": False, "effects": {"temp": -1}, "desc": "Température −1 palier"},
     "alveary_stabiliser": {"frame": False, "effects": {"mutation": 0.0}, "desc": "Empêche toute mutation"},
     "alveary_mutator": {"frame": False, "effects": {"mutation": 2.0}, "desc": "Chance de mutation ×2", "uses": 5},
-    # Presque un cadre éprouvé, mais deux fois plus durable
-    "alveary_production": {"frame": False, "effects": {"production": 2.0}, "desc": "Production ×2", "uses": 10},
+    # Presque un cadre éprouvé, mais deux fois plus durable ; seul module qui dépasse le plafond (voir OVERFLOW)
+    "alveary_production": {"frame": False, "effects": {"production": 2.0}, "overflow": True,
+                           "desc": "Production ×2 ; au-delà de 100 %, +2,5 % de récolte en surplus", "uses": 10},
     "alveary_lifespan": {"frame": False, "effects": {"lifespan": 0.6}, "desc": "Durée de vie ×0,6 (générations plus rapides)"},
     # Même effet que le module d'élevage, mais trois fois plus durable : il justifie son prix
     "alveary_automation": {"frame": False, "effects": {"automation": True}, "desc": "Récolte et renouvellement de la reine automatiques, très durable", "uses": 300},
 }
+# Un produit sort au plus une fois par cycle ; chaque doublement qu'un module "overflow" apporte au-delà de
+# ce plafond donne OVERFLOW produit de plus par cycle. Les cadres, bon marché, restent plafonnés.
+OVERFLOW = 0.025
 
 HIVE_TYPES = {
     "apiary": {"label": "Rucher", "slots": 2, "max_slots": 2, "frames_only": True, "production": 1.0},

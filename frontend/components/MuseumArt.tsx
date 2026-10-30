@@ -55,6 +55,68 @@ function drawExhibit(ctx: Ctx, e: Exhibit, x: number, y: number, back: string) {
   if (e.frac >= 1) sprite(ctx, STAR, x + 6, y - 2, { s: '#fff3b0', S: '#ffffff' });
 }
 
+/** Une couche du Bocal commun : la couleur d'un rayon et la part déjà donnée (0 à 1). */
+export type Layer = { color: string; frac: number };
+
+const JAR_W = 44;
+const JAR_H = 88;
+// Intérieur du bocal, en pixels de jeu
+const IN_X = 4;
+const IN_Y = 14;
+const IN_W = 36;
+const IN_H = 66;
+
+/** Le Bocal commun : une couche par sorte de rayon, empilées de bas en haut comme du sable coloré. */
+export const GrandJar = memo(function GrandJar({ layers, full }: { layers: Layer[]; full: boolean }) {
+  const key = layers.map((l) => `${l.color}${l.frac.toFixed(3)}`).join('|');
+  const ref = usePixelCanvas(
+    JAR_W,
+    JAR_H,
+    (ctx) => {
+      const glass = '#d7eef5';
+      const lid = full ? '#c9971c' : '#8d6e63';
+      // Couvercle, col et panse
+      rect(ctx, 9, 0, 26, 7, lid);
+      rect(ctx, 9, 5, 26, 2, shade(lid, -0.3));
+      rect(ctx, 11, 1, 22, 1, shade(lid, 0.3));
+      rect(ctx, 11, 7, 22, 5, glass);
+      rect(ctx, 13, 7, 18, 5, '#a9cbd8');
+      rect(ctx, 2, 12, 40, 70, glass);
+      rect(ctx, 0, 16, 2, 62, glass);
+      rect(ctx, 42, 16, 2, 62, glass);
+      rect(ctx, IN_X, IN_Y - 2, IN_W, IN_H + 2, '#a9cbd8');
+      // Couches : chacune occupe au plus IN_H / n lignes, selon ce qui a été donné
+      const band = IN_H / Math.max(1, layers.length);
+      let top = 0;
+      const tops = layers.map((l) => (top += Math.min(1, l.frac) * band));
+      for (let r = 0; r < Math.ceil(top); r++) {
+        const k = tops.findIndex((t) => r + 0.5 < t);
+        const layer = layers[k === -1 ? layers.length - 1 : k];
+        const y = IN_Y + IN_H - 1 - r;
+        rect(ctx, IN_X, y, IN_W, 1, `#${layer.color}`);
+        // Petites alvéoles dans la masse, et la surface un peu plus claire
+        for (let x = (r % 2) * 3; x < IN_W; x += 6) rect(ctx, IN_X + x, y, 1, 1, shade(layer.color, -0.25));
+        if (r === Math.ceil(top) - 1) rect(ctx, IN_X, y, IN_W, 1, shade(layer.color, 0.35));
+      }
+      // Reflets sur le verre
+      ctx.globalAlpha = 0.35;
+      rect(ctx, 7, 16, 2, 58, '#ffffff');
+      rect(ctx, 11, 16, 1, 40, '#ffffff');
+      ctx.globalAlpha = 1;
+      // Socle et étiquette
+      rect(ctx, 2, 82, 40, 6, full ? '#c9971c' : '#7a4a24');
+      rect(ctx, 14, 83, 16, 3, full ? '#fff8e1' : '#d6b97c');
+      if (full) {
+        sprite(ctx, STAR, 1, 4, { s: '#fff3b0', S: '#ffffff' });
+        sprite(ctx, STAR, JAR_W - 4, 4, { s: '#fff3b0', S: '#ffffff' });
+        sprite(ctx, STAR, JAR_W - 6, 40, { s: '#fff3b0', S: '#ffffff' });
+      }
+    },
+    [key, full],
+  );
+  return <canvas ref={ref} className="pixel grand-jar" style={{ width: JAR_W * 3, aspectRatio: `${JAR_W} / ${JAR_H}` }} aria-hidden />;
+});
+
 /** Vitrine d'une branche : un cadre en bois (doré une fois complète), une étagère par rangée d'objets. */
 export const Vitrine = memo(function Vitrine({ exhibits, color, complete }: { exhibits: Exhibit[]; color: string; complete: boolean }) {
   const { w, h } = vitrineSize(exhibits.length);

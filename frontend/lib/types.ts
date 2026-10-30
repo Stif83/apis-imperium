@@ -96,7 +96,7 @@ export type Content = {
     sky: { stage: number; minutes: number; weathers: Record<string, { items: Record<string, number> }> };
   };
   late: {
-    museum: { collections: Record<string, Record<string, number>>; bonus: number; comb_need: number };
+    museum: { collections: Record<string, Record<string, number>>; bonus: number; comb_need: number; jar: Record<string, number> };
     world_hive: { bonus: number };
     elixirs: Record<string, { effects: Partial<Record<'production' | 'mutation' | 'expedition', number>>; minutes: number; desc: string; cost: Cost }>;
   };
@@ -258,8 +258,8 @@ export type GameState = {
   machines: Record<string, number>;
   /** Centrifugeuses automatiques : en marche ou non, et rayons qu'elles laissent de côté */
   factory: { on: boolean; skip: string[] };
-  /** Musée du miel : ce qui a été donné à chaque collection, et les branches complètes */
-  museum: { given: Record<string, Record<string, number>>; complete: string[] };
+  /** Musée du miel : ce qui a été donné à chaque collection (et au Bocal commun, clé « _jar »), les branches complètes */
+  museum: { given: Record<string, Record<string, number>>; complete: string[]; jar_full: boolean };
   /** Ruche-monde : niveaux achevés, panier en cours et multiplicateur de production obtenu */
   world_hive: { level: number; request: Cost; given: Record<string, number>; multiplier: number };
   /** Élixirs en cours : fin de chaque effet (ms) */

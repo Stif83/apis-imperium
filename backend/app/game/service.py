@@ -339,12 +339,15 @@ class Game:
             # Reliquaire du Sanctuaire : les grandes reines produisent davantage
             if sanctified and C.SPECIES[genome["species"][0]]["branch"] in PR.SANCTUARY_BRANCHES:
                 rate *= PR.SANCTUARY_PRODUCTION
-            # Fin de partie : branche complète au Musée, niveaux de la Ruche-monde, élixir en cours
+            # Fin de partie : branche complète au Musée, élixir en cours
             if C.SPECIES[genome["species"][0]]["branch"] in museum:
                 rate *= L.MUSEUM_BONUS
-            rate *= world_mult * self._effect("production", t)
+            rate *= self._effect("production", t)
             for item, chance in G.products(genome):
                 made = G.binomial(self.rng, working, min(1.0, chance * rate))
+                made += G.binomial(self.rng, working, G.overflow(chance * rate, mods["overflow"]))
+                # La Ruche-monde multiplie la récolte elle-même, après le plafond d'un produit par cycle
+                made = G.scale(self.rng, made, world_mult)
                 if auto:
                     self.add_item(item, made)
                     if made and C.ITEMS.get(item, {}).get("category") == "comb":
@@ -690,8 +693,13 @@ class Game:
         return {branch for branch in L.MUSEUM if L.museum_complete(museum, branch)}
 
     def museum_donate(self, branch: str, item: str, qty: int) -> int:
-        """Donne des objets à la collection d'une branche ; renvoie la quantité vraiment donnée."""
-        need = L.MUSEUM.get(branch, {}).get(item)
+        """Donne des objets à la collection d'une branche (ou au Bocal commun) ; renvoie la quantité vraiment donnée."""
+        if branch == L.JAR:
+            if len(self._museum_done()) < len(L.MUSEUM):
+                raise GameError("Ce bocal attend que toutes les collections du Musée soient complètes.")
+            need = L.JAR_ITEMS.get(item)
+        else:
+            need = L.MUSEUM.get(branch, {}).get(item)
         if need is None:
             raise GameError("Cet objet n'entre pas dans cette collection.")
         museum = copy.deepcopy(self.p.museum or {})
@@ -1589,7 +1597,8 @@ class Game:
                          for pid in PR.PROJECTS},
             "forecast": self._forecast(t) if observatory >= 1 else None,
             "expeditions": {**self._expeditions(), "stage": self.project_stage("outpost")},
-            "museum": {"given": dict(self.p.museum or {}), "complete": sorted(self._museum_done())},
+            "museum": {"given": dict(self.p.museum or {}), "complete": sorted(self._museum_done()),
+                       "jar_full": L.jar_full(self.p.museum or {})},
             "world_hive": {**self._world_hive(), "multiplier": L.world_multiplier(self._world_hive()["level"])},
             "effects": {k: v for k, v in (self.p.effects or {}).items() if v > t},
             "orders": {

@@ -44,6 +44,18 @@ def museum_complete(museum: dict, branch: str) -> bool:
     return all(given.get(item, 0) >= need for item, need in MUSEUM[branch].items())
 
 
+# Œuf de Pâques : une fois toutes les collections complètes, le Bocal commun attend un million de chaque
+# rayon. Ses dons sont rangés dans le musée sous la clé JAR, à côté des branches.
+JAR = "_jar"
+JAR_NEED = 1_000_000
+JAR_ITEMS = {item: JAR_NEED for item, spec in sorted(C.ITEMS.items()) if spec["category"] == "comb"}
+
+
+def jar_full(museum: dict) -> bool:
+    given = museum.get(JAR, {})
+    return all(given.get(item, 0) >= need for item, need in JAR_ITEMS.items())
+
+
 # ---- Ruche-monde ------------------------------------------------------------
 
 # Chaque niveau achevé : +2 % de production dans toutes les ruches
@@ -108,7 +120,7 @@ EXPEDITION_MAX_CHANCE = 0.98
 
 def public_late() -> dict:
     return {
-        "museum": {"collections": MUSEUM, "bonus": MUSEUM_BONUS, "comb_need": MUSEUM_COMB_NEED},
+        "museum": {"collections": MUSEUM, "bonus": MUSEUM_BONUS, "comb_need": MUSEUM_COMB_NEED, "jar": JAR_ITEMS},
         "world_hive": {"bonus": WORLD_HIVE_BONUS},
         "elixirs": ELIXIRS,
     }

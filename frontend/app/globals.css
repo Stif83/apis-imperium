@@ -788,6 +788,10 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 .vitrine { max-width: 100%; height: auto; }
 .museum-caption { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; }
 .museum-detail { display: flex; flex-direction: column; gap: 8px; }
+.museum-jar { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
+.museum-jar.complete { box-shadow: 0 0 0 2px #d4a017, var(--shadow); }
+.museum-jar > .museum-detail { flex: 1 1 260px; min-width: 0; }
+.grand-jar { max-width: 100%; height: auto; flex: none; margin: 0 auto; }
 .museum-lore { display: block; font-size: 13px; }
 .machine-offer { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 12px; }
 .elixir-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
