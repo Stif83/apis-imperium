@@ -873,6 +873,15 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
   Les abeilles l'étaient déjà.
 - Backend inchangé (1.15.0).
 
+## Demande du 2026-10-30 : Comptoir, expéditions et Ruche-monde en pixel art (frontend 1.15.3, déployée)
+
+- Comptoir : blason par guilde (`GuildCrest`), porte fermée pour une place libre (`ShopDoor`).
+- Expéditions : un paysage en bannière par région (`RegionBanner`, 9 régions), sur les cartes et les équipes.
+- Ruche-monde refaite : arbre-monde en fond (`worldTreeUrl`), ruche dans le creux du tronc dont les alvéoles
+  s'allument (2 par niveau) et une lanterne par niveau dans les branches ; plaque de bois et parchemin par-dessus,
+  empilés sous l'arbre sur mobile. Tout dans `components/PlaceArt.tsx`.
+- Backend inchangé (1.15.0).
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

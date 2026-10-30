@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { BeeIcon } from '@/components/BeeIcon';
 import { GenomeIcon, Honey, ItemQty, PageHead, TYPE_LABELS, alleleLabel, fmt } from '@/components/ui';
+import { GuildCrest, ShopDoor } from '@/components/PlaceArt';
 import { useGame } from '@/lib/game';
 import type { Bee, Order } from '@/lib/types';
 
@@ -50,7 +51,7 @@ export default function ComptoirPage() {
       <div key={order.id} className={`card order-card${order.prestige ? ' prestige' : ''}${ready ? ' ready' : ''}`}>
         <div className="row between">
           <span className="order-guild" title={guild.desc}>
-            <span className="order-guild-icon">{guild.icon}</span>
+            <GuildCrest guild={order.guild} />
             <b>{guild.label}</b>
           </span>
           <span className="muted" title="Temps avant que le client reparte">
@@ -202,7 +203,8 @@ export default function ComptoirPage() {
             card(slot.order)
           ) : (
             <div key={`empty-${i}`} className="card order-card empty">
-              <span className="muted">🚪 Place libre · un client arrive dans {duration(slot.ready_ms - now)}</span>
+              <ShopDoor />
+              <span className="muted">Place libre · un client arrive dans {duration(slot.ready_ms - now)}</span>
             </div>
           ),
         )}

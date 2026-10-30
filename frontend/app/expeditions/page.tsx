@@ -6,6 +6,7 @@ import { BeeIcon } from '@/components/BeeIcon';
 import { GenomeIcon, ItemQty, PageHead, TYPE_LABELS, alleleLabel } from '@/components/ui';
 import { useScoutBonus } from '@/components/Effects';
 import { beeScore, teamChance } from '@/lib/expeditions';
+import { RegionBanner } from '@/components/PlaceArt';
 import { useGame } from '@/lib/game';
 import type { Bee } from '@/lib/types';
 
@@ -73,10 +74,9 @@ export default function ExpeditionsPage() {
           const progress = Math.min(1, (now - t.start_ms) / (t.end_ms - t.start_ms));
           return (
             <div key={t.id} className="card exp-team">
+              <RegionBanner region={t.region} className="card-banner" />
               <div className="row between">
-                <b>
-                  {r.icon} {r.label}
-                </b>
+                <b>{r.label}</b>
                 <span className="badge">{pct(t.chance)} de réussite</span>
               </div>
               <div className="row">
@@ -145,9 +145,9 @@ export default function ExpeditionsPage() {
           const open = region === rid;
           return (
             <div key={rid} className={`card exp-region${locked ? ' locked' : ''}${open ? ' open' : ''}`}>
+              <RegionBanner region={rid} className="card-banner" />
               <div className="row between">
                 <span className="exp-region-title">
-                  <span className="exp-region-icon">{r.icon}</span>
                   <b>{r.label}</b>
                 </span>
                 <span className="badge">{r.tier === 1 ? 'Proche' : r.tier === 2 ? 'Lointaine' : 'Bout du monde'}</span>

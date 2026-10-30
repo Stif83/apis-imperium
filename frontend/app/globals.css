@@ -607,7 +607,6 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 .order-card.prestige { background: linear-gradient(120deg, #fff4cc, var(--panel) 60%); box-shadow: 0 0 0 2px #e0b23a, var(--shadow); }
 .order-card.empty { justify-content: center; align-items: center; min-height: 120px; border: 2px dashed var(--border); box-shadow: none; background: transparent; }
 .order-guild { display: inline-flex; align-items: center; gap: 8px; }
-.order-guild-icon { font-size: 22px; }
 .order-needs { display: grid; gap: 6px; }
 .order-need { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 12px; background: var(--panel-2); }
 .order-bee { display: grid; gap: 8px; padding: 8px 10px; border-radius: 12px; background: var(--panel-2); }
@@ -669,7 +668,6 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 .exp-region.locked { opacity: 0.6; }
 .exp-region.open { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
 .exp-region-title { display: inline-flex; align-items: center; gap: 8px; }
-.exp-region-icon { font-size: 26px; }
 .exp-builder { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: var(--panel-2); }
 .exp-candidates { display: grid; gap: 4px; max-height: 260px; overflow: auto; }
 .exp-candidate {
@@ -784,11 +782,6 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 .museum-caption { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; }
 .museum-detail { display: flex; flex-direction: column; gap: 8px; }
 .museum-lore { display: block; font-size: 13px; }
-.world-hive .bar { display: block; height: 6px; background: var(--panel-2); border-radius: 999px; }
-.world-hive { gap: 12px; }
-.world-hive-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; }
-.world-hive-head .title { display: block; font-size: 20px; }
-.world-globe { font-size: 44px; line-height: 1; }
 .machine-offer { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 12px; }
 .elixir-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
 .elixir-card { gap: 10px; }
@@ -814,3 +807,34 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 /* Médailles en pixel art */
 .medal { position: relative; display: inline-block; flex: none; }
 .medal-icon { position: absolute; left: 50%; top: 64%; transform: translate(-50%, -50%); line-height: 1; }
+
+/* Bannières en pixel art en tête de carte (régions d'expédition) */
+.region-banner { display: block; width: 100%; aspect-ratio: 3 / 1; }
+.card-banner { width: calc(100% + 28px); max-width: none; margin: -14px -14px 0; border-radius: var(--radius) var(--radius) 0 0; }
+
+/* Ruche-monde : scène de l'arbre-monde en fond, panneaux de bois et de parchemin par-dessus */
+.world-tree {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 460px); grid-template-rows: auto 1fr; gap: 16px;
+  min-height: 640px; aspect-ratio: 8 / 5; padding: 20px; border-radius: var(--radius); overflow: hidden;
+  background: #1b2150 left bottom / cover no-repeat;
+}
+.world-plate, .world-panel {
+  grid-column: 2; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px;
+  /* Toujours en clair, comme un parchemin, quel que soit le thème */
+  --text: #3b2f1c; --muted: #7a6a50; --panel: #fbf1d9; --panel-2: #f1e2bf; --border: #d9c49a;
+  color: var(--text); background: rgba(251, 241, 217, 0.94);
+  border: 3px solid #8a5a2b; box-shadow: inset 0 0 0 2px #e8d4a6, 4px 4px 0 rgba(0, 0, 0, 0.35);
+}
+.world-plate { background: rgba(62, 36, 20, 0.92); --text: #fdf3dc; --muted: #e3cfa6; color: var(--text); box-shadow: inset 0 0 0 2px #5d3a1a, 4px 4px 0 rgba(0, 0, 0, 0.35); }
+.world-plate .page-head { margin: 0; }
+.world-plate .help-text { color: #3b2f1c; }
+.world-panel { align-self: end; }
+.world-level { display: flex; flex-direction: column; gap: 2px; }
+.world-level-num { font: 700 22px/1.1 var(--display); color: #ffd54f; }
+.world-bonus { color: #c5e1a5; font-weight: 700; }
+.world-progress { display: block; height: 8px; background: #e2cc9c; border: 2px solid #8a5a2b; }
+.world-progress > span { display: block; height: 100%; background: #ffb81c; }
+@media (max-width: 800px) {
+  .world-tree { grid-template-columns: minmax(0, 1fr); min-height: 0; aspect-ratio: auto; padding: 12px; padding-top: 220px; background-position: left top; background-size: auto 360px; }
+  .world-plate, .world-panel { grid-column: 1; }
+}
