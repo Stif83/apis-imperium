@@ -44,6 +44,9 @@ spec:
             - name: KEYCLOAK_CLIENT_ID
               valueFrom:
                 configMapKeyRef: { name: apiculteur-config, key: KEYCLOAK_CLIENT_ID }
+            - name: LOCAL_ACCOUNTS
+              valueFrom:
+                configMapKeyRef: { name: apiculteur-config, key: LOCAL_ACCOUNTS, optional: true }
             # Autorité interne qui signe le certificat de Keycloak (ConfigMap facultative « keycloak-ca ») ;
             # ignorée si la ConfigMap n'existe pas
             - name: KEYCLOAK_CA_FILE

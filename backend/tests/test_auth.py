@@ -66,3 +66,35 @@ def test_keycloak_unreachable(keycloak):
     # Certificat inconnu ou réseau coupé : erreur du serveur, pas du joueur
     keycloak.fail = True
     assert _status(_request()) == (503, "Le serveur de jeu ne joint pas le service d'authentification.")
+
+
+@pytest.fixture
+def local(keycloak, monkeypatch):
+    monkeypatch.setattr(settings, "local_accounts", "test:test")
+    return keycloak
+
+
+def _bearer(token):
+    return SimpleNamespace(headers={"authorization": f"Bearer {token}"})
+
+
+def test_local_account(local):
+    token = auth.local_login("test", "test")["token"]
+    assert auth.current_identity(_bearer(token)) == ("local:test", "test")
+    # Les jetons Keycloak restent acceptés à côté
+    assert auth.current_identity(_request())[0] == "u-1"
+
+
+def test_local_account_rejected(local, monkeypatch):
+    with pytest.raises(HTTPException) as err:
+        auth.local_login("test", "mauvais")
+    assert err.value.status_code == 401
+    with pytest.raises(HTTPException):
+        auth.local_login("inconnu", "test")
+    token = auth.local_login("test", "test")["token"]
+    # Jeton local signé avec une autre clé : refusé
+    forged = jwt.encode({**jwt.decode(token, options={"verify_signature": False}), "sub": "local:admin"}, "autre-cle-de-32-octets-au-moins!!", algorithm="HS256")
+    assert _status(_bearer(forged))[0] == 401
+    # Compte retiré de la configuration : ses jetons ne valent plus rien
+    monkeypatch.setattr(settings, "local_accounts", "")
+    assert _status(_bearer(token)) == (401, "Ce compte n'existe plus.")

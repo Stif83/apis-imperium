@@ -1,6 +1,9 @@
+import hashlib
+import hmac
 import logging
 import os
 import ssl
+import time
 from functools import lru_cache
 
 import jwt
@@ -15,6 +18,37 @@ log = logging.getLogger("apiculteur.auth")
 
 # Tolérance sur les dates du jeton (horloges de Keycloak et du serveur de jeu un peu décalées)
 CLOCK_LEEWAY = 60
+# Jetons des comptes locaux : signés par le serveur de jeu lui-même, valables une semaine
+LOCAL_ISSUER = "apis-imperium-local"
+LOCAL_TOKEN_SECONDS = 7 * 24 * 3600
+
+
+def _local_secret() -> bytes:
+    # Stable d'un redémarrage à l'autre sans réglage de plus : DATABASE_URL contient le mot de passe de la base
+    raw = settings.local_auth_secret or f"apis-local-auth|{settings.database_url}"
+    return hashlib.sha256(raw.encode()).digest()
+
+
+def local_login(username: str, password: str) -> dict:
+    """Connexion par un compte local (LOCAL_ACCOUNTS) ; renvoie un jeton signé par le serveur de jeu."""
+    expected = settings.local_users.get(username)
+    if expected is None or not hmac.compare_digest(expected.encode(), password.encode()):
+        raise HTTPException(401, "Pseudo ou mot de passe incorrect.")
+    now = int(time.time())
+    claims = {"iss": LOCAL_ISSUER, "sub": f"local:{username}", "preferred_username": username, "iat": now, "exp": now + LOCAL_TOKEN_SECONDS}
+    return {"token": jwt.encode(claims, _local_secret(), algorithm="HS256"), "username": username, "expires": claims["exp"]}
+
+
+def _local_identity(token: str) -> tuple[str, str]:
+    try:
+        claims = jwt.decode(token, _local_secret(), algorithms=["HS256"], issuer=LOCAL_ISSUER, leeway=CLOCK_LEEWAY)
+    except jwt.PyJWTError as exc:
+        raise HTTPException(401, "Session expirée : reconnectez-vous.") from exc
+    username = claims.get("preferred_username", "")
+    # Compte retiré de LOCAL_ACCOUNTS : ses jetons ne valent plus rien
+    if username not in settings.local_users:
+        raise HTTPException(401, "Ce compte n'existe plus.")
+    return claims["sub"], username
 
 
 def _ssl_context() -> ssl.SSLContext:
@@ -39,6 +73,7 @@ def auth_diagnostic() -> dict:
         "client_id": settings.keycloak_client_id,
         "ca_file": settings.keycloak_ca_file or None,
         "ca_file_found": bool(settings.keycloak_ca_file) and os.path.exists(settings.keycloak_ca_file),
+        "local_accounts": len(settings.local_users),
     }
     if settings.auth_mode == "dev":
         return out
@@ -62,6 +97,12 @@ def current_identity(request: Request) -> tuple[str, str]:
     if not header.lower().startswith("bearer "):
         raise HTTPException(401, "Authentification requise.")
     token = header[7:]
+    try:
+        unverified_iss = jwt.decode(token, options={"verify_signature": False}).get("iss")
+    except jwt.PyJWTError as exc:
+        raise HTTPException(401, "Jeton invalide ou expiré.") from exc
+    if unverified_iss == LOCAL_ISSUER:
+        return _local_identity(token)
     try:
         key = _jwks_client().get_signing_key_from_jwt(token)
     except jwt.PyJWKClientConnectionError as exc:

@@ -10,3 +10,5 @@ data:
   KEYCLOAK_ISSUER: https://keycloak-service-keycloak.apps.okd.lab.local/realms/okd
   KEYCLOAK_REALM: okd
   KEYCLOAK_CLIENT_ID: apisimperium-web
+  # Comptes « pseudo:mot de passe » du formulaire de connexion proposé en plus de Keycloak (vide : pas de formulaire)
+  LOCAL_ACCOUNTS: "test:test"

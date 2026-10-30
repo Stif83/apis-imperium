@@ -882,6 +882,17 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
   empilés sous l'arbre sur mobile. Tout dans `components/PlaceArt.tsx`.
 - Backend inchangé (1.15.0).
 
+## Demande du 2026-10-30 : formulaire de connexion avec compte local, en plus de Keycloak (1.16.0, déployée)
+
+- `LOCAL_ACCOUNTS` (« pseudo:mot de passe », séparés par des virgules ; OKD : ConfigMap `apiculteur-config`,
+  `test:test`) : le jeu propose un formulaire Pseudo / Mot de passe et un bouton « Se connecter avec Keycloak ».
+  Vide : comportement d'avant (redirection directe vers Keycloak).
+- Backend : `POST /api/auth/local` rend un jeton HS256 (émetteur `apis-imperium-local`, joueur `local:<pseudo>`,
+  une semaine), signé par une clé déduite de `DATABASE_URL` (ou `LOCAL_AUTH_SECRET`). Retirer un compte de la
+  liste invalide ses jetons. Les jetons Keycloak restent vérifiés comme avant (RS256, émetteur, client).
+- Frontend : session locale dans `localStorage` ; Keycloak n'est retenu qu'après une connexion réussie, pour ne
+  pas boucler sur un Keycloak injoignable.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

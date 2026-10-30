@@ -208,6 +208,8 @@ select { max-width: 100%; }
   background: linear-gradient(180deg, var(--sky-day) 70%, #a8d672 70%);
 }
 .splash h1 { font-size: 40px; }
+.login-form { display: flex; flex-direction: column; gap: 10px; width: min(280px, calc(100vw - 32px)); }
+.login-error { margin: 0; color: var(--danger); font-weight: 700; text-align: center; }
 
 .toast {
   position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);

@@ -45,6 +45,8 @@ services:
       KEYCLOAK_ISSUER: http://localhost:8080/realms/apiculteur
       KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/apiculteur/protocol/openid-connect/certs
       KEYCLOAK_CLIENT_ID: apiculteur-web
+      # Comptes « pseudo:mot de passe » du formulaire de connexion, en plus de Keycloak
+      LOCAL_ACCOUNTS: ${LOCAL_ACCOUNTS:-test:test}
     depends_on:
       postgres:
         condition: service_healthy
