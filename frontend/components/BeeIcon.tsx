@@ -15,6 +15,7 @@ export const BeeIcon = memo(function BeeIcon({
   species,
   x,
   y,
+  className,
 }: {
   color: string;
   secondary: string;
@@ -26,6 +27,8 @@ export const BeeIcon = memo(function BeeIcon({
   /** Position, pour un sprite imbriqué dans un autre SVG */
   x?: number;
   y?: number;
+  /** Classe en plus de « bee-icon » (variante rare) */
+  className?: string;
 }) {
   const content = useContent();
   const spec = species ? content.species[species] : undefined;
@@ -34,7 +37,7 @@ export const BeeIcon = memo(function BeeIcon({
   const list = runs(`${species ?? ''}|${type}|${sizeIndex}|${when}`, () => draw(look, sizeIndex, type, seed, when));
   const palette = paints(color, secondary);
   return (
-    <svg className="bee-icon" x={x} y={y} width={size} height={size} viewBox={`0 0 ${W} ${W}`} shapeRendering="crispEdges" aria-hidden>
+    <svg className={className ? `bee-icon ${className}` : 'bee-icon'} x={x} y={y} width={size} height={size} viewBox={`0 0 ${W} ${W}`} shapeRendering="crispEdges" aria-hidden>
       {list.map((r) => {
         if (unknown && (r.k === 'g' || r.k === 'k' || r.k === 'x')) return null;
         const [fill, opacity] = palette[r.k] ?? ['#ff00ff'];

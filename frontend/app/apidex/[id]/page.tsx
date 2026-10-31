@@ -7,7 +7,7 @@ import { BeeIcon } from '@/components/BeeIcon';
 import { BeePortrait } from '@/components/BeePortrait';
 import { Family, MiniBee, Outputs } from '@/components/apidex';
 import { BRANCH_LORE, computeTiers } from '@/lib/apidex';
-import { percent } from '@/lib/format';
+import { fmt, percent } from '@/lib/format';
 import { ItemQty } from '@/components/ui';
 import { alleleLabel, notableTraits } from '@/lib/bees';
 import { useGame } from '@/lib/game';
@@ -168,7 +168,10 @@ function AboutTab({
 
       <div className="stack">
         {known ? (
-          <KnownSheet id={id} species={species} />
+          <>
+            <KnownSheet id={id} species={species} />
+            <RareVariants id={id} />
+          </>
         ) : (
           <div className="card stack">
             <p>On ne sait encore rien de cette abeille. Obtenez-la une première fois pour lire sa fiche.</p>
@@ -193,6 +196,48 @@ function AboutTab({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Variantes rares de l'espèce : celles déjà vues naître brillent, les autres restent dans l'ombre. */
+function RareVariants({ id }: { id: string }) {
+  const { content, state } = useGame();
+  const variants = Object.entries(content.variants.variants);
+  const found = variants.filter(([v]) => state.stats[`variant:${v}:${id}`]);
+  return (
+    <div className="card stack">
+      <div className="row between">
+        <span className="title">Variantes rares</span>
+        <span className="badge">
+          {found.length} / {variants.length}
+        </span>
+      </div>
+      <div className="rare-shelf">
+        {variants.map(([v, variant]) => {
+          const seen = !!state.stats[`variant:${v}:${id}`];
+          return (
+            <span key={v} className={`rare-slot${seen ? '' : ' unseen'}`} title={seen ? `${variant.label} : ${variant.desc}` : 'Pas encore vue'}>
+              <BeeIcon
+                species={id}
+                type="princess"
+                color={variant.color}
+                secondary={variant.secondary}
+                size={40}
+                unknown={!seen}
+                className={seen ? `rare rare-${v}` : undefined}
+              />
+              <span>{seen ? variant.label : '?'}</span>
+            </span>
+          );
+        })}
+      </div>
+      {!found.length && (
+        <p className="muted">
+          De rares princesses naissent avec une robe et un pouvoir hors du commun, et les transmettent à toute leur lignée. La plus rare,
+          la Dorée, une fois sur {fmt(Math.round(1 / content.variants.variants.golden.chance))}.
+        </p>
+      )}
     </div>
   );
 }

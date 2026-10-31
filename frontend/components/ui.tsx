@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useContent, useGame } from '@/lib/game';
-import { type BeeGroup, TYPE_LABELS, alleleLabel, notableTraits, speciesName } from '@/lib/bees';
+import { type BeeGroup, TYPE_LABELS, alleleLabel, notableTraits, speciesName, variantOf } from '@/lib/bees';
 import { fmt } from '@/lib/format';
 import type { Bee, BeeType, Cost, Genome } from '@/lib/types';
 import { BeeIcon } from './BeeIcon';
@@ -107,10 +107,14 @@ export function BeeTile({ group, onClick }: { group: BeeGroup; onClick: () => vo
   const { content } = useGame();
   const type: BeeType = group.princesses ? 'princess' : 'drone';
   const counts = [group.princesses && `♀ ${fmt(group.princesses)}`, group.drones && `♂ ${fmt(group.drones)}`].filter(Boolean).join(' · ');
+  const rare = content.variants.variants[variantOf(group.genome) ?? ''];
   return (
-    <button className="bee-tile" onClick={onClick} title="Voir la fiche">
+    <button className={`bee-tile${rare ? ' rare-tile' : ''}`} onClick={onClick} title="Voir la fiche">
       <GenomeIcon genome={group.genome} type={type} size={52} />
-      <span className="name">{content.species[group.genome.species[0]]?.label}</span>
+      <span className="name">
+        {content.species[group.genome.species[0]]?.label}
+        {rare && ` ${rare.label.toLowerCase()}`}
+      </span>
       <Traits genome={group.genome} />
       <span className="count">{counts}</span>
     </button>
@@ -250,7 +254,19 @@ export function CostView({ cost, times = 1 }: { cost: Cost; times?: number }) {
 export function GenomeIcon({ genome, type, size }: { genome: Genome; type: BeeType; size?: number }) {
   const content = useContent();
   const species = content.species[genome.species[0]];
-  return <BeeIcon species={genome.species[0]} color={species?.color ?? '888888'} secondary={species?.secondary ?? 'ffdc16'} type={type} size={size} />;
+  // Une variante rare change la robe de l'abeille et la fait briller
+  const id = variantOf(genome);
+  const variant = id ? content.variants.variants[id] : undefined;
+  return (
+    <BeeIcon
+      species={genome.species[0]}
+      color={variant?.color ?? species?.color ?? '888888'}
+      secondary={variant?.secondary ?? species?.secondary ?? 'ffdc16'}
+      type={type}
+      size={size}
+      className={variant ? `rare rare-${id}` : undefined}
+    />
+  );
 }
 
 /** Champ de recherche d'abeilles, avec le nombre de résultats. */

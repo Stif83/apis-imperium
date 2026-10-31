@@ -937,6 +937,61 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
   `/museum/donate` avec la branche `_jar`, refusés tant qu'une collection manque ; l'état expose
   `museum.jar_full`. Aucune récompense de jeu : la vitrine se dore, c'est tout. Absent du guide, exprès.
 
+## Demande du 2026-10-31 : variantes rares et Distillerie retravaillée
+
+- Variantes rares (`game/variants.py`) : chaque variante a sa chance de naissance pour une princesse de reine
+  ordinaire (Dorée 1/4096 comme un Pokémon chromatique, Albinos 1/1600, Millénaire et Irisée 1/2400,
+  Matriarche 1/4800). Une reine variante la transmet **toujours** à sa princesse ; les faux-bourdons ne sont
+  jamais variants et ne la donnent pas. La variante est rangée dans le génome sous la clé `variant` (une
+  paire, comme un chromosome), gardée par `normalize`, ignorée par les croisements.
+- Pouvoirs de reine : Dorée (récolte ×1,5 après le plafond), Albinos (travaille à toute heure et par tous
+  les temps), Millénaire (vie ×2), Irisée (mutation ×3), Matriarche (+3 faux-bourdons). La Cristalline a
+  été retirée à la demande du joueur. Une princesse variante se vend ×50.
+- Collection : `stats["variant:<variante>:<espèce>"]`, carte « Variantes rares » sur chaque fiche de
+  l'Apidex, trophées « Chasseur de raretés » et « Prisme vivant », succès « Merveille de la nature »,
+  fiche du guide « Variantes rares ». Icônes recolorées et éclat CSS propre à chaque variante.
+- Distillerie : atelier en pixel art animé (`DistilleryArt.tsx` : feu, bulles, vapeur, goutte, étagère des
+  élixirs en réserve), cartes avec durée, temps restant, « Distiller ×5 ». Élixirs : Hydromel de vigueur
+  (récolte ×1,5 après le plafond, 1 h), Philtre de mutation (×2, 1 h), Éclaireur (+20 points, 1 h),
+  Gelée de jouvence (vie des nouvelles reines ×0,5), Baume de cire (pas d'usure, 2 h), Nectar de fortune
+  (variantes ×5), Sablier liquide (360 cycles d'un coup pour les ruches et l'usine), Grand élixir.
+
+## Demande du 2026-10-31 : Distillerie fixe, nouvelle navigation
+
+- Distillerie : l'atelier en pixel art n'est plus animé (image figée, `FRAME` dans `DistilleryArt.tsx`).
+- Communauté : des classements et un défi de la semaine ont été essayés puis retirés à la demande du
+  joueur, qui préfère développer les vitrines. La page Communauté reste celle des vitrines.
+- Navigation : menu latéral à gauche sur ordinateur (tous les menus et leurs pages, avec les indications) ;
+  sous 900 px, barre d'onglets en bas (un onglet par menu), sous-onglets défilants en haut de page, en-tête
+  réduit au miel et à un tiroir (aide, horloge, thème, déconnexion), marges plus larges.
+- Vérifié en local (backend SQLite en mode dev, `next start`, captures Edge via Playwright) : ordinateur et
+  téléphone, pages Rucher, Distillerie, Centrifugeuse, tiroir.
+
+## Demande du 2026-10-31 : profil d'apiculteur
+
+- Un profil public par joueur (`/apiculteur/<id>`, `/apiculteur/moi` pour le sien, « Mon profil » dans le
+  menu Carnet) : bannière (décor des cartes de ruche en panorama, `sceneUrl(..., width)`), abeille préférée,
+  présentation, badges, jusqu'à 4 statistiques mises en avant, toutes les autres statistiques, ses vitrines.
+- Statistiques calculées à la lecture (`game/profiles.py`, `Game.profile`) à partir des mesures des
+  trophées : espèces, branches, mythiques, rayons, miel gagné, plus haute génération, ruches, paliers de
+  trophées, lignées championnes, variantes, Musée, Ruche-monde, expéditions, commandes, élixirs.
+- Personnalisable (`PUT /api/community/profile`) : présentation (300 caractères), biome et moment de la
+  journée de la bannière, abeille préférée (copie, comme une vitrine), statistiques mises en avant.
+  Stocké dans `players.profile` (migration 0014).
+- Communauté : onglets « Vitrines » et « Apiculteurs » (annuaire, `GET /api/community/profiles`) ; le nom
+  de l'auteur d'une vitrine mène à son profil (`author_id`). Carte de vitrine partagée (`ShowcaseCard.tsx`).
+- Vérifié en local (captures Edge, ordinateur et téléphone) : profil rempli, fenêtre de personnalisation,
+  annuaire.
+
+## Demande du 2026-10-31 : vitrines retravaillées
+
+- Une vitrine est un meuble de bois (doré à partir de 10 « j'aime ») au fond de velours, avec une étagère
+  par rangée de 4 spécimens (3 sur téléphone) et un reflet sur le verre (`ShowcaseCase`, `ShowcaseCard.tsx`).
+  Chaque spécimen s'ouvre en fiche : traits marquants et génome complet.
+- Tri : récentes, les plus aimées, les miennes. Création dans une fenêtre : titre, description, recherche
+  dans la réserve, choix en tuiles et aperçu de la vitrine en direct. Date de publication affichée.
+- Mêmes cartes sur les profils d'apiculteur. Vérifié en local (captures Edge, ordinateur et téléphone).
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

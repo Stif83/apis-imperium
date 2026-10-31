@@ -15,10 +15,17 @@ export function climateFit(content: Content, genome: Genome, hiveTemp: string): 
 
 const ACTIVITY_ICONS: Record<string, string> = { diurnal: '☀️', nocturnal: '🌙', crepuscular: '🌅', cathemeral: '♾️' };
 
+/** Variante rare d'un génome (rangée à côté des chromosomes, sous la clé « variant »), ou undefined. */
+export function variantOf(genome: Genome): string | undefined {
+  return genome.variant?.[0];
+}
+
 /** Gènes qui méritent d'être vus d'un coup d'œil ; le reste est dans la fiche complète. */
 export function notableTraits(content: Content, genome: Genome): { icon: string; label: string }[] {
   const label = (c: string) => `${content.chromosomes[c]} : ${alleleLabel(content, c, genome[c]?.[0] ?? '')}`;
   const out: { icon: string; label: string }[] = [];
+  const variant = content.variants.variants[variantOf(genome) ?? ''];
+  if (variant) out.push({ icon: variant.icon, label: `Variante ${variant.label.toLowerCase()} : ${variant.desc}` });
   const active = (c: string): string => genome[c]?.[0] ?? '';
   if (genome.species[0] !== genome.species[1]) out.push({ icon: '🧬', label: `Hybride de ${content.species[genome.species[1]]?.label}` });
   if (active('activity')) out.push({ icon: ACTIVITY_ICONS[active('activity')] ?? '☀️', label: label('activity') });
@@ -34,11 +41,11 @@ export function notableTraits(content: Content, genome: Genome): { icon: string;
 
 export type BeeGroup = { key: string; genome: Genome; bees: Bee[]; princesses: number; drones: number };
 
-/** Regroupe les abeilles par espèce (active + inactive) ; chaque génome distinct reste une variante. */
+/** Regroupe les abeilles par espèce (active + inactive) et par variante rare ; chaque génome distinct garde sa ligne. */
 export function groupBees(bees: Bee[]): BeeGroup[] {
   const groups = new Map<string, BeeGroup>();
   for (const bee of bees) {
-    const key = bee.genome.species.join('|');
+    const key = [...bee.genome.species, variantOf(bee.genome) ?? ''].join('|');
     let group = groups.get(key);
     if (!group) {
       group = { key, genome: bee.genome, bees: [], princesses: 0, drones: 0 };
@@ -53,7 +60,8 @@ export function groupBees(bees: Bee[]): BeeGroup[] {
 
 export function speciesName(content: Content, genome: Genome) {
   const [active, inactive] = genome.species;
-  const name = content.species[active]?.label ?? active;
+  const variant = content.variants.variants[variantOf(genome) ?? ''];
+  const name = `${content.species[active]?.label ?? active}${variant ? ` ${variant.label.toLowerCase()}` : ''}`;
   return active === inactive ? name : `${name} (hybride ${content.species[inactive]?.label ?? inactive})`;
 }
 

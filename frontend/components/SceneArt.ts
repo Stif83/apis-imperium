@@ -11,7 +11,7 @@ const SKIES: Record<string, string[]> = {
   night: ['#141c45', '#1f2a5c', '#2c3973', '#3b4a8a'],
 };
 
-function drawScene(ctx: Ctx, phase: string, weather: string, ground: string) {
+function drawScene(ctx: Ctx, phase: string, weather: string, ground: string, width: number) {
   const sky = SKIES[phase] ?? SKIES.day;
   const wet = weather !== 'clear';
   // Ciel en bandes, tramées à la jonction
@@ -19,44 +19,44 @@ function drawScene(ctx: Ctx, phase: string, weather: string, ground: string) {
   for (let y = 0; y < 60; y++) {
     const k = Math.min(sky.length - 1, Math.floor(y / band));
     const next = sky[Math.min(sky.length - 1, k + 1)];
-    for (let x = 0; x < SCENE_W; x++) {
+    for (let x = 0; x < width; x++) {
       const dither = y % band >= band - 3 && (x + y) % 2 === 0;
       rect(ctx, x, y, 1, 1, wet ? shade(dither ? next : sky[k], -0.25) : dither ? next : sky[k]);
     }
   }
   if (phase === 'night') {
-    for (let k = 0; k < 40; k++) {
-      const x = Math.floor(noise(k, 1) * SCENE_W);
+    for (let k = 0; k < Math.round((40 * width) / SCENE_W); k++) {
+      const x = Math.floor(noise(k, 1) * width);
       const y = Math.floor(noise(k, 2) * 45);
       rect(ctx, x, y, 1, 1, noise(k, 3) > 0.7 ? '#ffffff' : '#9fb0e8');
     }
   }
   // Soleil ou lune
-  const sx = 122;
+  const sx = width - 28;
   const sy = phase === 'dusk' ? 22 : 14;
   if (!wet || phase === 'night') {
     if (phase === 'night') {
-      shaded(ctx, SCENE_W, SCENE_H, (x, y) => (x - sx) ** 2 + (y - sy) ** 2 <= 49 && (x - sx + 4) ** 2 + (y - sy + 2) ** 2 > 36, '#f4ecd2');
+      shaded(ctx, width, SCENE_H, (x, y) => (x - sx) ** 2 + (y - sy) ** 2 <= 49 && (x - sx + 4) ** 2 + (y - sy + 2) ** 2 > 36, '#f4ecd2');
     } else {
       const sun = phase === 'dusk' ? '#ff9a5a' : '#ffd75a';
       ctx.globalAlpha = 0.35;
-      shaded(ctx, SCENE_W, SCENE_H, (x, y) => (x - sx) ** 2 + (y - sy) ** 2 <= 110, '#fff3b0', { outline: '#fff3b0' });
+      shaded(ctx, width, SCENE_H, (x, y) => (x - sx) ** 2 + (y - sy) ** 2 <= 110, '#fff3b0', { outline: '#fff3b0' });
       ctx.globalAlpha = 1;
-      shaded(ctx, SCENE_W, SCENE_H, (x, y) => (x - sx) ** 2 + (y - sy) ** 2 <= 49, sun, { outline: shade(sun, -0.15) });
+      shaded(ctx, width, SCENE_H, (x, y) => (x - sx) ** 2 + (y - sy) ** 2 <= 49, sun, { outline: shade(sun, -0.15) });
     }
   }
   // Nuages : deux petits par beau temps de jour, une couche grise par mauvais temps
   const cloud = (cx: number, cy: number, w: number, color: string) =>
-    shaded(ctx, SCENE_W, SCENE_H, (x, y) => (x - cx) ** 2 / (w * w) + (y - cy) ** 2 / 16 <= 1 || (x - cx - w / 3) ** 2 / ((w / 2) ** 2) + (y - cy + 3) ** 2 / 16 <= 1, color, { outline: shade(color, -0.12) });
+    shaded(ctx, width, SCENE_H, (x, y) => (x - cx) ** 2 / (w * w) + (y - cy) ** 2 / 16 <= 1 || (x - cx - w / 3) ** 2 / ((w / 2) ** 2) + (y - cy + 3) ** 2 / 16 <= 1, color, { outline: shade(color, -0.12) });
   if (wet) {
-    for (let k = 0; k < 6; k++) cloud(k * 28 + 6, 6 + (k % 2) * 3, 16, weather === 'storm' ? '#6b7280' : '#aab4c0');
+    for (let k = 0; k < Math.ceil(width / 28); k++) cloud(k * 28 + 6, 6 + (k % 2) * 3, 16, weather === 'storm' ? '#6b7280' : '#aab4c0');
   } else if (phase === 'day' || phase === 'dawn') {
     cloud(30, 16, 12, '#ffffff');
     cloud(78, 9, 9, '#ffffff');
   }
   // Collines et herbe
   const hill = (x: number) => 57 + Math.round(Math.sin(x / 13) * 2 + Math.sin(x / 5.3) * 0.8);
-  for (let x = 0; x < SCENE_W; x++) {
+  for (let x = 0; x < width; x++) {
     const h = hill(x);
     for (let y = h; y < SCENE_H; y++) {
       let c = ground;
@@ -68,7 +68,10 @@ function drawScene(ctx: Ctx, phase: string, weather: string, ground: string) {
   }
 }
 
-/** Décor d'une carte de ruche : ciel selon l'heure et la météo, soleil ou lune, sol aux couleurs du biome. */
-export function sceneUrl(phase: string, weather: string, ground: string) {
-  return pixelUrl(`scene|${phase}|${weather}|${ground}`, SCENE_W, SCENE_H, (ctx) => drawScene(ctx, phase, weather, `#${ground}`));
+/**
+ * Décor d'une carte de ruche : ciel selon l'heure et la météo, soleil ou lune, sol aux couleurs du biome.
+ * `width` élargit le paysage (bannière de profil) sans changer sa hauteur.
+ */
+export function sceneUrl(phase: string, weather: string, ground: string, width = SCENE_W) {
+  return pixelUrl(`scene|${phase}|${weather}|${ground}|${width}`, width, SCENE_H, (ctx) => drawScene(ctx, phase, weather, `#${ground}`, width));
 }

@@ -10,13 +10,18 @@ import { BeeIcon } from './BeeIcon';
 import { Honey, Modal, ThemeToggle, WorldClock } from './ui';
 
 type Tab = { href: string; label: string; icon: string };
+type Menu = { label: string; icon: string; tabs: Tab[] };
 type Hints = Record<string, { text: string; alert?: boolean } | undefined>;
 
-/** Menus de la barre du haut ; ceux qui regroupent plusieurs pages affichent des sous-onglets. */
-const MENUS: { label: string; tabs: Tab[] }[] = [
-  { label: 'Rucher', tabs: [{ href: '/', label: 'Rucher', icon: '🐝' }] },
+/**
+ * Menus : rangés dans la colonne de gauche sur ordinateur ; sur téléphone, un onglet par menu en bas de l'écran
+ * et des sous-onglets en haut de la page pour ceux qui regroupent plusieurs pages.
+ */
+const MENUS: Menu[] = [
+  { label: 'Rucher', icon: '🐝', tabs: [{ href: '/', label: 'Rucher', icon: '🐝' }] },
   {
     label: 'Atelier',
+    icon: '⚙️',
     tabs: [
       { href: '/usine', label: 'Centrifugeuse', icon: '⚙️' },
       { href: '/genetique', label: 'Laboratoire', icon: '🧬' },
@@ -25,6 +30,7 @@ const MENUS: { label: string; tabs: Tab[] }[] = [
   },
   {
     label: 'Marché',
+    icon: '🛒',
     tabs: [
       { href: '/boutique', label: 'Boutique', icon: '🛒' },
       { href: '/comptoir', label: 'Comptoir', icon: '📜' },
@@ -32,6 +38,7 @@ const MENUS: { label: string; tabs: Tab[] }[] = [
   },
   {
     label: 'Domaine',
+    icon: '🏛️',
     tabs: [
       { href: '/projets', label: 'Grands projets', icon: '🏛️' },
       { href: '/expeditions', label: 'Expéditions', icon: '🧭' },
@@ -39,12 +46,14 @@ const MENUS: { label: string; tabs: Tab[] }[] = [
       { href: '/ruche-monde', label: 'Ruche-monde', icon: '🌍' },
     ],
   },
-  { label: 'Apidex', tabs: [{ href: '/apidex', label: 'Apidex', icon: '📖' }] },
+  { label: 'Apidex', icon: '📖', tabs: [{ href: '/apidex', label: 'Apidex', icon: '📖' }] },
   {
     label: 'Carnet',
+    icon: '🏆',
     tabs: [
       { href: '/carnet', label: 'Trophées', icon: '🏆' },
       { href: '/communaute', label: 'Communauté', icon: '👥' },
+      { href: '/apiculteur/moi', label: 'Mon profil', icon: '👤' },
     ],
   },
 ];
@@ -69,6 +78,54 @@ function useTabHints(): Hints {
     '/musee': state.museum.complete.length ? { text: `${state.museum.complete.length} / ${Object.keys(content.late.museum.collections).length}` } : undefined,
     '/carnet': claimableTrophies(content, state).length ? { text: 'à réclamer', alert: true } : undefined,
   };
+}
+
+/** Menu latéral (ordinateur) : tous les menus et leurs pages, avec les indications d'état. */
+function Sidebar({ hints }: { hints: Hints }) {
+  const pathname = usePathname();
+  return (
+    <nav className="sidebar" aria-label="Menu principal">
+      {MENUS.map((menu) => (
+        <div key={menu.label} className="side-group">
+          {menu.tabs.length > 1 && <span className="side-title">{menu.label}</span>}
+          {menu.tabs.map((tab) => {
+            const hint = hints[tab.href];
+            return (
+              <Link key={tab.href} href={tab.href} className={`side-link${isActive(tab.href, pathname) ? ' active' : ''}`}>
+                <span className="side-icon" aria-hidden>
+                  {tab.icon}
+                </span>
+                <span className="grow">{tab.label}</span>
+                {hint && <span className={`subnav-hint${hint.alert ? ' alert' : ''}`}>{hint.text}</span>}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+/** Barre d'onglets du bas (téléphone) : un onglet par menu. */
+function BottomNav({ hints }: { hints: Hints }) {
+  const pathname = usePathname();
+  const current = menuOf(pathname);
+  return (
+    <nav className="bottomnav" aria-label="Menu principal">
+      {MENUS.map((menu) => {
+        const alert = menu.tabs.some((t) => hints[t.href]?.alert);
+        return (
+          <Link key={menu.label} href={menu.tabs[0].href} className={current === menu ? 'active' : ''}>
+            <span className="bottom-icon" aria-hidden>
+              {menu.icon}
+            </span>
+            <span>{menu.label}</span>
+            {alert && <span className="dot" title="Quelque chose vous attend" />}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 }
 
 function SubNav({ hints }: { hints: Hints }) {
@@ -143,10 +200,33 @@ function useEasterEggs() {
   return { rain, stopRain: () => setRain(false), has };
 }
 
-function Header({ hints }: { hints: Hints }) {
+/** Aide, horloge, thème et déconnexion : à droite de l'en-tête, ou dans le tiroir sur téléphone (`onPick` le ferme). */
+function Tools({ onPick }: { onPick?: () => void }) {
+  const auth = useAuth();
+  const pathname = usePathname();
+  return (
+    <>
+      <Link
+        href="/aide"
+        className={`help-link${pathname.startsWith('/aide') ? ' active' : ''}`}
+        title="Aide : comment fonctionne chaque mécanisme"
+        onClick={onPick}
+      >
+        ❔ Aide
+      </Link>
+      <WorldClock />
+      <ThemeToggle />
+      <button className="small" onClick={auth.logout} title={`Connecté en tant que ${auth.username}`}>
+        Quitter
+      </button>
+    </>
+  );
+}
+
+function Header() {
   const auth = useAuth();
   const { state, act } = useGame();
-  const pathname = usePathname();
+  const [drawer, setDrawer] = useState(false);
   const { rain, stopRain, has } = useEasterEggs();
   const clicks = useRef<number[]>([]);
   const [buzzing, setBuzzing] = useState(false);
@@ -170,27 +250,30 @@ function Header({ hints }: { hints: Hints }) {
         Apis Imperium
       </div>
       {rain && <BeeRain onDone={stopRain} />}
-      <nav>
-        {MENUS.map((menu) => (
-          <Link key={menu.label} href={menu.tabs[0].href} className={menuOf(pathname) === menu ? 'active' : ''}>
-            {menu.label}
-            {menu.label === 'Carnet' && hints['/carnet'] && <span className="dot" title="Récompense à réclamer" />}
-          </Link>
-        ))}
-      </nav>
       <div className="account">
-        <Link href="/aide" className={`help-link${pathname.startsWith('/aide') ? ' active' : ''}`} title="Aide : comment fonctionne chaque mécanisme">
-          ❔ Aide
-        </Link>
-        <WorldClock />
-        <ThemeToggle />
+        <span className="account-tools">
+          <Tools />
+        </span>
         <span className="honey-pill">
           <Honey amount={state.player.honey} />
         </span>
-        <button className="small" onClick={auth.logout} title={`Connecté en tant que ${auth.username}`}>
-          Quitter
+        <button type="button" className="menu-btn" aria-label="Menu" onClick={() => setDrawer(true)}>
+          ☰
         </button>
       </div>
+      {drawer && (
+        <Modal label="Menu" onClose={() => setDrawer(false)}>
+          <div className="drawer">
+            <div className="row between">
+              <b>{auth.username}</b>
+              <button className="help-btn" aria-label="Fermer" onClick={() => setDrawer(false)}>
+                ×
+              </button>
+            </div>
+            <Tools onPick={() => setDrawer(false)} />
+          </div>
+        </Modal>
+      )}
     </header>
   );
 }
@@ -246,16 +329,20 @@ function Season() {
   return null;
 }
 
-/** En-tête et sous-onglets partagent les mêmes indications, calculées une fois par rendu. */
+/** Menus et sous-onglets partagent les mêmes indications, calculées une fois par rendu. */
 function Layout({ children }: { children: ReactNode }) {
   const hints = useTabHints();
   return (
     <>
-      <Header hints={hints} />
-      <main>
-        <SubNav hints={hints} />
-        {children}
-      </main>
+      <Header />
+      <div className="app">
+        <Sidebar hints={hints} />
+        <main>
+          <SubNav hints={hints} />
+          {children}
+        </main>
+      </div>
+      <BottomNav hints={hints} />
     </>
   );
 }

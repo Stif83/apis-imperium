@@ -1222,10 +1222,102 @@ def test_distillery(game):
     game.brew("elixir_vigor", 2)
     assert game.qty("elixir_vigor") == 2 and game.p.stats["elixirs"] == 2
     t = 1_000_000_000
-    assert game._effect("production", t) == 1
+    assert game._effect("harvest", t) == 1
     game.drink("elixir_vigor", now=t)
     game.drink("elixir_vigor", now=t)  # le second prolonge le premier
     end = t + 2 * recipe["minutes"] * 60_000
     assert game.p.effects["elixir_vigor"] == end
-    assert game._effect("production", end - 1) == 1.5 and game._effect("production", end) == 1
+    assert game._effect("harvest", end - 1) == 1.5 and game._effect("harvest", end) == 1
     assert game._effect("expedition", t, 0.0) == 0.0
+
+
+class _FixedRng:
+    """Générateur qui rend toujours la même valeur (tirages de variante)."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def random(self):
+        return self.value
+
+
+def test_variant_roll_and_inheritance():
+    from app.game import variants as V
+
+    plain = G.pure_genome("forest")
+    assert V.roll(_FixedRng(0.5), plain) is None
+    assert V.roll(_FixedRng(0.0), plain) in V.VARIANTS  # tirage gagnant
+    golden = V.apply(plain, "golden")
+    assert V.of(golden) == "golden" and V.of(V.apply(golden, None)) is None
+    # Une reine variante la transmet toujours ; une Dorée naît une fois sur 4096
+    assert V.roll(_FixedRng(0.99), golden) == "golden"
+    assert V.roll(_FixedRng(1 / 4096 - 1e-6), plain) == "golden"
+    assert V.roll(_FixedRng(1 / 4096 + 1e-6), plain) != "golden"
+    assert V.VARIANTS["golden"]["chance"] == 1 / 4096 and "crystal" not in V.VARIANTS
+    # Un faux-bourdon ne donne rien : la variante ne vient que de la reine, et ne passe pas par les croisements
+    assert G.normalize(golden)["variant"] == ["golden", "golden"]
+    assert "variant" not in G.breed(golden, plain, random.Random(1))
+    assert G.genome_hash(golden) != G.genome_hash(plain)
+
+
+def test_variant_queen_powers(game):
+    from app.game import variants as V
+
+    hive = game.hives[0]
+    game.add_bee("princess", V.apply(G.pure_genome("forest"), "ancient"))
+    princess = next(b for b in game.bees if b.type == "princess" and V.of(b.genome) == "ancient")
+    game.install(hive.id, princess.id, _bee(game, "drone", "forest").id)
+    life = C.ALLELES["lifespan"][C.SPECIES["forest"]["template"]["lifespan"]]["value"]
+    assert hive.queen["health"] == life * 2
+    assert V.power(hive.queen["genome"], "lifespan") == 2
+
+    game.add_bee("princess", V.apply(G.pure_genome("forest"), "golden"))
+    golden = next(b for b in game.bees if b.type == "princess" and V.of(b.genome) == "golden")
+    honey = game.p.honey
+    game.sell_bee(golden.id, 1)
+    assert game.p.honey - honey == C.BEE_SELL["princess"] * V.SELL_MULT
+
+
+def test_variant_collection_and_trophy(game):
+    from app.game import trophies as T
+    from app.game import variants as V
+
+    game._found_variant(V.apply(G.pure_genome("forest"), "golden"))
+    game._found_variant(V.apply(G.pure_genome("forest"), "golden"))
+    game._found_variant(V.apply(G.pure_genome("meadows"), "albino"))
+    assert game.trophy_value(T.TROPHIES["rarities"]) == 2
+    assert game.trophy_value(T.TROPHIES["prism"]) == 2
+    assert "first_variant" in game.p.achievements
+
+
+def test_time_elixir_runs_the_hives(game):
+    from app.game import late as L
+
+    hive = game.hives[0]
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
+    game.add_item("elixir_time", 1)
+    game.drink("elixir_time")
+    assert game.qty("elixir_time") == 0 and not (game.p.effects or {}).get("elixir_time")
+    # 360 cycles : la reine sylvestre (20 cycles) a eu le temps de mourir et de laisser sa descendance
+    assert hive.queen is None and L.ELIXIRS["elixir_time"]["instant"] == 360
+
+
+def test_beekeeper_profile(game):
+    from app.game import profiles as PF
+
+    profile = game.profile()
+    assert profile["name"] == "testeur" and profile["settings"]["featured"] == PF.DEFAULT["featured"]
+    assert profile["stats"]["species"] == len(game.discovered) and set(profile["stats"]) == set(PF.STATS)
+    princess = _bee(game, "princess", "forest")
+    game.update_profile("  Éleveuse de sylvestres  ", "desert", "night", ["generation", "variants"], princess.id)
+    settings = game.profile()["settings"]
+    assert settings["bio"] == "Éleveuse de sylvestres" and settings["biome"] == "desert" and settings["phase"] == "night"
+    assert settings["favorite"]["genome"]["species"] == ["forest", "forest"] and settings["featured"] == ["generation", "variants"]
+    game.update_profile("", "plains", "day", [], None)  # None : l'abeille préférée reste
+    assert game.profile()["settings"]["favorite"] is not None
+    game.update_profile("", "plains", "day", [], "")
+    assert game.profile()["settings"]["favorite"] is None
+    for bad in (("x" * (PF.BIO_MAX + 1), "plains", "day", []), ("", "mars", "day", []), ("", "plains", "midi", []),
+                ("", "plains", "day", ["species"] * 2), ("", "plains", "day", list(PF.STATS)[:PF.MAX_FEATURED + 1])):
+        with pytest.raises(GameError):
+            game.update_profile(*bad, None)

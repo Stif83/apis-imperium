@@ -694,6 +694,10 @@ ITEMS = {
         ("elixir_mutation", "Philtre de mutation", "ab47bc", 0),
         ("elixir_scout", "Élixir d'éclaireur", "26a69a", 0),
         ("elixir_grand", "Grand élixir", "fff176", 0),
+        ("elixir_youth", "Gelée de jouvence", "f8bbd0", 0),
+        ("elixir_wax", "Baume de cire", "e0b866", 0),
+        ("elixir_fortune", "Nectar de fortune", "4dd0e1", 0),
+        ("elixir_time", "Sablier liquide", "c5a3ff", 0),
     ]),
     **_items("consumable", [
         ("labware", "Verrerie de laboratoire", "a8d8ea", 0),

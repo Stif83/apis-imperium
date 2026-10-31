@@ -6,9 +6,11 @@ from ..game import content
 from ..game import lab
 from ..game import late
 from ..game import orders
+from ..game import profiles
 from ..game import projects
 from ..game import expeditions
 from ..game import trophies
+from ..game import variants
 from ..game.service import Game
 
 router = APIRouter(prefix="/api")
@@ -214,7 +216,8 @@ def certify(body: CertifyIn, game: Game = Depends(current_game)):
 @router.get("/content")
 def get_content():
     return {**content.public_content(), "lab": lab.public_lab(), "trophies": trophies.public_trophies(), "orders": orders.public_orders(), "projects": projects.public_projects(),
-            "expeditions": expeditions.public_expeditions(), "late": late.public_late()}
+            "expeditions": expeditions.public_expeditions(), "late": late.public_late(),
+            "variants": variants.public_variants(), "profiles": profiles.public_profiles()}
 
 
 class ReplicateIn(BaseModel):

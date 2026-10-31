@@ -49,6 +49,8 @@ class Player(Base):
     world_hive: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Élixirs bus : {effet: fin de l'effet en ms}
     effects: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Profil public : {"bio", "biome", "phase", "favorite": {type, genome} | None, "featured": [statistiques]}
+    profile: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

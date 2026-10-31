@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 
+from . import variants as V
 from .content import ALLELES, BIOMES, CHROMOSOMES, HIVE_TYPES, MODULES, MUTATIONS, OVERFLOW, SPECIES, TEMPS
 
 
@@ -20,6 +21,9 @@ def normalize(genome: dict) -> dict:
             out[c] = list(genome[c])
         else:
             out[c] = [SPECIES[species[0]]["template"][c], SPECIES[species[1]]["template"][c]]
+    # La variante rare n'est pas un chromosome, mais elle suit l'abeille partout
+    if V.KEY in genome:
+        out[V.KEY] = list(genome[V.KEY])
     return out
 
 

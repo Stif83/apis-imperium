@@ -27,6 +27,19 @@ export type Offer = {
   min_species?: number;
 };
 
+/** Effets : multiplicateurs (récolte, mutation, variante, vie des reines), points d'expédition, usure arrêtée */
+export type Elixir = {
+  effects: Partial<Record<'harvest' | 'mutation' | 'variant' | 'lifespan' | 'expedition', number>> & { no_wear?: boolean };
+  minutes: number;
+  /** Cycles vécus d'un coup par les ruches (élixir à effet immédiat) */
+  instant?: number;
+  desc: string;
+  cost: Cost;
+};
+
+/** chance : probabilité qu'une princesse née d'une reine ordinaire porte la variante */
+export type Variant = { label: string; icon: string; chance: number; color: string; secondary: string; desc: string };
+
 export type Content = {
   temps: string[];
   temp_labels: Record<string, string>;
@@ -98,8 +111,11 @@ export type Content = {
   late: {
     museum: { collections: Record<string, Record<string, number>>; bonus: number; comb_need: number; jar: Record<string, number> };
     world_hive: { bonus: number };
-    elixirs: Record<string, { effects: Partial<Record<'production' | 'mutation' | 'expedition', number>>; minutes: number; desc: string; cost: Cost }>;
+    elixirs: Record<string, Elixir>;
   };
+  /** Variantes rares : robe, pouvoir de reine, chance de naissance et d'héritage */
+  variants: { variants: Record<string, Variant>; sell_mult: number };
+  profiles: { stats: Record<string, { label: string; icon: string }>; bio_max: number; max_featured: number };
   expeditions: {
     regions: Record<string, Region>;
     team_max: number;
@@ -287,11 +303,39 @@ export type PlayerBadges = {
   badges: Badge[];
 };
 
+/** Profil d'apiculteur : réglages choisis par le joueur, statistiques calculées à la lecture */
+export type ProfileSettings = {
+  bio: string;
+  biome: string;
+  phase: string;
+  favorite: { type: string; genome: Genome } | null;
+  featured: string[];
+};
+export type Profile = {
+  id: string;
+  name: string;
+  since: string | null;
+  badges: PlayerBadges;
+  settings: ProfileSettings;
+  stats: Record<string, number>;
+  mine: boolean;
+  showcases: Showcase[];
+};
+export type ProfileSummary = {
+  id: string;
+  name: string;
+  badges: PlayerBadges;
+  favorite: ProfileSettings['favorite'];
+  biome: string;
+  mine: boolean;
+};
+
 export type Showcase = {
   id: string;
   title: string;
   description: string;
   author: string;
+  author_id: string;
   badges: PlayerBadges;
   mine: boolean;
   entries: { type: string; genome: Genome }[];

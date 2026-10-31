@@ -93,26 +93,49 @@ def world_multiplier(level: int) -> float:
 
 # ---- Distillerie ------------------------------------------------------------
 
+# Effets : "harvest" multiplie la récolte après le plafond, "mutation" les chances de mutation, "variant" les
+# chances de variante rare, "lifespan" la vie des reines couronnées pendant l'effet, "no_wear" arrête l'usure des
+# modules, "expedition" ajoute des points de chance ; "instant" fait vivre d'un coup des cycles aux ruches.
 ELIXIRS = {
     "elixir_vigor": {
-        "effects": {"production": 1.5}, "minutes": 30,
-        "desc": "Production ×1,5 dans toutes les ruches pendant 30 min.",
-        "cost": {"honey": 3000, "items": {"honeydew": 30, "pollen": 15, "fruit": 10, "petal": 10}},
+        "effects": {"harvest": 1.5}, "minutes": 60,
+        "desc": "Récolte ×1,5 dans toutes les ruches pendant 1 h, même pour celles déjà au maximum.",
+        "cost": {"honey": 6000, "items": {"honeydew": 40, "pollen": 20, "fruit": 15, "petal": 15}},
     },
     "elixir_mutation": {
-        "effects": {"mutation": 1.5}, "minutes": 30,
-        "desc": "Chances de mutation ×1,5 dans toutes les ruches pendant 30 min.",
+        "effects": {"mutation": 2.0}, "minutes": 60,
+        "desc": "Chances de mutation ×2 dans toutes les ruches pendant 1 h.",
         "cost": {"honey": 5000, "items": {"mana": 5, "phosphor": 10, "slime": 10, "dew": 15}},
     },
     "elixir_scout": {
-        "effects": {"expedition": 0.15}, "minutes": 60,
-        "desc": "Les expéditions lancées pendant 1 h gagnent 15 points de chance de réussite.",
+        "effects": {"expedition": 0.2}, "minutes": 60,
+        "desc": "Les expéditions lancées pendant 1 h gagnent 20 points de chance de réussite.",
         "cost": {"honey": 4000, "items": {"silk": 15, "coal": 15, "ice_shard": 15, "stardust": 3}},
     },
+    "elixir_youth": {
+        "effects": {"lifespan": 0.5}, "minutes": 60,
+        "desc": "Les reines couronnées pendant 1 h vivent deux fois moins longtemps : les générations s'enchaînent pour l'élevage.",
+        "cost": {"honey": 5000, "items": {"royal_jelly": 8, "pollen": 30, "dew": 20}},
+    },
+    "elixir_wax": {
+        "effects": {"no_wear": True}, "minutes": 120,
+        "desc": "Pendant 2 h, les cadres et modules ne s'usent plus.",
+        "cost": {"honey": 6000, "items": {"wax": 200, "propolis": 40, "resin": 20}},
+    },
+    "elixir_fortune": {
+        "effects": {"variant": 5.0}, "minutes": 60,
+        "desc": "Chances de naissance d'une variante rare ×5 dans toutes les ruches pendant 1 h.",
+        "cost": {"honey": 15000, "items": {"royal_jelly": 15, "stardust": 6, "petal": 30, "prism": 1}},
+    },
+    "elixir_time": {
+        "effects": {}, "instant": 360, "minutes": 0,
+        "desc": "Les ruches et les centrifugeuses vivent d'un coup 30 minutes de plus.",
+        "cost": {"honey": 25000, "items": {"amber": 5, "energy": 20, "lightning_shard": 2, "moonstone": 1}},
+    },
     "elixir_grand": {
-        "effects": {"production": 1.5, "mutation": 1.5, "expedition": 0.15}, "minutes": 60,
-        "desc": "Les trois effets à la fois pendant 1 h.",
-        "cost": {"honey": 20000, "items": {"royal_jelly": 20, "energy": 10, "ender_pearl": 3, "amber": 3, "dye": 10}},
+        "effects": {"harvest": 1.5, "mutation": 2.0, "variant": 3.0, "expedition": 0.2}, "minutes": 60,
+        "desc": "Vigueur, mutation et éclaireur à la fois pendant 1 h, et variantes rares ×3.",
+        "cost": {"honey": 30000, "items": {"royal_jelly": 25, "energy": 10, "ender_pearl": 3, "amber": 3, "dye": 10}},
     },
 }
 EXPEDITION_MAX_CHANCE = 0.98

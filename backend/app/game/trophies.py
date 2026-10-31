@@ -14,6 +14,7 @@ renomme pas.
 
 from . import content as C
 from .achievements import ACHIEVEMENTS
+from .variants import VARIANTS
 
 METALS = ["bronze", "silver", "gold", "diamond"]
 
@@ -71,6 +72,11 @@ def _trophies() -> list[dict]:
             (N_SPECIES, 25000, {"imperial_jelly": 1})]),
         _t("naturalist", "collection", "Naturaliste", "🌿", "Branches de l'Apidex complètes", "branches",
            [(3, 300, None), (10, 1500, {"royal_jelly": 5}), (25, 5000, {"royal_jelly": 15}), (len(BRANCHES), 20000, {"imperial_jelly": 1})]),
+        _t("rarities", "collection", "Chasseur de raretés", "✨", "Variantes rares trouvées (une par espèce et par variante)",
+           "variants", [(1, 1000, None), (5, 5000, {"royal_jelly": 10}), (20, 20000, {"imperial_jelly": 1}),
+                        (60, 60000, {"imperial_jelly": 3})]),
+        _t("prism", "collection", "Prisme vivant", "🌈", "Sortes de variantes rares trouvées", "variant_kinds",
+           [(3, 3000, None), (len(VARIANTS), 15000, {"imperial_jelly": 1})], metals=["gold", "diamond"]),
         # Rucher
         _t("builder", "apiary", "Bâtisseur", "🏠", "Ruches possédées", "hives",
            [(3, 150, None), (5, 400, None), (8, 1000, {"frame_impregnated": 2}), (12, 2500, {"alveary_production": 1})]),

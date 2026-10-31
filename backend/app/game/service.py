@@ -22,9 +22,11 @@ from . import genetics as G
 from . import lab as LAB
 from . import late as L
 from . import orders as O
+from . import profiles as PF
 from . import projects as PR
 from . import expeditions as X
 from . import trophies as T
+from . import variants as V
 from . import world as W
 
 
@@ -181,6 +183,11 @@ class Game:
         else:
             self.db.delete(bee)
 
+    def _found_variant(self, genome: dict) -> None:
+        """Note une variante rare dans la collection (une entrée par espèce et par variante)."""
+        A.record(self.p, f"variant:{V.of(genome)}:{genome['species'][0]}", 1)
+        A.unlock(self.p, "first_variant")
+
     def discover(self, genome: dict) -> None:
         for species in genome["species"]:
             if species not in self.discovered:
@@ -307,8 +314,10 @@ class Game:
             "discovered": len(self.discovered),
         }
 
-    def _make_queen(self, hive: Hive, princess: dict, drone: dict, generation: int, mods: dict) -> None:
-        health = max(1, round(G.value(princess, "lifespan") * mods["lifespan"]))
+    def _make_queen(self, hive: Hive, princess: dict, drone: dict, generation: int, mods: dict, t: int | None = None) -> None:
+        # Reine millénaire : vie ×2 ; gelée de jouvence : les reines couronnées pendant son effet vivent moins
+        life = G.value(princess, "lifespan") * mods["lifespan"] * V.power(princess, "lifespan")
+        health = max(1, round(life * self._effect("lifespan", t or now_ms())))
         hive.queen = {"genome": princess, "mate": drone, "health": health, "max_health": health, "generation": generation}
 
     def _sim_hive(self, hive: Hive, cycles: int, start: int, world: dict) -> None:
@@ -331,23 +340,25 @@ class Game:
                 break
             n = min(cycles, queen["health"])
             # La reine vieillit à chaque cycle, mais ne produit que pendant ses heures et par un temps qu'elle supporte
+            # Une reine albinos travaille à toute heure et par tous les temps
+            tireless = V.power(genome, "tireless", False)
             working = W.working_cycles(
                 t, n, cycle_ms, genome["activity"][0],
-                mods["shelter"] or genome["weatherproof"][0] == "yes", biome_temp, mods["light"], forced,
+                tireless or mods["shelter"] or genome["weatherproof"][0] == "yes", biome_temp, tireless or mods["light"], forced,
             )
             rate = G.value(genome, "speed") * mods["production"] * settings.production_mult * W.ACTIVE_BONUS
             # Reliquaire du Sanctuaire : les grandes reines produisent davantage
             if sanctified and C.SPECIES[genome["species"][0]]["branch"] in PR.SANCTUARY_BRANCHES:
                 rate *= PR.SANCTUARY_PRODUCTION
-            # Fin de partie : branche complète au Musée, élixir en cours
+            # Fin de partie : branche complète au Musée
             if C.SPECIES[genome["species"][0]]["branch"] in museum:
                 rate *= L.MUSEUM_BONUS
-            rate *= self._effect("production", t)
+            # Après le plafond : Ruche-monde, reine dorée, hydromel de vigueur
+            harvest = world_mult * V.power(genome, "harvest") * self._effect("harvest", t)
             for item, chance in G.products(genome):
                 made = G.binomial(self.rng, working, min(1.0, chance * rate))
                 made += G.binomial(self.rng, working, G.overflow(chance * rate, mods["overflow"]))
-                # La Ruche-monde multiplie la récolte elle-même, après le plafond d'un produit par cycle
-                made = G.scale(self.rng, made, world_mult)
+                made = G.scale(self.rng, made, harvest)
                 if auto:
                     self.add_item(item, made)
                     if made and C.ITEMS.get(item, {}).get("category") == "comb":
@@ -364,10 +375,14 @@ class Game:
             # La reine meurt et laisse une princesse et des faux-bourdons
             hive.queen = None
             ctx = self._hive_ctx(hive, mods, t - cycle_ms, world)
-            mutation = mods["mutation"] * self._effect("mutation", t - cycle_ms)
+            mutation = mods["mutation"] * self._effect("mutation", t - cycle_ms) * V.power(genome, "mutation")
             princess = G.breed(genome, mate, self.rng, mutation, mods["temp"], ctx=ctx, pure_mutation=True)
+            variant = V.roll(self.rng, genome, self._effect("variant", t - cycle_ms))
+            if variant:
+                princess = V.apply(princess, variant)
+                self._found_variant(princess)
             drones = [G.breed(genome, mate, self.rng, mutation, mods["temp"], ctx=ctx)
-                      for _ in range(G.value(genome, "fertility"))]
+                      for _ in range(G.value(genome, "fertility") + V.power(genome, "drones", 0))]
             if auto:
                 self.discover(princess)
                 self.discover(drones[0])
@@ -379,7 +394,7 @@ class Game:
                     self._take_bee(stock)
                 else:
                     mate, spare = drones[0], drones[1:]
-                self._make_queen(hive, princess, mate, queen.get("generation", 1) + 1, mods)
+                self._make_queen(hive, princess, mate, queen.get("generation", 1) + 1, mods, t)
                 if (hive.settings or {}).get("keep_drones"):
                     for drone in spare:
                         self.add_bee("drone", drone)
@@ -387,7 +402,9 @@ class Game:
                 self.add_bee("princess", princess, hive_id=hive.id)
                 for drone in drones:
                     self.add_bee("drone", drone, hive_id=hive.id)
-            if self._wear_modules(hive) | self._restock(hive):
+            # Baume de cire : les modules ne s'usent pas à cette génération
+            worn = not self._effect("no_wear", t - cycle_ms, False)
+            if (worn and self._wear_modules(hive)) | self._restock(hive):
                 mods = self._mods(hive)
                 auto = mods["automation"]
         hive.output = out
@@ -768,6 +785,11 @@ class Game:
         if self.qty(elixir_id) < 1:
             raise GameError("Vous n'en avez plus.")
         self.take_item(elixir_id, 1)
+        cycles = L.ELIXIRS[elixir_id].get("instant")
+        if cycles:
+            # Sablier liquide : les ruches et l'usine vivent d'un coup les cycles en plus
+            self.advance(cycles, now - cycles * settings.cycle_seconds * 1000)
+            return
         effects = {k: v for k, v in (self.p.effects or {}).items() if v > now}
         effects[elixir_id] = max(now, effects.get(elixir_id, 0)) + L.ELIXIRS[elixir_id]["minutes"] * 60_000
         self.p.effects = effects
@@ -979,7 +1001,7 @@ class Game:
 
     def sell_bee(self, bee_id: str, qty: int) -> None:
         bee = self._bee(bee_id)
-        price = C.BEE_SELL[bee.type]
+        price = C.BEE_SELL[bee.type] * (V.SELL_MULT if V.of(bee.genome) else 1)
         if bee.type == "drone" and A.bump(self.p, "drones_sold", qty) >= 100:
             A.unlock(self.p, "drones_100")
         self._take_bee(bee, qty)
@@ -1262,6 +1284,10 @@ class Game:
             return self._world_hive()["level"]
         if metric == "elixirs":
             return stats.get("elixirs", 0)
+        if metric == "variants":
+            return sum(1 for key in stats if key.startswith("variant:"))
+        if metric == "variant_kinds":
+            return len({key.split(":")[1] for key in stats if key.startswith("variant:")})
         if metric == "project_stages":
             return sum(p.get("stage", 0) for p in (self.p.projects or {}).values())
         if metric == "reputation_level":
@@ -1317,6 +1343,36 @@ class Game:
                 self.add_item(item, n)
         got[trophy_id] = reached
         self.p.trophies = got
+
+    # ---- profil d'apiculteur --------------------------------------------------
+
+    def profile(self) -> dict:
+        """Profil public : réglages choisis par le joueur et statistiques calculées maintenant."""
+        stats = {sid: (sum((self.p.trophies or {}).values()) if metric is None else self.trophy_value({"metric": metric}))
+                 for sid, (_, _, metric) in PF.STATS.items()}
+        return {
+            "id": self.p.id,
+            "name": self.p.username,
+            "since": self.p.created_at.isoformat() if self.p.created_at else None,
+            "badges": B.player_badges(self.discovered, self.p.trophies),
+            "settings": PF.settings_of(self.p),
+            "stats": stats,
+        }
+
+    def update_profile(self, bio: str, biome: str, phase: str, featured: list[str], favorite_bee_id: str | None) -> None:
+        """Met à jour le profil ; `favorite_bee_id` : None garde l'abeille préférée, "" l'enlève, sinon une abeille de la réserve."""
+        bio = bio.strip()
+        error = PF.validate(bio, biome, phase, featured)
+        if error:
+            raise GameError(error)
+        settings_ = {**PF.settings_of(self.p), "bio": bio, "biome": biome, "phase": phase, "featured": featured}
+        if favorite_bee_id == "":
+            settings_["favorite"] = None
+        elif favorite_bee_id is not None:
+            bee = self._bee(favorite_bee_id)
+            # Une copie, comme dans une vitrine : elle reste même si l'abeille est vendue
+            settings_["favorite"] = {"type": bee.type, "genome": bee.genome}
+        self.p.profile = settings_
 
     # ---- comptoir -----------------------------------------------------------
 

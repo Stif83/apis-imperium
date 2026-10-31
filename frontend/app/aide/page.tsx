@@ -491,13 +491,38 @@ const GUIDES: Guide[] = [
       <>
         <p>
           La distillerie (en boutique) transforme des ressources de plusieurs branches en élixirs. Un élixir se garde en réserve et se
-          boit au bon moment ; boire un élixir déjà en cours prolonge son effet. Des effets différents se cumulent (production et
-          mutation), mais deux élixirs qui donnent le même effet ne s'additionnent pas.
+          boit au bon moment ; boire un élixir déjà en cours prolonge son effet. Des effets différents se cumulent (récolte et
+          mutation), mais deux élixirs qui donnent le même effet ne s'additionnent pas. Le Sablier liquide agit tout de suite : vos
+          ruches vivent d'un coup une demi-heure de plus.
         </p>
         <ul>
           {Object.entries(content.late.elixirs).map(([id, e]) => (
             <li key={id}>
               <b>{content.items[id]?.label}</b> : {e.desc}
+            </li>
+          ))}
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: 'variantes',
+    icon: '✨',
+    title: 'Variantes rares',
+    keywords: 'variante rare dorée albinos millénaire irisée matriarche shiny robe pouvoir',
+    page: { href: '/apidex', label: 'Apidex' },
+    body: (content) => (
+      <>
+        <p>
+          De rares princesses naissent avec une robe hors du commun et un pouvoir qui agit sur la ruche où elles règnent. Une reine
+          variante transmet toujours sa variante à sa princesse : la lignée le reste tant qu'elle dure. Les faux-bourdons, eux, ne
+          sont jamais variants et ne peuvent pas la donner : une princesse ordinaire ne devient pas variante en s'accouplant. Chaque
+          fiche de l'Apidex garde la trace des variantes déjà vues, et le Nectar de fortune de la distillerie les rend plus fréquentes.
+        </p>
+        <ul>
+          {Object.values(content.variants.variants).map((v) => (
+            <li key={v.label}>
+              {v.icon} <b>{v.label}</b> (une princesse sur {fmt(Math.round(1 / v.chance))}) : {v.desc}
             </li>
           ))}
         </ul>
@@ -548,13 +573,15 @@ const GUIDES: Guide[] = [
     id: 'communaute',
     icon: '👥',
     title: 'Communauté',
-    keywords: 'vitrine exposer like badge autres joueurs',
+    keywords: 'vitrine exposer like badge autres joueurs profil apiculteur statistiques',
     page: { href: '/communaute', label: 'Carnet › Communauté' },
     body: (content) => (
       <p>
         Exposez jusqu'à {content.showcase_max_entries} abeilles dans une vitrine et découvrez celles des autres apiculteurs. Une vitrine
         garde une copie de chaque spécimen : elle reste visible même s'il disparaît de votre réserve. Vos branches complètes et vos
-        meilleurs trophées s'y affichent en badges.
+        meilleurs trophées s'y affichent en badges. Chaque apiculteur a aussi un profil : présentation, décor de bannière, abeille
+        préférée et jusqu'à {content.profiles.max_featured} statistiques mises en avant, toujours à jour. Personnalisez le vôtre depuis
+        « Mon profil », et visitez ceux des autres depuis leurs vitrines ou l'onglet Apiculteurs.
       </p>
     ),
   },

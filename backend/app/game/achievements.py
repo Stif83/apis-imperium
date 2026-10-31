@@ -40,6 +40,8 @@ ACHIEVEMENTS = {
     # Laboratoire
     "first_extract": ("Échantillon", "Extraire un premier gène.", "🧪", False, 50),
     "first_imprint": ("Docteur Abeille", "Imprimer des gènes sur une abeille.", "🔬", False, 100),
+    # Variantes rares
+    "first_variant": ("Merveille de la nature", "Voir naître une princesse d'une variante rare.", "✨", False, 500),
     # Communauté
     "first_showcase": ("Vernissage", "Publier une vitrine.", "🖼️", False, 50),
     "liked_10": ("Coup de cœur", "Recevoir 10 « j'aime » sur ses vitrines.", "💛", False, 300),
