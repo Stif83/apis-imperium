@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { BadgeStrip, RankChip } from '@/components/Badges';
 import { GenomeIcon, GenomeTable, Modal, Traits } from '@/components/ui';
-import { TYPE_LABELS, speciesName } from '@/lib/bees';
+import { TYPE_LABELS, speciesName, variantOf } from '@/lib/bees';
 import { useGame } from '@/lib/game';
 import { keyed } from '@/lib/keys';
 import type { Showcase } from '@/lib/types';
@@ -54,7 +54,7 @@ export function ShowcaseCase({ entries, golden = false }: { entries: Entry[]; go
     <div className={`vcase${golden ? ' golden' : ''}`}>
       <div className="vcase-glass">
         {entries.length ? (
-          keyed(entries, (e) => `${e.type}:${e.genome.species.join('/')}:${e.genome.variant?.[0] ?? ''}`).map(({ item: entry, key }) => (
+          keyed(entries, (e) => `${e.type}:${e.genome.species.join('/')}:${variantOf(e.genome) ?? ''}`).map(({ item: entry, key }) => (
             <button key={key} type="button" className="vcase-slot" title={label(entry.type, entry.genome)} onClick={() => setOpen(entry)}>
               <GenomeIcon genome={entry.genome} type={entry.type as 'drone'} size={68} />
               <span>{content.species[entry.genome.species[0]]?.label}</span>

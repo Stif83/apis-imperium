@@ -992,6 +992,20 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
   dans la réserve, choix en tuiles et aperçu de la vitrine en direct. Date de publication affichée.
 - Mêmes cartes sur les profils d'apiculteur. Vérifié en local (captures Edge, ordinateur et téléphone).
 
+## Demande du 2026-10-31 : React Doctor, /simplify et /code-review sur la série 1.17 à 1.18.1
+
+- Albinos : son pouvoir passe par `_mods` (lumière et abri), comme la verrière ; le statut affiché « travaille »
+  correspond enfin à la simulation. L'Irisée aussi (mutation).
+- Élixirs : quand deux élixirs donnent le même effet, le plus fort compte (`_effect` prend le maximum).
+  Sablier liquide : `instant` est une durée en minutes (30), vécue à partir de maintenant.
+- Communauté : tri des vitrines côté serveur (`GET /api/community/showcases?sort=recent|liked|mine`),
+  badges calculés par un seul helper, annuaire limité à 500 joueurs ; un profil se lit avec `Game.viewer`
+  (découvertes et ruches seulement, rien n'est écrit dans la partie du joueur consulté).
+- Interface : prix de vente réel d'une princesse variante (`variant_sell_mult`), `content.variants` à plat,
+  helper `variantSpec`, listes mémorisées dans la création de vitrine et l'éditeur de profil, CSS mort retiré.
+- Laissé tel quel : le cercle de la Distillerie (le remplacer changerait le rendu) et l'avertissement React
+  Doctor sur la date des vitrines (page chargée uniquement dans le navigateur).
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

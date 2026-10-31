@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { SceneArtBanner } from '@/components/SceneBanner';
 import { BadgeStrip, RankChip } from '@/components/Badges';
 import { ShowcaseCard, useEntryLabel } from '@/components/ShowcaseCard';
@@ -32,7 +32,7 @@ function ProfileEditor({ settings, onClose, onSave }: { settings: ProfileSetting
   const chosen = new Set(featured);
   const toggle = (id: string) =>
     setFeatured(chosen.has(id) ? featured.filter((f) => f !== id) : featured.length < max ? [...featured, id] : featured);
-  const reserve = state.bees.filter((b) => b.hive_id === null);
+  const reserve = useMemo(() => state.bees.filter((b) => b.hive_id === null), [state.bees]);
   const save = async () => {
     if (await onSave({ bio, biome, phase, featured, favorite_bee_id: favorite ?? null })) onClose();
   };
@@ -138,10 +138,11 @@ export default function BeekeeperPage() {
     if (next) setProfile(next);
     return next !== null;
   };
-  // Les « j'aime » renvoient toutes les vitrines : on garde celles de ce profil
+  // Après un « j'aime » ou une suppression, on recharge le profil : il contient toutes les vitrines de l'auteur
   const updateShowcases = async (path: string, body?: unknown, method?: string) => {
-    const list = await call<Showcase[]>(path, body, method);
-    if (list) setProfile({ ...profile, showcases: list.filter((s) => s.author_id === profile.id) });
+    if ((await call<Showcase[]>(path, body, method)) === null) return;
+    const next = await call<Profile>(`/community/profiles/${id}`);
+    if (next) setProfile(next);
   };
 
   return (

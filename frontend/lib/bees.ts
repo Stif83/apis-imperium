@@ -1,4 +1,4 @@
-import type { Bee, BeeType, Content, Genome } from './types';
+import type { Bee, BeeType, Content, Genome, Variant } from './types';
 
 /** Règles d'affichage des abeilles : libellés, gènes notables, regroupement et recherche. */
 
@@ -20,11 +20,17 @@ export function variantOf(genome: Genome): string | undefined {
   return genome.variant?.[0];
 }
 
+/** Fiche de la variante rare d'un génome, ou undefined. */
+export function variantSpec(content: Content, genome: Genome): Variant | undefined {
+  const id = variantOf(genome);
+  return id ? content.variants[id] : undefined;
+}
+
 /** Gènes qui méritent d'être vus d'un coup d'œil ; le reste est dans la fiche complète. */
 export function notableTraits(content: Content, genome: Genome): { icon: string; label: string }[] {
   const label = (c: string) => `${content.chromosomes[c]} : ${alleleLabel(content, c, genome[c]?.[0] ?? '')}`;
   const out: { icon: string; label: string }[] = [];
-  const variant = content.variants.variants[variantOf(genome) ?? ''];
+  const variant = variantSpec(content, genome);
   if (variant) out.push({ icon: variant.icon, label: `Variante ${variant.label.toLowerCase()} : ${variant.desc}` });
   const active = (c: string): string => genome[c]?.[0] ?? '';
   if (genome.species[0] !== genome.species[1]) out.push({ icon: '🧬', label: `Hybride de ${content.species[genome.species[1]]?.label}` });
@@ -60,7 +66,7 @@ export function groupBees(bees: Bee[]): BeeGroup[] {
 
 export function speciesName(content: Content, genome: Genome) {
   const [active, inactive] = genome.species;
-  const variant = content.variants.variants[variantOf(genome) ?? ''];
+  const variant = variantSpec(content, genome);
   const name = `${content.species[active]?.label ?? active}${variant ? ` ${variant.label.toLowerCase()}` : ''}`;
   return active === inactive ? name : `${name} (hybride ${content.species[inactive]?.label ?? inactive})`;
 }

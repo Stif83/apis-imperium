@@ -69,13 +69,10 @@ def roll(rng, queen: dict, chance_mult: float = 1.0) -> str | None:
     return None
 
 
-def apply(genome: dict, variant: str | None) -> dict:
-    """Génome avec la variante donnée (ou sans variante)."""
-    out = {c: pair for c, pair in genome.items() if c != KEY}
-    if variant:
-        out[KEY] = [variant, variant]
-    return out
+def apply(genome: dict, variant: str) -> dict:
+    """Génome portant la variante donnée."""
+    return {**genome, KEY: [variant, variant]}
 
 
 def public_variants() -> dict:
-    return {"variants": VARIANTS, "sell_mult": SELL_MULT}
+    return VARIANTS

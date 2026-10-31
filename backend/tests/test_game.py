@@ -1248,7 +1248,7 @@ def test_variant_roll_and_inheritance():
     assert V.roll(_FixedRng(0.5), plain) is None
     assert V.roll(_FixedRng(0.0), plain) in V.VARIANTS  # tirage gagnant
     golden = V.apply(plain, "golden")
-    assert V.of(golden) == "golden" and V.of(V.apply(golden, None)) is None
+    assert V.of(golden) == "golden" and V.of(plain) is None
     # Une reine variante la transmet toujours ; une Dorée naît une fois sur 4096
     assert V.roll(_FixedRng(0.99), golden) == "golden"
     assert V.roll(_FixedRng(1 / 4096 - 1e-6), plain) == "golden"
@@ -1298,8 +1298,8 @@ def test_time_elixir_runs_the_hives(game):
     game.add_item("elixir_time", 1)
     game.drink("elixir_time")
     assert game.qty("elixir_time") == 0 and not (game.p.effects or {}).get("elixir_time")
-    # 360 cycles : la reine sylvestre (20 cycles) a eu le temps de mourir et de laisser sa descendance
-    assert hive.queen is None and L.ELIXIRS["elixir_time"]["instant"] == 360
+    # 30 minutes (360 cycles de 5 s) : la reine sylvestre (20 cycles) a eu le temps de mourir et de laisser sa descendance
+    assert hive.queen is None and L.ELIXIRS["elixir_time"]["instant"] == 30
 
 
 def test_beekeeper_profile(game):
@@ -1321,3 +1321,50 @@ def test_beekeeper_profile(game):
                 ("", "plains", "day", ["species"] * 2), ("", "plains", "day", list(PF.STATS)[:PF.MAX_FEATURED + 1])):
         with pytest.raises(GameError):
             game.update_profile(*bad, None)
+
+
+def test_albino_queen_works_at_any_hour(game):
+    from app.game import variants as V
+
+    hive = game.hives[0]
+    game.add_bee("princess", V.apply(G.pure_genome("forest"), "albino"))
+    princess = next(b for b in game.bees if b.type == "princess" and V.of(b.genome) == "albino")
+    game.install(hive.id, princess.id, _bee(game, "drone", "forest").id)
+    mods = game._mods(hive)
+    # Le pouvoir passe par les effets de la ruche : la simulation et le statut affiché le voient tous les deux
+    assert mods["light"] and mods["shelter"]
+    night = 2 * W.HOUR_MS
+    assert game._hive_status(hive, mods, night) == "working"
+
+
+def test_strongest_elixir_wins(game):
+    # Grand élixir (variantes ×3) puis Nectar de fortune (×5) : le plus fort compte, quel que soit l'ordre
+    t = 1_000_000_000
+    for elixir in ("elixir_grand", "elixir_fortune"):
+        game.add_item(elixir, 1)
+        game.drink(elixir, now=t)
+    assert game._effect("variant", t + 1) == 5.0
+
+
+def test_showcases_sorted_by_likes_and_mine(db):
+    app.dependency_overrides[get_db] = lambda: db
+    try:
+        client = TestClient(app)
+        for user in ("alice", "bob"):
+            bees = client.get("/api/state", headers={"X-Dev-User": user}).json()["bees"]
+            client.post("/api/community/showcases", json={"title": f"Vitrine de {user}", "bee_ids": [bees[0]["id"]]},
+                        headers={"X-Dev-User": user})
+        bob = {"X-Dev-User": "bob"}
+        alice = next(s for s in client.get("/api/community/showcases", headers=bob).json() if s["author"] == "alice")
+        client.post(f"/api/community/showcases/{alice['id']}/like", json={}, headers=bob)
+        liked = client.get("/api/community/showcases?sort=liked", headers=bob).json()
+        assert liked[0]["author"] == "alice" and liked[0]["likes"] == 1
+        assert [s["author"] for s in client.get("/api/community/showcases?sort=mine", headers=bob).json()] == ["bob"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_profile_viewer_matches_full_game(game, db):
+    # La lecture légère du profil donne les mêmes statistiques que la partie complète
+    viewer = Game.viewer(db, game.p).profile()
+    assert viewer["stats"] == game.profile()["stats"] and viewer["badges"] == game.profile()["badges"]

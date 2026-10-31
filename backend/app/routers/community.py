@@ -21,21 +21,32 @@ class ShowcaseIn(BaseModel):
     bee_ids: list[str] = Field(min_length=1, max_length=content.SHOWCASE_MAX_ENTRIES)
 
 
-def _list(db: Session, me: Player, author_id: str | None = None) -> list[dict]:
-    likes = dict(db.execute(select(ShowcaseLike.showcase_id, func.count()).group_by(ShowcaseLike.showcase_id)).all())
-    mine = set(db.scalars(select(ShowcaseLike.showcase_id).where(ShowcaseLike.player_id == me.id)))
-    query = select(Showcase, Player).join(Player, Player.id == Showcase.player_id)
-    if author_id:
-        query = query.where(Showcase.player_id == author_id)
-    rows = db.execute(query.order_by(Showcase.created_at.desc()).limit(100)).all()
-    # Badges de chaque auteur, calculés une fois par auteur
-    authors = {p.id: p for _, p in rows}
-    found: dict[str, set[str]] = {pid: set() for pid in authors}
-    if authors:
-        query = select(Discovery.player_id, Discovery.species_id).where(Discovery.player_id.in_(authors))
+def _badges(db: Session, players: list[Player]) -> dict[str, dict]:
+    """Badges de chaque joueur (rang selon les espèces découvertes, meilleurs trophées)."""
+    by_id = {p.id: p for p in players}
+    found: dict[str, set[str]] = {pid: set() for pid in by_id}
+    if by_id:
+        query = select(Discovery.player_id, Discovery.species_id).where(Discovery.player_id.in_(by_id))
         for pid, species in db.execute(query):
             found[pid].add(species)
-    badges = {pid: player_badges(found[pid], p.trophies) for pid, p in authors.items()}
+    return {pid: player_badges(found[pid], p.trophies) for pid, p in by_id.items()}
+
+
+def _list(db: Session, me: Player, author_id: str | None = None, by_likes: bool = False) -> list[dict]:
+    """Vitrines (les 100 premières), d'un auteur ou de tous, des plus récentes ou des plus aimées aux autres."""
+    counts = select(ShowcaseLike.showcase_id, func.count().label("n")).group_by(ShowcaseLike.showcase_id).subquery()
+    mine = set(db.scalars(select(ShowcaseLike.showcase_id).where(ShowcaseLike.player_id == me.id)))
+    query = (select(Showcase, Player, func.coalesce(counts.c.n, 0))
+             .join(Player, Player.id == Showcase.player_id)
+             .outerjoin(counts, counts.c.showcase_id == Showcase.id))
+    if author_id:
+        query = query.where(Showcase.player_id == author_id)
+    order = [Showcase.created_at.desc()]
+    if by_likes:
+        order.insert(0, func.coalesce(counts.c.n, 0).desc())
+    rows = db.execute(query.order_by(*order).limit(100)).all()
+    # Badges de chaque auteur, calculés une fois par auteur
+    badges = _badges(db, [p for _, p, _ in rows])
     return [
         {
             "id": s.id,
@@ -46,17 +57,18 @@ def _list(db: Session, me: Player, author_id: str | None = None) -> list[dict]:
             "badges": badges[author.id],
             "mine": s.player_id == me.id,
             "entries": s.entries,
-            "likes": likes.get(s.id, 0),
+            "likes": n,
             "liked": s.id in mine,
             "created_at": s.created_at.isoformat() if s.created_at else None,
         }
-        for s, author in rows
+        for s, author, n in rows
     ]
 
 
 @router.get("/showcases")
-def list_showcases(me: Player = Depends(current_player), db: Session = Depends(get_db)):
-    out = _list(db, me)
+def list_showcases(sort: str = "recent", me: Player = Depends(current_player), db: Session = Depends(get_db)):
+    """`sort` : « recent » (défaut), « liked » (les plus aimées) ou « mine » (celles du joueur)."""
+    out = _list(db, me, author_id=me.id if sort == "mine" else None, by_likes=sort == "liked")
     db.commit()
     return out
 
@@ -118,21 +130,13 @@ class ProfileIn(BaseModel):
 @router.get("/profiles")
 def list_profiles(me: Player = Depends(current_player), db: Session = Depends(get_db)):
     """Annuaire des apiculteurs : nom, badges, abeille préférée, par ordre alphabétique."""
-    players = list(db.scalars(select(Player).order_by(func.lower(Player.username))))
-    found: dict[str, set[str]] = {p.id: set() for p in players}
-    for pid, species in db.execute(select(Discovery.player_id, Discovery.species_id)):
-        found.setdefault(pid, set()).add(species)
-    out = [
-        {
-            "id": p.id,
-            "name": p.username,
-            "badges": player_badges(found[p.id], p.trophies),
-            "favorite": profiles.settings_of(p)["favorite"],
-            "biome": profiles.settings_of(p)["biome"],
-            "mine": p.id == me.id,
-        }
-        for p in players
-    ]
+    players = list(db.scalars(select(Player).order_by(func.lower(Player.username)).limit(500)))
+    badges = _badges(db, players)
+    out = []
+    for p in players:
+        settings = profiles.settings_of(p)
+        out.append({"id": p.id, "name": p.username, "badges": badges[p.id], "favorite": settings["favorite"],
+                    "biome": settings["biome"], "mine": p.id == me.id})
     db.commit()
     return out
 
@@ -143,7 +147,7 @@ def get_profile(player_id: str, me: Player = Depends(current_player), db: Sessio
     player = me if player_id == "moi" else db.get(Player, player_id)
     if player is None:
         raise HTTPException(404, "Apiculteur introuvable.")
-    out = {**Game(db, player).profile(), "mine": player.id == me.id, "showcases": _list(db, me, player.id)}
+    out = {**Game.viewer(db, player).profile(), "mine": player.id == me.id, "showcases": _list(db, me, player.id)}
     db.commit()
     return out
 

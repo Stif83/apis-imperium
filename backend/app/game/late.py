@@ -95,7 +95,7 @@ def world_multiplier(level: int) -> float:
 
 # Effets : "harvest" multiplie la récolte après le plafond, "mutation" les chances de mutation, "variant" les
 # chances de variante rare, "lifespan" la vie des reines couronnées pendant l'effet, "no_wear" arrête l'usure des
-# modules, "expedition" ajoute des points de chance ; "instant" fait vivre d'un coup des cycles aux ruches.
+# modules, "expedition" ajoute des points de chance ; "instant" fait vivre d'un coup ce nombre de minutes aux ruches.
 ELIXIRS = {
     "elixir_vigor": {
         "effects": {"harvest": 1.5}, "minutes": 60,
@@ -128,7 +128,7 @@ ELIXIRS = {
         "cost": {"honey": 15000, "items": {"royal_jelly": 15, "stardust": 6, "petal": 30, "prism": 1}},
     },
     "elixir_time": {
-        "effects": {}, "instant": 360, "minutes": 0,
+        "effects": {}, "instant": 30, "minutes": 0,
         "desc": "Les ruches et les centrifugeuses vivent d'un coup 30 minutes de plus.",
         "cost": {"honey": 25000, "items": {"amber": 5, "energy": 20, "lightning_shard": 2, "moonstone": 1}},
     },

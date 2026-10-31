@@ -217,7 +217,7 @@ def certify(body: CertifyIn, game: Game = Depends(current_game)):
 def get_content():
     return {**content.public_content(), "lab": lab.public_lab(), "trophies": trophies.public_trophies(), "orders": orders.public_orders(), "projects": projects.public_projects(),
             "expeditions": expeditions.public_expeditions(), "late": late.public_late(),
-            "variants": variants.public_variants(), "profiles": profiles.public_profiles()}
+            "variants": variants.public_variants(), "variant_sell_mult": variants.SELL_MULT, "profiles": profiles.public_profiles()}
 
 
 class ReplicateIn(BaseModel):

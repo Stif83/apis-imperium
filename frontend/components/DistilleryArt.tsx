@@ -3,8 +3,14 @@
 import { type Ctx, rect, shade, usePixelCanvas } from '@/lib/pixel';
 
 const W = 128;
-// Instant figé du feu, des bulles, de la vapeur et de la goutte
-const FRAME = 5;
+// Image figée : hauteur de chaque flamme, bulles dans le hublot, bouffées de vapeur (x, y, rayon)
+const FLAMES = [5, 4, 7, 6, 5, 4];
+const BUBBLES = [31, 35, 32];
+const PUFFS = [
+  [27, 6, 1],
+  [23, 4, 2],
+  [27, 2, 2],
+];
 const H = 72;
 
 /** Disque plein, ligne par ligne (chaudière, bouchons, bulles). */
@@ -30,7 +36,6 @@ function bottle(ctx: Ctx, x: number, y: number, color: string) {
  * les bulles, la vapeur et la goutte sont figés à un instant choisi.
  */
 export function DistilleryArt({ built, liquid, shelf }: { built: boolean; liquid: string; shelf: string[] }) {
-
   const ref = usePixelCanvas(
     W,
     H,
@@ -52,12 +57,10 @@ export function DistilleryArt({ built, liquid, shelf }: { built: boolean; liquid
       for (let y = 45; y < 60; y += 4) rect(ctx, 8, y, 34, 1, tone('#5e2c1f'));
       rect(ctx, 16, 49, 18, 10, '#1a1210');
       if (built) {
-        const flicker = [0, 1, 2, 1][FRAME % 4];
-        for (let i = 0; i < 6; i++) {
-          const h = 3 + ((i * 7 + FRAME) % 4) + flicker;
+        FLAMES.forEach((h, i) => {
           rect(ctx, 17 + i * 3, 58 - h, 2, h, i % 2 ? '#ff7a1a' : '#ffb300');
-          rect(ctx, 17 + i * 3, 58 - Math.max(1, h - 3), 2, Math.max(1, h - 3), '#ffd23f');
-        }
+          rect(ctx, 17 + i * 3, 58 - (h - 3), 2, h - 3, '#ffd23f');
+        });
         ctx.globalAlpha = 0.18;
         rect(ctx, 12, 40, 26, 3, '#ff7a1a');
         ctx.globalAlpha = 1;
@@ -73,10 +76,7 @@ export function DistilleryArt({ built, liquid, shelf }: { built: boolean; liquid
       disc(ctx, 27, 33, 5, '#d7eef5');
       disc(ctx, 27, 33, 4, built ? `#${liquid}` : '#555555');
       if (built) {
-        for (let b = 0; b < 3; b++) {
-          const by = 36 - ((FRAME + b * 3) % 7);
-          rect(ctx, 25 + b * 2, by, 1, 1, shade(liquid, 0.6));
-        }
+        BUBBLES.forEach((by, b) => rect(ctx, 25 + b * 2, by, 1, 1, shade(liquid, 0.6)));
       }
       rect(ctx, 25, 31, 1, 1, '#ffffff');
 
@@ -94,10 +94,7 @@ export function DistilleryArt({ built, liquid, shelf }: { built: boolean; liquid
       // Vapeur au-dessus du chapiteau
       if (built) {
         ctx.globalAlpha = 0.35;
-        for (let p = 0; p < 3; p++) {
-          const age = (FRAME + p * 8) % 24;
-          disc(ctx, 25 + Math.round(Math.sin((age + p) / 3) * 2), 7 - Math.floor(age / 4), 1 + (age > 12 ? 1 : 0), '#f5f5f5');
-        }
+        for (const [x, y, r] of PUFFS) disc(ctx, x, y, r, '#f5f5f5');
         ctx.globalAlpha = 1;
       }
 
@@ -112,10 +109,7 @@ export function DistilleryArt({ built, liquid, shelf }: { built: boolean; liquid
       // Robinet, goutte et fiole qui se remplit
       rect(ctx, 94, 48, 8, 2, tone('#c56a2d'));
       rect(ctx, 101, 48, 2, 4, tone('#c56a2d'));
-      if (built) {
-        const drop = FRAME % 6;
-        rect(ctx, 101, 53 + drop, 2, 2, `#${liquid}`);
-      }
+      if (built) rect(ctx, 101, 58, 2, 2, `#${liquid}`);
       rect(ctx, 99, 58, 6, 3, '#d7eef5');
       rect(ctx, 97, 61, 10, 8, '#d7eef5');
       rect(ctx, 98, 64, 8, 5, built ? `#${liquid}` : '#666666');

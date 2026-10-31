@@ -31,7 +31,7 @@ export type Offer = {
 export type Elixir = {
   effects: Partial<Record<'harvest' | 'mutation' | 'variant' | 'lifespan' | 'expedition', number>> & { no_wear?: boolean };
   minutes: number;
-  /** Cycles vécus d'un coup par les ruches (élixir à effet immédiat) */
+  /** Minutes vécues d'un coup par les ruches (élixir à effet immédiat) */
   instant?: number;
   desc: string;
   cost: Cost;
@@ -114,7 +114,9 @@ export type Content = {
     elixirs: Record<string, Elixir>;
   };
   /** Variantes rares : robe, pouvoir de reine, chance de naissance et d'héritage */
-  variants: { variants: Record<string, Variant>; sell_mult: number };
+  variants: Record<string, Variant>;
+  /** Une princesse variante se vend ce multiple du prix normal */
+  variant_sell_mult: number;
   profiles: { stats: Record<string, { label: string; icon: string }>; bio_max: number; max_featured: number };
   expeditions: {
     regions: Record<string, Region>;

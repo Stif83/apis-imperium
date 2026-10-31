@@ -203,7 +203,7 @@ function AboutTab({
 /** Variantes rares de l'espèce : celles déjà vues naître brillent, les autres restent dans l'ombre. */
 function RareVariants({ id }: { id: string }) {
   const { content, state } = useGame();
-  const variants = Object.entries(content.variants.variants);
+  const variants = Object.entries(content.variants);
   const found = variants.filter(([v]) => state.stats[`variant:${v}:${id}`]);
   return (
     <div className="card stack">
@@ -235,7 +235,7 @@ function RareVariants({ id }: { id: string }) {
       {!found.length && (
         <p className="muted">
           De rares princesses naissent avec une robe et un pouvoir hors du commun, et les transmettent à toute leur lignée. La plus rare,
-          la Dorée, une fois sur {fmt(Math.round(1 / content.variants.variants.golden.chance))}.
+          la Dorée, une fois sur {fmt(Math.round(1 / content.variants.golden.chance))}.
         </p>
       )}
     </div>

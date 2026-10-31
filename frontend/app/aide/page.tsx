@@ -520,7 +520,7 @@ const GUIDES: Guide[] = [
           fiche de l'Apidex garde la trace des variantes déjà vues, et le Nectar de fortune de la distillerie les rend plus fréquentes.
         </p>
         <ul>
-          {Object.values(content.variants.variants).map((v) => (
+          {Object.values(content.variants).map((v) => (
             <li key={v.label}>
               {v.icon} <b>{v.label}</b> (une princesse sur {fmt(Math.round(1 / v.chance))}) : {v.desc}
             </li>

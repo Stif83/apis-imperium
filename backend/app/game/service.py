@@ -109,6 +109,16 @@ class Game:
                 bee.genome = fixed
                 bee.genome_hash = G.genome_hash(fixed)
 
+    @classmethod
+    def viewer(cls, db: Session, player: Player) -> "Game":
+        """Partie d'un joueur en lecture seule, pour son profil : seulement ses découvertes et ses ruches."""
+        game = cls.__new__(cls)
+        game.db, game.p, game.rng = db, player, random.Random()
+        game.inv, game.bees, game.machines, game.gene_rows = {}, [], {}, {}
+        game.discovered = set(db.scalars(select(Discovery.species_id).where(Discovery.player_id == player.id)))
+        game.hives = list(db.scalars(select(Hive).where(Hive.player_id == player.id)))
+        return game
+
     # ---- inventaire -------------------------------------------------------
 
     def qty(self, item: str) -> int:
@@ -215,6 +225,11 @@ class Game:
                 mods["light"] = True
         if hive.hive_type == "robo" and self.project_stage("robotics") >= 3:
             mods["production"] *= PR.ROBO_PRODUCTION
+        # Reine variante : l'Albinos travaille à toute heure et par tous les temps, l'Irisée mute davantage
+        queen = (hive.queen or {}).get("genome")
+        if V.power(queen, "tireless", False):
+            mods["light"] = mods["shelter"] = True
+        mods["mutation"] *= V.power(queen, "mutation")
         return mods
 
     def _greenhouse_spot(self, hive: Hive) -> str | None:
@@ -340,11 +355,9 @@ class Game:
                 break
             n = min(cycles, queen["health"])
             # La reine vieillit à chaque cycle, mais ne produit que pendant ses heures et par un temps qu'elle supporte
-            # Une reine albinos travaille à toute heure et par tous les temps
-            tireless = V.power(genome, "tireless", False)
             working = W.working_cycles(
                 t, n, cycle_ms, genome["activity"][0],
-                tireless or mods["shelter"] or genome["weatherproof"][0] == "yes", biome_temp, tireless or mods["light"], forced,
+                mods["shelter"] or genome["weatherproof"][0] == "yes", biome_temp, mods["light"], forced,
             )
             rate = G.value(genome, "speed") * mods["production"] * settings.production_mult * W.ACTIVE_BONUS
             # Reliquaire du Sanctuaire : les grandes reines produisent davantage
@@ -375,7 +388,7 @@ class Game:
             # La reine meurt et laisse une princesse et des faux-bourdons
             hive.queen = None
             ctx = self._hive_ctx(hive, mods, t - cycle_ms, world)
-            mutation = mods["mutation"] * self._effect("mutation", t - cycle_ms) * V.power(genome, "mutation")
+            mutation = mods["mutation"] * self._effect("mutation", t - cycle_ms)
             princess = G.breed(genome, mate, self.rng, mutation, mods["temp"], ctx=ctx, pure_mutation=True)
             variant = V.roll(self.rng, genome, self._effect("variant", t - cycle_ms))
             if variant:
@@ -403,8 +416,10 @@ class Game:
                 for drone in drones:
                     self.add_bee("drone", drone, hive_id=hive.id)
             # Baume de cire : les modules ne s'usent pas à cette génération
-            worn = not self._effect("no_wear", t - cycle_ms, False)
-            if (worn and self._wear_modules(hive)) | self._restock(hive):
+            changed = not self._effect("no_wear", t - cycle_ms, False) and self._wear_modules(hive)
+            changed = self._restock(hive) or changed
+            # Nouvelle reine, modules usés ou remplacés : les effets de la ruche ont pu changer
+            if changed or hive.queen:
                 mods = self._mods(hive)
                 auto = mods["automation"]
         hive.output = out
@@ -762,11 +777,11 @@ class Game:
             self._world_hive()
 
     def _effect(self, key: str, t: int, neutral: float = 1.0) -> float:
-        """Effet d'élixir en cours à l'instant t : multiplicateur (production, mutation) ou bonus (expédition)."""
-        for elixir_id, until in (self.p.effects or {}).items():
-            if until > t and key in L.ELIXIRS.get(elixir_id, {}).get("effects", {}):
-                return L.ELIXIRS[elixir_id]["effects"][key]
-        return neutral
+        """Effet d'élixir en cours à l'instant t (voir late.ELIXIRS), le plus fort s'il y en a plusieurs ;
+        `neutral` quand aucun élixir ne le donne."""
+        values = [L.ELIXIRS[e]["effects"][key] for e, until in (self.p.effects or {}).items()
+                  if until > t and key in L.ELIXIRS.get(e, {}).get("effects", {})]
+        return max(values) if values else neutral
 
     def brew(self, elixir_id: str, qty: int = 1) -> None:
         if elixir_id not in L.ELIXIRS:
@@ -785,10 +800,10 @@ class Game:
         if self.qty(elixir_id) < 1:
             raise GameError("Vous n'en avez plus.")
         self.take_item(elixir_id, 1)
-        cycles = L.ELIXIRS[elixir_id].get("instant")
-        if cycles:
-            # Sablier liquide : les ruches et l'usine vivent d'un coup les cycles en plus
-            self.advance(cycles, now - cycles * settings.cycle_seconds * 1000)
+        minutes = L.ELIXIRS[elixir_id].get("instant")
+        if minutes:
+            # Sablier liquide : les ruches et l'usine vivent d'un coup la demi-heure qui vient, en plus du temps réel
+            self.advance(minutes * 60 // settings.cycle_seconds, now)
             return
         effects = {k: v for k, v in (self.p.effects or {}).items() if v > now}
         effects[elixir_id] = max(now, effects.get(elixir_id, 0)) + L.ELIXIRS[elixir_id]["minutes"] * 60_000
@@ -1281,7 +1296,7 @@ class Game:
         if metric == "museum_branches":
             return len(self._museum_done())
         if metric == "world_hive_level":
-            return self._world_hive()["level"]
+            return (self.p.world_hive or {}).get("level", 0)
         if metric == "elixirs":
             return stats.get("elixirs", 0)
         if metric == "variants":

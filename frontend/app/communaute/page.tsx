@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RankChip } from '@/components/Badges';
 import { ShowcaseCard, ShowcaseCase } from '@/components/ShowcaseCard';
 import { BeeSearch, GenomeIcon, Modal, PageHead } from '@/components/ui';
@@ -24,8 +24,8 @@ function ShowcaseCreator({ onClose, onPublish }: { onClose: () => void; onPublis
   const [query, setQuery] = useState('');
   const max = content.showcase_max_entries;
   const chosen = new Set(picked);
-  const byId = new Map(state.bees.map((b) => [b.id, b]));
-  const shown = state.bees.filter((b) => beeMatches(content, b, query));
+  const byId = useMemo(() => new Map(state.bees.map((b) => [b.id, b])), [state.bees]);
+  const shown = useMemo(() => state.bees.filter((b) => beeMatches(content, b, query)), [content, state.bees, query]);
   const toggle = (id: string) => {
     if (chosen.has(id)) setPicked(picked.filter((p) => p !== id));
     else if (picked.length < max) setPicked([...picked, id]);
@@ -94,23 +94,18 @@ function Showcases() {
   const [sort, setSort] = useState<(typeof SORTS)[number][0]>('recent');
   const [creating, setCreating] = useState(false);
 
+  // Le tri se fait côté serveur : « les miennes » et « les plus aimées » ne se limitent pas aux vitrines récentes
+  const load = useCallback(() => call<Showcase[]>(`/community/showcases?sort=${sort}`).then((list) => list && setShowcases(list)), [call, sort]);
   useEffect(() => {
-    call<Showcase[]>('/community/showcases').then((list) => list && setShowcases(list));
-  }, [call]);
+    load();
+  }, [load]);
 
   const update = async (path: string, body?: unknown, method?: string) => {
-    const list = await call<Showcase[]>(path, body, method);
-    if (list) setShowcases(list);
-    return list !== null;
+    const done = (await call<Showcase[]>(path, body, method)) !== null;
+    if (done) await load();
+    return done;
   };
-
-  // La liste arrive de la plus récente à la plus ancienne
-  const shown =
-    sort === 'mine'
-      ? (showcases ?? []).filter((s) => s.mine)
-      : sort === 'liked'
-        ? [...(showcases ?? [])].sort((a, b) => b.likes - a.likes)
-        : (showcases ?? []);
+  const shown = showcases ?? [];
 
   return (
     <>

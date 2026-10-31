@@ -5,7 +5,7 @@ import { ActiveEffects } from '@/components/Effects';
 import { SkyControl } from '@/components/Sky';
 import { BeeSearch, BeeSheet, BeeTile, CostView, GenesTip, GenomeIcon, GenomeTable, Honey, ItemIcon, ItemQty, Modal, PageHead, Traits } from '@/components/ui';
 import { BIOME_ICONS, SHORT, WEATHER_ICONS, canAfford, fmt } from '@/lib/format';
-import { TYPE_LABELS, beeMatches, climateFit, groupBees, speciesName, type BeeGroup } from '@/lib/bees';
+import { TYPE_LABELS, beeMatches, climateFit, groupBees, speciesName, variantOf, type BeeGroup } from '@/lib/bees';
 import { HiveArt } from '@/components/HiveArt';
 import { sceneUrl } from '@/components/SceneArt';
 import { useGame } from '@/lib/game';
@@ -685,7 +685,7 @@ export default function ApiaryPage() {
             <>
               <Certify bee={bee} />
               <button className="small" onClick={() => act('/bees/sell', { bee_id: bee.id, qty: 1 })}>
-                Vendre 1 (<Honey amount={content.bee_sell[bee.type]} />)
+                Vendre 1 (<Honey amount={content.bee_sell[bee.type] * (variantOf(bee.genome) ? content.variant_sell_mult : 1)} />)
               </button>
               {bee.count > 1 && (
                 <button className="small" onClick={() => act('/bees/sell', { bee_id: bee.id, qty: bee.count })}>

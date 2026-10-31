@@ -118,7 +118,6 @@ select { max-width: 100%; }
 
 /* ---------- mise en page ---------- */
 .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
-.grid.wide { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
 .grid.small { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 .grid.tiles { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px; }
 
@@ -205,9 +204,6 @@ select { max-width: 100%; }
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
-@media (max-width: 640px) {
-  .grid.wide { grid-template-columns: 1fr; }
-}
 
 button.link { background: none; border: none; padding: 0; color: var(--muted); text-align: left; font-weight: 600; }
 button.link:hover { color: var(--text); }
@@ -379,12 +375,6 @@ button.primary .honey { color: inherit; }
 /* ---------- génétique ---------- */
 .bee-tile.selected { box-shadow: 0 0 0 3px var(--accent); }
 
-/* ---------- communauté ---------- */
-.shelf {
-  display: flex; flex-wrap: wrap; gap: 6px; padding: 12px;
-  background: var(--panel-2); border-radius: 12px;
-  border-bottom: 6px solid #c98f4a;
-}
 
 @media (prefers-reduced-motion: reduce) { .centrifuge-art.spinning { animation: none; } }
 button.primary.compact { padding: 6px 10px; font-size: 14px; border-radius: 12px; }
