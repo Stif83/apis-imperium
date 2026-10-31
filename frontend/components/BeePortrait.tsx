@@ -568,27 +568,31 @@ export const BeePortrait = memo(function BeePortrait({
   type = 'queen',
   size = 288,
   unknown = false,
+  variant,
 }: {
   species: string;
   type?: BeeType;
   size?: number;
   unknown?: boolean;
+  /** Variante rare : sa robe remplace les couleurs de l'espèce */
+  variant?: string;
 }) {
   const content = useContent();
   const spec = content.species[species];
   const { look, size: sizeIndex, seed } = lookOf(spec, species, type, (allele) => content.alleles.lifespan?.[allele]?.value ?? 30);
   const anatomy = ANATOMY[spec?.branch] ?? BASE;
   const runs = runsOf(`${species}|${type}`, () => draw(look, anatomy, sizeIndex, type, seed));
-  const colors = palette(spec.color, spec.secondary);
+  const robe = variant ? content.variants[variant] : undefined;
+  const colors = palette(robe?.color ?? spec.color, robe?.secondary ?? spec.secondary);
   return (
     <svg
-      className="bee-portrait"
+      className={`bee-portrait${robe ? ` rare rare-${variant}` : ''}`}
       width={size}
       height={size}
       viewBox={`0 0 ${W} ${W}`}
       shapeRendering="crispEdges"
       role="img"
-      aria-label={unknown ? 'Espèce inconnue' : spec.label}
+      aria-label={unknown ? 'Espèce inconnue' : robe ? `${spec.label} ${robe.label.toLowerCase()}` : spec.label}
     >
       {runs.map((r) => {
         const paint = paintOf(r, colors, unknown);

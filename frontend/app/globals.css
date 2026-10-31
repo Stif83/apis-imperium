@@ -781,7 +781,8 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 .elixir-card.brewing { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
 
 /* Variantes rares : un éclat propre à chaque robe */
-.bee-icon.rare { overflow: visible; }
+.bee-icon.rare, .bee-portrait.rare { overflow: visible; }
+.portrait-variant { margin: 0; text-align: center; max-width: 300px; }
 .rare-golden { filter: drop-shadow(0 0 2px #ffd54f) drop-shadow(0 0 4px rgba(255, 193, 7, 0.6)); }
 .rare-albino { filter: drop-shadow(0 0 2px #ffffff) drop-shadow(0 0 3px rgba(180, 200, 220, 0.8)); }
 .rare-ancient { filter: sepia(0.5) drop-shadow(0 0 2px #d7b98e); }
@@ -790,9 +791,6 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 @keyframes rare-iris { from { filter: hue-rotate(0deg) drop-shadow(0 0 2px #b388ff); } to { filter: hue-rotate(360deg) drop-shadow(0 0 2px #b388ff); } }
 @media (prefers-reduced-motion: reduce) { .rare-iridescent { animation: none; filter: drop-shadow(0 0 2px #b388ff); } }
 .bee-tile.rare-tile { background: linear-gradient(160deg, rgba(255, 215, 64, 0.18), var(--panel) 60%); box-shadow: 0 0 0 1px #e0b03c, var(--shadow); }
-.rare-shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
-.rare-slot { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 13px; font-weight: 700; }
-.rare-slot.unseen { color: var(--muted); }
 
 /* ---------- recherche d'abeilles et bulle des gènes ---------- */
 .bee-search { display: inline-flex; align-items: center; gap: 8px; flex: 1; max-width: 420px; }
@@ -822,9 +820,10 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
 
 /* Ruche-monde : scène de l'arbre-monde en fond, panneaux de bois et de parchemin par-dessus */
 .world-tree {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 460px); grid-template-rows: auto 1fr; gap: 16px;
-  min-height: 640px; aspect-ratio: 8 / 5; padding: 20px; border-radius: var(--radius); overflow: hidden;
-  background: #1b2150 left bottom / cover no-repeat;
+  /* L'arbre occupe les deux tiers gauches de l'image : les panneaux tiennent dans le tiers droit */
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 36%); grid-template-rows: auto 1fr; gap: 16px;
+  min-height: 520px; aspect-ratio: 8 / 5; padding: 20px; border-radius: var(--radius); overflow: hidden;
+  background: #43702a left bottom / cover no-repeat;
 }
 .world-plate, .world-panel {
   grid-column: 2; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px;
@@ -834,16 +833,18 @@ button.primary-soft { background: var(--accent); color: var(--accent-ink); borde
   border: 3px solid #8a5a2b; box-shadow: inset 0 0 0 2px #e8d4a6, 4px 4px 0 rgba(0, 0, 0, 0.35);
 }
 .world-plate { background: rgba(62, 36, 20, 0.92); --text: #fdf3dc; --muted: #e3cfa6; color: var(--text); box-shadow: inset 0 0 0 2px #5d3a1a, 4px 4px 0 rgba(0, 0, 0, 0.35); }
-.world-plate .page-head { margin: 0; }
-.world-plate .help-text { color: #3b2f1c; }
 .world-panel { align-self: end; }
+/* Panier dans le tiers droit : nom, compte et bouton sur une ligne, la jauge en dessous */
+.world-panel .project-need { grid-template-columns: minmax(0, 1fr) auto auto; row-gap: 4px; }
+.world-panel .project-need .bar { grid-column: 1 / -1; order: 1; }
 .world-level { display: flex; flex-direction: column; gap: 2px; }
 .world-level-num { font: 700 22px/1.1 var(--display); color: #ffd54f; }
 .world-bonus { color: #c5e1a5; font-weight: 700; }
 .world-progress { display: block; height: 8px; background: #e2cc9c; border: 2px solid #8a5a2b; }
 .world-progress > span { display: block; height: 100%; background: #ffb81c; }
-@media (max-width: 800px) {
-  .world-tree { grid-template-columns: minmax(0, 1fr); min-height: 0; aspect-ratio: auto; padding: 12px; padding-top: 220px; background-position: left top; background-size: auto 360px; }
+@media (max-width: 1100px) {
+  /* Écran étroit : l'image entière en haut, les panneaux sur l'herbe qui la prolonge */
+  .world-tree { grid-template-columns: minmax(0, 1fr); min-height: 0; aspect-ratio: auto; padding: 12px; padding-top: 58%; background-position: center top; background-size: 100% auto; }
   .world-plate, .world-panel { grid-column: 1; }
 }
 

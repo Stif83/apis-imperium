@@ -1006,6 +1006,16 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
 - Laissé tel quel : le cercle de la Distillerie (le remplacer changerait le rendu) et l'avertissement React
   Doctor sur la date des vitrines (page chargée uniquement dans le navigateur).
 
+## Demande du 2026-10-31 : revue de l'interface, Ruche-monde et variantes sur le portrait (frontend 1.18.4)
+
+- Revue de toutes les pages (captures ordinateur, écran moyen et téléphone) : pas de défilement horizontal,
+  aides « ? » correctes partout, sauf la Ruche-monde.
+- Ruche-monde : l'aide se déplie au-dessus de la scène au lieu de recouvrir l'arbre ; panneaux dans le tiers
+  droit sur grand écran (panier sur deux lignes : nom, compte, bouton, puis la jauge) ; sous 1100 px, l'image
+  entière en haut et les panneaux posés sur l'herbe qui la prolonge.
+- Apidex : les variantes déjà vues naître pour une espèce se choisissent sur le portrait (« Normale », Dorée…),
+  avec leur pouvoir en dessous ; le faux-bourdon est grisé (jamais variant). Le bloc « Variantes rares » est retiré.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

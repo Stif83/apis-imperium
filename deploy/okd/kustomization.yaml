@@ -23,4 +23,4 @@ images:
     newTag: "1.18.2"
   - name: apiculteur/frontend
     newName: image-registry.openshift-image-registry.svc:5000/apps-apisimperium/frontend
-    newTag: "1.18.2"
+    newTag: "1.18.4"

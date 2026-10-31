@@ -7,7 +7,7 @@ import { BeeIcon } from '@/components/BeeIcon';
 import { BeePortrait } from '@/components/BeePortrait';
 import { Family, MiniBee, Outputs } from '@/components/apidex';
 import { BRANCH_LORE, computeTiers } from '@/lib/apidex';
-import { fmt, percent } from '@/lib/format';
+import { percent } from '@/lib/format';
 import { ItemQty } from '@/components/ui';
 import { alleleLabel, notableTraits } from '@/lib/bees';
 import { useGame } from '@/lib/game';
@@ -149,20 +149,53 @@ function AboutTab({
   onType: (type: BeeType) => void;
   onMutations: () => void;
 }) {
-  const { content } = useGame();
+  const { content, state } = useGame();
+  const [variant, setVariant] = useState<string>();
   const siblings = Object.keys(content.species).filter((s) => content.species[s].branch === species.branch);
+  // Variantes rares déjà vues naître pour cette espèce : leur robe se choisit sur le portrait
+  const found = Object.keys(content.variants).filter((v) => state.stats[`variant:${v}:${id}`]);
+  const robe = variant ? content.variants[variant] : undefined;
+  const glow = robe?.color ?? species.color;
+  const pickVariant = (v?: string) => {
+    setVariant(v);
+    // Les faux-bourdons ne sont jamais variants
+    if (v && type === 'drone') onType('princess');
+  };
   return (
     <div className="bee-about">
-      <div className="card bee-portrait-card" style={known ? { background: `radial-gradient(circle at 50% 40%, #${species.color}33, var(--panel) 70%)` } : undefined}>
-        <BeePortrait species={id} type={type} size={288} unknown={!known} />
+      <div className="card bee-portrait-card" style={known ? { background: `radial-gradient(circle at 50% 40%, #${glow}33, var(--panel) 70%)` } : undefined}>
+        <BeePortrait species={id} type={type} size={288} unknown={!known} variant={variant} />
         {known && (
           <div className="row" role="radiogroup" aria-label="Caste">
             {TYPES.map(([t, label]) => (
-              <button key={t} role="radio" aria-checked={type === t} className={`chip pick${type === t ? ' selected' : ''}`} onClick={() => onType(t)}>
+              <button
+                key={t}
+                role="radio"
+                aria-checked={type === t}
+                className={`chip pick${type === t ? ' selected' : ''}`}
+                disabled={!!variant && t === 'drone'}
+                title={variant && t === 'drone' ? "Les faux-bourdons ne sont jamais variants" : undefined}
+                onClick={() => onType(t)}
+              >
                 {label}
               </button>
             ))}
           </div>
+        )}
+        {known && found.length > 0 && (
+          <>
+            <div className="row" role="radiogroup" aria-label="Robe">
+              <button role="radio" aria-checked={!variant} className={`chip pick${!variant ? ' selected' : ''}`} onClick={() => pickVariant()}>
+                Normale
+              </button>
+              {found.map((v) => (
+                <button key={v} role="radio" aria-checked={variant === v} className={`chip pick${variant === v ? ' selected' : ''}`} onClick={() => pickVariant(v)}>
+                  {content.variants[v].label}
+                </button>
+              ))}
+            </div>
+            {robe && <p className="muted portrait-variant">{robe.desc}</p>}
+          </>
         )}
       </div>
 
@@ -170,7 +203,6 @@ function AboutTab({
         {known ? (
           <>
             <KnownSheet id={id} species={species} />
-            <RareVariants id={id} />
           </>
         ) : (
           <div className="card stack">
@@ -196,48 +228,6 @@ function AboutTab({
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-/** Variantes rares de l'espèce : celles déjà vues naître brillent, les autres restent dans l'ombre. */
-function RareVariants({ id }: { id: string }) {
-  const { content, state } = useGame();
-  const variants = Object.entries(content.variants);
-  const found = variants.filter(([v]) => state.stats[`variant:${v}:${id}`]);
-  return (
-    <div className="card stack">
-      <div className="row between">
-        <span className="title">Variantes rares</span>
-        <span className="badge">
-          {found.length} / {variants.length}
-        </span>
-      </div>
-      <div className="rare-shelf">
-        {variants.map(([v, variant]) => {
-          const seen = !!state.stats[`variant:${v}:${id}`];
-          return (
-            <span key={v} className={`rare-slot${seen ? '' : ' unseen'}`} title={seen ? `${variant.label} : ${variant.desc}` : 'Pas encore vue'}>
-              <BeeIcon
-                species={id}
-                type="princess"
-                color={variant.color}
-                secondary={variant.secondary}
-                size={40}
-                unknown={!seen}
-                className={seen ? `rare rare-${v}` : undefined}
-              />
-              <span>{seen ? variant.label : '?'}</span>
-            </span>
-          );
-        })}
-      </div>
-      {!found.length && (
-        <p className="muted">
-          De rares princesses naissent avec une robe et un pouvoir hors du commun, et les transmettent à toute leur lignée. La plus rare,
-          la Dorée, une fois sur {fmt(Math.round(1 / content.variants.golden.chance))}.
-        </p>
-      )}
     </div>
   );
 }
@@ -319,7 +309,7 @@ export default function BeePage() {
       </div>
 
       {tab === 'about' && (
-        <AboutTab id={id} species={species} known={known} parents={parents} type={type} onType={setType} onMutations={() => setTab('mutations')} />
+        <AboutTab key={id} id={id} species={species} known={known} parents={parents} type={type} onType={setType} onMutations={() => setTab('mutations')} />
       )}
       {tab === 'mutations' && <MutationsTab id={id} species={species} />}
     </div>
