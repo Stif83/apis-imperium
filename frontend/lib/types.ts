@@ -300,8 +300,12 @@ export type Badge = {
 };
 export type PlayerBadges = {
   rank: { id: string; label: string; need: number } | null;
-  next_rank: { label: string; need: number } | null;
+  /** Prochain rang : `need` espèces, puis, une fois toutes découvertes, `need` variantes de la collection */
+  next_rank: { label: string; need: number; have: number; unit: string } | null;
   species: number;
+  /** Variantes vues naître, une par espèce et par variante, sur `variants_total` */
+  variants: number;
+  variants_total: number;
   badges: Badge[];
 };
 
@@ -310,6 +314,9 @@ export type ProfileSettings = {
   bio: string;
   biome: string;
   phase: string;
+  /** Décor de la bannière : "scene" (paysage du biome), "world" (arbre-monde) ou "region:<id>" */
+  decor: string;
+  /** Avatar : une abeille (espèce découverte, éventuellement dans la robe d'une variante) */
   favorite: { type: string; genome: Genome } | null;
   featured: string[];
 };

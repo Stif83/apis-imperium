@@ -10,6 +10,7 @@ from app.db import get_db
 from app.game import badges as B
 from app.game import content as C
 from app.game import genetics as G
+from app.game import variants as V
 from app.game import world as W
 from app.game.service import Game, GameError, get_or_create_player
 from app.main import app
@@ -286,7 +287,7 @@ def test_shop_prices_scale_and_locks(game):
     game.p.honey = 10_000
     game.add_item("wax", 100)
     game.buy("machine:centrifuge")
-    assert game.offer_cost(C.OFFERS["machine:centrifuge"]) == {"honey": 400, "items": {"wax": 16}}
+    assert game.offer_cost(C.OFFERS["machine:centrifuge"]) == {"honey": 325, "items": {"wax": 13}}
     with pytest.raises(GameError):
         game.buy("bee:steadfast:princess")
     game.p.honey = 0
@@ -547,7 +548,7 @@ def test_badges():
     assert {"branch:forest", "builder:bronze", "collector:diamond", "curator:silver"} <= ids
     assert got["badges"][0]["id"] == "collector:diamond"
     best = B.player_badges(set(C.SPECIES))
-    assert best["rank"]["label"] == "Apis Imperator" and best["next_rank"] is None
+    assert best["rank"]["label"] == "Apis Imperator" and best["next_rank"]["unit"] == "variantes"
 
 
 def test_achievements(game):
@@ -1308,15 +1309,28 @@ def test_beekeeper_profile(game):
     profile = game.profile()
     assert profile["name"] == "testeur" and profile["settings"]["featured"] == PF.DEFAULT["featured"]
     assert profile["stats"]["species"] == len(game.discovered) and set(profile["stats"]) == set(PF.STATS)
-    princess = _bee(game, "princess", "forest")
-    game.update_profile("  Éleveuse de sylvestres  ", "desert", "night", ["generation", "variants"], princess.id)
+    game.update_profile("  Éleveuse de sylvestres  ", "desert", "night", ["generation", "variants"], "forest")
     settings = game.profile()["settings"]
     assert settings["bio"] == "Éleveuse de sylvestres" and settings["biome"] == "desert" and settings["phase"] == "night"
     assert settings["favorite"]["genome"]["species"] == ["forest", "forest"] and settings["featured"] == ["generation", "variants"]
-    game.update_profile("", "plains", "day", [], None)  # None : l'abeille préférée reste
+    game.update_profile("", "plains", "day", [], None)  # None : l'avatar reste
     assert game.profile()["settings"]["favorite"] is not None
     game.update_profile("", "plains", "day", [], "")
     assert game.profile()["settings"]["favorite"] is None
+    # Avatar : seulement une espèce découverte, et une variante déjà vue pour elle
+    with pytest.raises(GameError):
+        game.update_profile("", "plains", "day", [], "aeterna")
+    with pytest.raises(GameError):
+        game.update_profile("", "plains", "day", [], "forest", "golden")
+    game._found_variant(V.apply(G.pure_genome("forest"), "golden"))
+    game.update_profile("", "plains", "day", [], "forest", "golden")
+    assert V.of(game.profile()["settings"]["favorite"]["genome"]) == "golden"
+    # Décors : l'arbre-monde attend un niveau achevé de la Ruche-monde
+    with pytest.raises(GameError):
+        game.update_profile("", "plains", "day", [], None, None, "world")
+    game.p.world_hive = {**(game.p.world_hive or {}), "level": 1}
+    game.update_profile("", "plains", "day", [], None, None, "world")
+    assert game.profile()["settings"]["decor"] == "world"
     for bad in (("x" * (PF.BIO_MAX + 1), "plains", "day", []), ("", "mars", "day", []), ("", "plains", "midi", []),
                 ("", "plains", "day", ["species"] * 2), ("", "plains", "day", list(PF.STATS)[:PF.MAX_FEATURED + 1])):
         with pytest.raises(GameError):
@@ -1368,3 +1382,32 @@ def test_profile_viewer_matches_full_game(game, db):
     # La lecture légère du profil donne les mêmes statistiques que la partie complète
     viewer = Game.viewer(db, game.p).profile()
     assert viewer["stats"] == game.profile()["stats"] and viewer["badges"] == game.profile()["badges"]
+
+
+def test_supreme_variant_combines_powers_and_makes_imperial_jelly(game):
+    supreme = V.apply(G.pure_genome("forest"), "supreme")
+    assert V.VARIANTS["supreme"]["chance"] == 1 / 20000
+    for key, value in (("harvest", 1.5), ("tireless", True), ("lifespan", 2.0), ("drones", 3)):
+        assert V.power(supreme, key) == value
+    hive = game.hives[0]
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
+    hive.queen = {**hive.queen, "genome": supreme, "health": 100_000}
+    assert game._mods(hive)["light"] and game._mods(hive)["shelter"]
+    game.advance(20_000)
+    made = (hive.output or {}).get("imperial_jelly", 0) + game.qty("imperial_jelly")
+    assert made > 0
+
+
+def test_rank_continues_with_variants():
+    from app.game import badges as B
+
+    everything = set(C.SPECIES)
+    top = B.player_badges(everything, {}, {})
+    assert top["rank"]["label"] == "Apis Imperator" and top["next_rank"]["unit"] == "variantes"
+    stats = {f"variant:{v}:{s}": 1 for v in V.VARIANTS for s in list(C.SPECIES)[:40]}
+    level = B.player_badges(everything, {}, stats)
+    assert level["variants"] == 40 * len(V.VARIANTS) and level["rank"]["label"].startswith("Apis Imperator ✦")
+    full = B.player_badges(everything, {}, {f"variant:{v}:{s}": 1 for v in V.VARIANTS for s in C.SPECIES})
+    assert full["rank"]["label"] == f"Apis Imperator ✦{B.VARIANT_LEVELS}" and full["next_rank"] is None
+    # Avant toutes les espèces, le prochain rang se compte en espèces
+    assert B.player_badges(set(), {}, stats)["next_rank"]["unit"] == "espèces"

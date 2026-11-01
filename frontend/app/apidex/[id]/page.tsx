@@ -7,7 +7,7 @@ import { BeeIcon } from '@/components/BeeIcon';
 import { BeePortrait } from '@/components/BeePortrait';
 import { Family, MiniBee, Outputs } from '@/components/apidex';
 import { BRANCH_LORE, computeTiers } from '@/lib/apidex';
-import { percent } from '@/lib/format';
+import { fmt, percent } from '@/lib/format';
 import { ItemQty } from '@/components/ui';
 import { alleleLabel, notableTraits } from '@/lib/bees';
 import { useGame } from '@/lib/game';
@@ -232,6 +232,54 @@ function AboutTab({
   );
 }
 
+/** Variantes rares de l'espèce, pour suivre la collection : celles déjà vues naître et celles qui manquent encore. */
+function VariantsTab({ id }: { id: string }) {
+  const { content, state } = useGame();
+  const variants = Object.entries(content.variants);
+  const found = variants.filter(([v]) => state.stats[`variant:${v}:${id}`]).length;
+  return (
+    <div className="stack">
+      <div className="card stack">
+        <div className="row between">
+          <span className="title">Variantes de l'espèce</span>
+          <span className={`badge${found === variants.length ? ' ok' : ''}`}>
+            {found} / {variants.length}
+          </span>
+        </div>
+        <span className="muted">
+          Une princesse variante naît d'une reine ordinaire, très rarement ; une reine variante la transmet toujours à sa princesse. Les variantes
+          déjà vues se choisissent aussi sur le portrait de la présentation.
+        </span>
+      </div>
+      <div className="variant-grid">
+        {variants.map(([v, variant]) => {
+          const seen = !!state.stats[`variant:${v}:${id}`];
+          return (
+            <div key={v} className={`card variant-card${seen ? '' : ' unseen'}`}>
+              <BeeIcon
+                species={id}
+                type="princess"
+                color={variant.color}
+                secondary={variant.secondary}
+                size={56}
+                unknown={!seen}
+                className={seen ? `rare rare-${v}` : undefined}
+              />
+              <div className="stack">
+                <b>
+                  {variant.icon} {variant.label} {seen ? <span className="ok-text">✓</span> : null}
+                </b>
+                <span className="muted">Une princesse sur {fmt(Math.round(1 / variant.chance))}</span>
+                <span>{variant.desc}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MutationsTab({ id, species }: { id: string; species: Species }) {
   const { content } = useGame();
   const parents = content.mutations.filter((m) => m.result === id);
@@ -271,7 +319,7 @@ function MutationsTab({ id, species }: { id: string; species: Species }) {
 export default function BeePage() {
   const { id } = useParams<{ id: string }>();
   const { content, state } = useGame();
-  const [tab, setTab] = useState<'about' | 'mutations'>('about');
+  const [tab, setTab] = useState<'about' | 'mutations' | 'variants'>('about');
   const [type, setType] = useState<BeeType>('queen');
   const species = content.species[id];
 
@@ -288,6 +336,7 @@ export default function BeePage() {
   const known = state.discovered.includes(id);
   const parents = content.mutations.filter((m) => m.result === id).length;
   const children = content.mutations.filter((m) => m.a === id || m.b === id).length;
+  const variantsFound = Object.keys(content.variants).filter((v) => state.stats[`variant:${v}:${id}`]).length;
 
   return (
     <div className="stack">
@@ -306,12 +355,18 @@ export default function BeePage() {
         <button className={`tab${tab === 'mutations' ? ' active' : ''}`} onClick={() => setTab('mutations')}>
           Mutations · {parents + children}
         </button>
+        {known && (
+          <button className={`tab${tab === 'variants' ? ' active' : ''}`} onClick={() => setTab('variants')}>
+            Variantes · {variantsFound} / {Object.keys(content.variants).length}
+          </button>
+        )}
       </div>
 
-      {tab === 'about' && (
+      {(tab === 'about' || (tab === 'variants' && !known)) && (
         <AboutTab key={id} id={id} species={species} known={known} parents={parents} type={type} onType={setType} onMutations={() => setTab('mutations')} />
       )}
       {tab === 'mutations' && <MutationsTab id={id} species={species} />}
+      {tab === 'variants' && known && <VariantsTab id={id} />}
     </div>
   );
 }

@@ -1,12 +1,14 @@
 """Profils d'apiculteur : une page publique par joueur, que chacun décore à son goût.
 
-Le joueur choisit sa présentation, le décor de sa bannière (biome et moment de la journée), son abeille
-préférée (une copie, comme dans une vitrine) et jusqu'à MAX_FEATURED statistiques mises en avant. Les
+Le joueur choisit sa présentation, le décor de sa bannière (un paysage de biome au moment de la journée
+choisi, ou un décor débloqué : l'arbre-monde, les régions d'expédition), son avatar (une espèce découverte,
+éventuellement dans la robe d'une variante déjà vue) et jusqu'à MAX_FEATURED statistiques mises en avant. Les
 statistiques elles-mêmes se calculent à la lecture : le profil est toujours à jour.
 Règle de compatibilité : les identifiants de statistiques sont stockés dans les profils.
 """
 
 from . import content as C
+from . import expeditions as E
 
 BIO_MAX = 300
 MAX_FEATURED = 4
@@ -30,7 +32,18 @@ STATS = {
     "orders": ("Commandes livrées", "📜", "orders"),
     "elixirs": ("Élixirs distillés", "⚗️", "elixirs"),
 }
-DEFAULT = {"bio": "", "biome": "plains", "phase": "day", "favorite": None, "featured": ["species", "combs", "generation", "trophies"]}
+DEFAULT = {"bio": "", "biome": "plains", "phase": "day", "decor": "scene", "favorite": None,
+           "featured": ["species", "combs", "generation", "trophies"]}
+
+
+def decors(discovered: set[str], world_level: int) -> list[str]:
+    """Décors de bannière débloqués : le paysage de biome, l'arbre-monde (un niveau achevé), et chaque région
+    d'expédition dont l'espèce sauvage est découverte."""
+    out = ["scene"]
+    if world_level >= 1:
+        out.append("world")
+    out += [f"region:{r}" for r, spec in E.REGIONS.items() if spec.get("wild") in discovered]
+    return out
 
 
 def settings_of(player) -> dict:

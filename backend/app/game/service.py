@@ -368,7 +368,8 @@ class Game:
                 rate *= L.MUSEUM_BONUS
             # Après le plafond : Ruche-monde, reine dorée, hydromel de vigueur
             harvest = world_mult * V.power(genome, "harvest") * self._effect("harvest", t)
-            for item, chance in G.products(genome):
+            # Reine Suprême : ses produits à elle s'ajoutent à ceux de l'espèce
+            for item, chance in G.products(genome) + V.power(genome, "products", []):
                 made = G.binomial(self.rng, working, min(1.0, chance * rate))
                 made += G.binomial(self.rng, working, G.overflow(chance * rate, mods["overflow"]))
                 made = G.scale(self.rng, made, harvest)
@@ -1369,24 +1370,33 @@ class Game:
             "id": self.p.id,
             "name": self.p.username,
             "since": self.p.created_at.isoformat() if self.p.created_at else None,
-            "badges": B.player_badges(self.discovered, self.p.trophies),
+            "badges": B.player_badges(self.discovered, self.p.trophies, self.p.stats),
             "settings": PF.settings_of(self.p),
             "stats": stats,
         }
 
-    def update_profile(self, bio: str, biome: str, phase: str, featured: list[str], favorite_bee_id: str | None) -> None:
-        """Met à jour le profil ; `favorite_bee_id` : None garde l'abeille préférée, "" l'enlève, sinon une abeille de la réserve."""
+    def update_profile(self, bio: str, biome: str, phase: str, featured: list[str], avatar: str | None = None,
+                       avatar_variant: str | None = None, decor: str = "scene") -> None:
+        """Met à jour le profil. `avatar` : None garde l'avatar, "" l'enlève, sinon une espèce découverte, dans la
+        robe de `avatar_variant` si cette variante a déjà été vue pour elle. `decor` : un décor débloqué."""
         bio = bio.strip()
         error = PF.validate(bio, biome, phase, featured)
         if error:
             raise GameError(error)
-        settings_ = {**PF.settings_of(self.p), "bio": bio, "biome": biome, "phase": phase, "featured": featured}
-        if favorite_bee_id == "":
+        if decor not in PF.decors(self.discovered, (self.p.world_hive or {}).get("level", 0)):
+            raise GameError("Ce décor n'est pas encore débloqué.")
+        settings_ = {**PF.settings_of(self.p), "bio": bio, "biome": biome, "phase": phase, "featured": featured, "decor": decor}
+        if avatar == "":
             settings_["favorite"] = None
-        elif favorite_bee_id is not None:
-            bee = self._bee(favorite_bee_id)
-            # Une copie, comme dans une vitrine : elle reste même si l'abeille est vendue
-            settings_["favorite"] = {"type": bee.type, "genome": bee.genome}
+        elif avatar is not None:
+            if avatar not in self.discovered or avatar not in C.SPECIES:
+                raise GameError("Choisissez une espèce déjà découverte.")
+            genome = G.pure_genome(avatar)
+            if avatar_variant:
+                if not (self.p.stats or {}).get(f"variant:{avatar_variant}:{avatar}"):
+                    raise GameError("Cette variante n'a pas encore été vue pour cette espèce.")
+                genome = V.apply(genome, avatar_variant)
+            settings_["favorite"] = {"type": "queen", "genome": genome}
         self.p.profile = settings_
 
     # ---- comptoir -----------------------------------------------------------
@@ -1656,7 +1666,7 @@ class Game:
             "world": W.snapshot(t, C.BIOMES, self._sky()),
             "sky": {b: f for b, f in self._sky().items() if f["until"] > t},
             "manual_batch": self.manual_batch,
-            "badges": B.player_badges(self.discovered, self.p.trophies),
+            "badges": B.player_badges(self.discovered, self.p.trophies, self.p.stats),
             "achievements": dict(self.p.achievements or {}),
             "stats": dict(self.p.stats or {}),
             "trophies": {

@@ -134,11 +134,11 @@ export default function CarnetPage() {
           {state.badges.next_rank && (
             <>
               <span className="muted">
-                Prochain rang : <b>{state.badges.next_rank.label}</b> à {state.badges.next_rank.need} espèces ({state.badges.species} /{' '}
-                {state.badges.next_rank.need})
+                Prochain rang : <b>{state.badges.next_rank.label}</b> à {fmt(state.badges.next_rank.need)} {state.badges.next_rank.unit} (
+                {fmt(state.badges.next_rank.have)} / {fmt(state.badges.next_rank.need)})
               </span>
               <div className="bar">
-                <div style={{ width: `${(100 * state.badges.species) / state.badges.next_rank.need}%` }} />
+                <div style={{ width: `${(100 * state.badges.next_rank.have) / state.badges.next_rank.need}%` }} />
               </div>
             </>
           )}

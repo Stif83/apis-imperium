@@ -165,8 +165,13 @@ const REGIONS: Record<string, (ctx: Ctx) => void> = {
   },
 };
 
+/** Image du paysage d'une région d'expédition. */
+export function regionUrl(region: string) {
+  return pixelUrl(`region|${region}`, BW, BH, (ctx) => (REGIONS[region] ?? ((c) => sky(c, '#8fd3f4', '#c9ecf7')))(ctx));
+}
+
 /** Paysage d'une région d'expédition, en bannière. */
 export function RegionBanner({ region, className = '' }: { region: string; className?: string }) {
-  const src = pixelUrl(`region|${region}`, BW, BH, (ctx) => (REGIONS[region] ?? ((c) => sky(c, '#8fd3f4', '#c9ecf7')))(ctx));
+  const src = regionUrl(region);
   return <img className={`pixel region-banner ${className}`} src={src} alt="" aria-hidden />;
 }

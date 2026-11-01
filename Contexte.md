@@ -1016,6 +1016,20 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
 - Apidex : les variantes déjà vues naître pour une espèce se choisissent sur le portrait (« Normale », Dorée…),
   avec leur pouvoir en dessous ; le faux-bourdon est grisé (jamais variant). Le bloc « Variantes rares » est retiré.
 
+## Demande du 2026-11-01 : variante Suprême, prix, filtres de vitrine, avatar, rang prolongé
+
+- Variante Suprême (1 princesse sur 20 000) : pouvoirs de la Dorée, de l'Albinos, de la Millénaire et de la
+  Matriarche réunis, et un pouvoir de production nouveau (`"products"` dans `variants.py`) : sa ruche produit
+  de la Gelée impériale (1 % par cycle de travail, multiplié comme les autres produits).
+- Prix : la centrifugeuse augmente de ×1,3 par exemplaire (×1,6 avant), la manivelle de ×2,5 par niveau (×4 avant).
+- Rang : après Apis Imperator, dix étoiles (✦1 à ✦10), une par dixième de la collection de variantes
+  (chaque variante de chaque espèce) ; `next_rank` porte `have` et `unit` (espèces ou variantes).
+- Apidex : onglet « Variantes » sur chaque fiche (vues ou non, rareté, pouvoir), en plus du choix sur le portrait.
+- Vitrines : filtres par branche, pedigree minimal et variante dans la création.
+- Profil : avatar choisi parmi les espèces découvertes, dans la robe d'une variante déjà vue ; décors de bannière
+  débloqués (`profiles.decors`) : arbre-monde (un niveau de Ruche-monde), régions d'expédition (espèce sauvage
+  découverte). L'API prend `avatar`, `avatar_variant`, `decor` au lieu de `favorite_bee_id`.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

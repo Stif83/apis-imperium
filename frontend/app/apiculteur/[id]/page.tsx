@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { SceneArtBanner } from '@/components/SceneBanner';
+import { BeeIcon } from '@/components/BeeIcon';
+import { ProfileBanner } from '@/components/SceneBanner';
 import { BadgeStrip, RankChip } from '@/components/Badges';
-import { ShowcaseCard, useEntryLabel } from '@/components/ShowcaseCard';
+import { ShowcaseCard } from '@/components/ShowcaseCard';
 import { GenomeIcon, Modal } from '@/components/ui';
+import { variantOf } from '@/lib/bees';
 import { fmt } from '@/lib/format';
 import { useGame } from '@/lib/game';
 import type { Profile, ProfileSettings, Showcase } from '@/lib/types';
@@ -18,23 +20,56 @@ const PHASES: [string, string][] = [
   ['night', '🌙 Nuit'],
 ];
 
-/** Fenêtre de personnalisation du profil : présentation, décor, abeille préférée, statistiques mises en avant. */
-function ProfileEditor({ settings, onClose, onSave }: { settings: ProfileSettings; onClose: () => void; onSave: (body: unknown) => Promise<boolean> }) {
+/** Avatar possible : une espèce découverte, dans sa robe normale ("") ou celle d'une variante déjà vue. */
+type AvatarChoice = { species: string; variant: string };
+
+/** Fenêtre de personnalisation du profil : présentation, avatar, décor, statistiques mises en avant. */
+function ProfileEditor({
+  settings,
+  worldLevel,
+  onClose,
+  onSave,
+}: {
+  settings: ProfileSettings;
+  worldLevel: number;
+  onClose: () => void;
+  onSave: (body: unknown) => Promise<boolean>;
+}) {
   const { content, state } = useGame();
-  const label = useEntryLabel();
   const [bio, setBio] = useState(settings.bio);
   const [biome, setBiome] = useState(settings.biome);
   const [phase, setPhase] = useState(settings.phase);
+  const [decor, setDecor] = useState(settings.decor ?? 'scene');
   const [featured, setFeatured] = useState(settings.featured);
-  // undefined : on garde l'abeille actuelle ; "" : aucune ; sinon une abeille de la réserve
-  const [favorite, setFavorite] = useState<string | undefined>(undefined);
+  // Avatar : null pour aucun ; au départ, celui du profil
+  const current = settings.favorite;
+  const [avatar, setAvatar] = useState<AvatarChoice | null>(current ? { species: current.genome.species[0], variant: variantOf(current.genome) ?? '' } : null);
   const max = content.profiles.max_featured;
   const chosen = new Set(featured);
   const toggle = (id: string) =>
     setFeatured(chosen.has(id) ? featured.filter((f) => f !== id) : featured.length < max ? [...featured, id] : featured);
-  const reserve = useMemo(() => state.bees.filter((b) => b.hive_id === null), [state.bees]);
+  // Toutes les espèces découvertes, puis chacune dans les robes déjà vues
+  const avatars = useMemo(() => {
+    const found = new Set(state.discovered);
+    const out: AvatarChoice[] = [];
+    for (const sid of Object.keys(content.species)) {
+      if (!found.has(sid)) continue;
+      out.push({ species: sid, variant: '' });
+      for (const v of Object.keys(content.variants)) if (state.stats[`variant:${v}:${sid}`]) out.push({ species: sid, variant: v });
+    }
+    return out;
+  }, [content, state.discovered, state.stats]);
+  // Décors débloqués : le paysage, l'arbre-monde (un niveau achevé), les régions dont l'espèce sauvage est découverte
+  const decors = useMemo(() => {
+    const found = new Set(state.discovered);
+    const out: [string, string][] = [['scene', 'Paysage du biome']];
+    if (worldLevel >= 1) out.push(['world', '🌍 Arbre-monde']);
+    for (const [rid, r] of Object.entries(content.expeditions.regions)) if (found.has(r.wild)) out.push([`region:${rid}`, `${r.icon} ${r.label}`]);
+    return out;
+  }, [content, state.discovered, worldLevel]);
   const save = async () => {
-    if (await onSave({ bio, biome, phase, featured, favorite_bee_id: favorite ?? null })) onClose();
+    const body = { bio, biome, phase, featured, decor, avatar: avatar?.species ?? '', avatar_variant: avatar?.variant || null };
+    if (await onSave(body)) onClose();
   };
   return (
     <Modal label="Personnaliser mon profil" onClose={onClose}>
@@ -55,38 +90,78 @@ function ProfileEditor({ settings, onClose, onSave }: { settings: ProfileSetting
         </label>
 
         <div className="stack">
+          <span className="title">Avatar</span>
+          <div className="avatar-picker" role="radiogroup" aria-label="Avatar">
+            <button role="radio" aria-checked={!avatar} className={`avatar-pick${!avatar ? ' selected' : ''}`} onClick={() => setAvatar(null)}>
+              <span className="avatar-none" aria-hidden>
+                🐝
+              </span>
+              Aucun
+            </button>
+            {avatars.map((a) => {
+              const spec = content.species[a.species];
+              const robe = a.variant ? content.variants[a.variant] : undefined;
+              const selected = avatar?.species === a.species && avatar.variant === a.variant;
+              return (
+                <button
+                  key={`${a.species}:${a.variant}`}
+                  role="radio"
+                  aria-checked={selected}
+                  className={`avatar-pick${selected ? ' selected' : ''}`}
+                  title={robe ? `${spec.label} ${robe.label.toLowerCase()}` : spec.label}
+                  onClick={() => setAvatar(a)}
+                >
+                  <BeeIcon
+                    species={a.species}
+                    type="queen"
+                    color={robe?.color ?? spec.color}
+                    secondary={robe?.secondary ?? spec.secondary}
+                    size={36}
+                    className={robe ? `rare rare-${a.variant}` : undefined}
+                  />
+                  {spec.label}
+                  {robe && (
+                    <span className="muted">
+                      {robe.icon} {robe.label}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <span className="muted">Toutes les espèces découvertes, et chacune dans la robe des variantes déjà vues naître.</span>
+        </div>
+
+        <div className="stack">
           <span className="title">Décor de la bannière</span>
-          <select aria-label="Biome" value={biome} onChange={(e) => setBiome(e.target.value)}>
-            {Object.entries(content.biomes).map(([id, b]) => (
-              <option key={id} value={id}>
-                {b.label}
-              </option>
-            ))}
-          </select>
-          <div className="row" role="radiogroup" aria-label="Moment de la journée">
-            {PHASES.map(([id, text]) => (
-              <button key={id} role="radio" aria-checked={phase === id} className={`chip pick${phase === id ? ' selected' : ''}`} onClick={() => setPhase(id)}>
+          <div className="decor-picker" role="radiogroup" aria-label="Décor">
+            {decors.map(([id, text]) => (
+              <button key={id} role="radio" aria-checked={decor === id} className={`decor-pick${decor === id ? ' selected' : ''}`} onClick={() => setDecor(id)}>
+                <ProfileBanner settings={{ biome, phase, decor: id }} worldLevel={worldLevel} className="profile-banner" />
                 {text}
               </button>
             ))}
           </div>
-          <SceneArtBanner biome={biome} phase={phase} />
-        </div>
-
-        <div className="stack">
-          <span className="title">Abeille préférée</span>
-          <div className="row">
-            <button className={`chip pick${favorite === '' ? ' selected' : ''}`} onClick={() => setFavorite('')}>
-              Aucune
-            </button>
-            {reserve.map((b) => (
-              <button key={b.id} className={`chip pick${favorite === b.id ? ' selected' : ''}`} onClick={() => setFavorite(b.id)}>
-                <GenomeIcon genome={b.genome} type={b.type} size={24} />
-                {label(b.type, b.genome)}
-              </button>
-            ))}
-          </div>
-          <span className="muted">Une copie est gardée : elle reste sur votre profil même si l&apos;abeille quitte votre réserve.</span>
+          {decor === 'scene' && (
+            <>
+              <select aria-label="Biome" value={biome} onChange={(e) => setBiome(e.target.value)}>
+                {Object.entries(content.biomes).map(([id, b]) => (
+                  <option key={id} value={id}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+              <div className="row" role="radiogroup" aria-label="Moment de la journée">
+                {PHASES.map(([id, text]) => (
+                  <button key={id} role="radio" aria-checked={phase === id} className={`chip pick${phase === id ? ' selected' : ''}`} onClick={() => setPhase(id)}>
+                    {text}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <ProfileBanner settings={{ biome, phase, decor }} worldLevel={worldLevel} />
+          <span className="muted">D&apos;autres décors se débloquent : l&apos;arbre-monde avec la Ruche-monde, chaque région avec son espèce sauvage.</span>
         </div>
 
         <div className="stack">
@@ -151,7 +226,7 @@ export default function BeekeeperPage() {
         ← Communauté
       </Link>
       <div className="card profile-hero">
-        <SceneArtBanner biome={settings.biome} phase={settings.phase} className="profile-banner" />
+        <ProfileBanner settings={settings} worldLevel={stats.world ?? 0} className="profile-banner" />
         <div className="profile-id">
           <span className="profile-bee">
             {settings.favorite ? <GenomeIcon genome={settings.favorite.genome} type={settings.favorite.type as 'drone'} size={96} /> : <span aria-hidden>🐝</span>}
@@ -210,7 +285,7 @@ export default function BeekeeperPage() {
         <p className="muted">{profile.mine ? 'Vous n’avez encore publié aucune vitrine.' : 'Aucune vitrine publiée.'}</p>
       )}
 
-      {editing && <ProfileEditor settings={settings} onClose={() => setEditing(false)} onSave={save} />}
+      {editing && <ProfileEditor settings={settings} worldLevel={stats.world ?? 0} onClose={() => setEditing(false)} onSave={save} />}
     </>
   );
 }

@@ -13,7 +13,7 @@ KEY = "variant"
 # "chance" : probabilité qu'une princesse née d'une reine ordinaire porte cette variante.
 # Pouvoirs : "harvest" multiplie la récolte (après le plafond), "lifespan" la durée de vie de la reine,
 # "mutation" les chances de mutation ; "tireless" fait travailler à toute heure et par tous les temps,
-# "drones" ajoute des faux-bourdons.
+# "drones" ajoute des faux-bourdons, "products" ajoute des produits (objet, chance par cycle) à sa récolte.
 VARIANTS = {
     "golden": {
         "label": "Dorée", "icon": "✨", "chance": 1 / 4096, "color": "ffc107", "secondary": "fff59d",
@@ -39,6 +39,14 @@ VARIANTS = {
         "label": "Matriarche", "icon": "👑", "chance": 1 / 4800, "color": "7b1fa2", "secondary": "ffd54f",
         "power": {"drones": 3},
         "desc": "Trois faux-bourdons de plus à chaque génération.",
+    },
+    # La plus rare : les pouvoirs de la Dorée, de l'Albinos, de la Millénaire et de la Matriarche réunis,
+    # et une récolte que nulle autre reine ne donne
+    "supreme": {
+        "label": "Suprême", "icon": "🌟", "chance": 1 / 20000, "color": "fffdf5", "secondary": "ffb300",
+        "power": {"harvest": 1.5, "tireless": True, "lifespan": 2.0, "drones": 3, "products": [("imperial_jelly", 0.01)]},
+        "desc": "Récolte ×1,5, travaille à toute heure et par tous les temps, vit deux fois plus longtemps, "
+                "trois faux-bourdons de plus, et sa ruche produit de la Gelée impériale.",
     },
 }
 # Prix de vente d'une princesse variante, en multiple du prix normal

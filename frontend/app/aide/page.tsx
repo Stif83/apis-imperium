@@ -573,16 +573,24 @@ const GUIDES: Guide[] = [
     id: 'communaute',
     icon: '👥',
     title: 'Communauté',
-    keywords: 'vitrine exposer like badge autres joueurs profil apiculteur statistiques',
+    keywords: 'vitrine exposer like badge autres joueurs profil apiculteur statistiques avatar décor rang imperator filtre',
     page: { href: '/communaute', label: 'Carnet › Communauté' },
     body: (content) => (
-      <p>
-        Exposez jusqu'à {content.showcase_max_entries} abeilles dans une vitrine et découvrez celles des autres apiculteurs. Une vitrine
-        garde une copie de chaque spécimen : elle reste visible même s'il disparaît de votre réserve. Vos branches complètes et vos
-        meilleurs trophées s'y affichent en badges. Chaque apiculteur a aussi un profil : présentation, décor de bannière, abeille
-        préférée et jusqu'à {content.profiles.max_featured} statistiques mises en avant, toujours à jour. Personnalisez le vôtre depuis
-        « Mon profil », et visitez ceux des autres depuis leurs vitrines ou l'onglet Apiculteurs.
-      </p>
+      <>
+        <p>
+          Exposez jusqu'à {content.showcase_max_entries} abeilles dans une vitrine et découvrez celles des autres apiculteurs. Une vitrine
+          garde une copie de chaque spécimen : elle reste visible même s'il disparaît de votre réserve. Vos branches complètes et vos
+          meilleurs trophées s'y affichent en badges. Pour composer une vitrine, filtrez votre réserve par branche, pedigree ou variante.
+          Chaque apiculteur a aussi un profil : présentation, avatar (une espèce découverte, dans la robe d'une variante déjà vue si vous
+          voulez), décor de bannière et jusqu'à {content.profiles.max_featured} statistiques mises en avant, toujours à jour. Des décors se
+          débloquent : l'arbre-monde avec la Ruche-monde, chaque région d'expédition avec son espèce sauvage. Personnalisez le vôtre
+          depuis « Mon profil », et visitez ceux des autres depuis leurs vitrines ou l'onglet Apiculteurs.
+        </p>
+        <p>
+          Votre rang grandit avec les espèces découvertes, jusqu'à Apis Imperator. Ensuite, il continue avec la collection de variantes :
+          chaque variante de chaque espèce compte, et chaque dixième de la collection ajoute une étoile ✦ à votre rang.
+        </p>
+      </>
     ),
   },
 ];

@@ -29,7 +29,7 @@ def _badges(db: Session, players: list[Player]) -> dict[str, dict]:
         query = select(Discovery.player_id, Discovery.species_id).where(Discovery.player_id.in_(by_id))
         for pid, species in db.execute(query):
             found[pid].add(species)
-    return {pid: player_badges(found[pid], p.trophies) for pid, p in by_id.items()}
+    return {pid: player_badges(found[pid], p.trophies, p.stats) for pid, p in by_id.items()}
 
 
 def _list(db: Session, me: Player, author_id: str | None = None, by_likes: bool = False) -> list[dict]:
@@ -123,8 +123,10 @@ class ProfileIn(BaseModel):
     biome: str
     phase: str
     featured: list[str] = Field(default_factory=list, max_length=profiles.MAX_FEATURED)
-    # None : garder l'abeille préférée ; "" : l'enlever ; sinon l'identifiant d'une abeille de la réserve
-    favorite_bee_id: str | None = None
+    # Avatar : None le garde, "" l'enlève, sinon une espèce découverte (dans la robe d'une variante déjà vue)
+    avatar: str | None = None
+    avatar_variant: str | None = None
+    decor: str = "scene"
 
 
 @router.get("/profiles")
@@ -155,7 +157,7 @@ def get_profile(player_id: str, me: Player = Depends(current_player), db: Sessio
 @router.put("/profile")
 def update_profile(body: ProfileIn, me: Player = Depends(current_player), db: Session = Depends(get_db)):
     game = Game(db, me)
-    game.update_profile(body.bio, body.biome, body.phase, body.featured, body.favorite_bee_id)
+    game.update_profile(body.bio, body.biome, body.phase, body.featured, body.avatar, body.avatar_variant, body.decor)
     out = {**game.profile(), "mine": True, "showcases": _list(db, me, me.id)}
     db.commit()
     return out

@@ -5,8 +5,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RankChip } from '@/components/Badges';
 import { ShowcaseCard, ShowcaseCase } from '@/components/ShowcaseCard';
 import { BeeSearch, GenomeIcon, Modal, PageHead } from '@/components/ui';
-import { TYPE_LABELS, beeMatches } from '@/lib/bees';
+import { TYPE_LABELS, beeMatches, variantOf } from '@/lib/bees';
 import { useGame } from '@/lib/game';
+import { pedigreeLevel } from '@/lib/trophies';
 import type { ProfileSummary, Showcase } from '@/lib/types';
 
 const SORTS = [
@@ -22,10 +23,27 @@ function ShowcaseCreator({ onClose, onPublish }: { onClose: () => void; onPublis
   const [description, setDescription] = useState('');
   const [picked, setPicked] = useState<string[]>([]);
   const [query, setQuery] = useState('');
+  // Filtres : branche, pedigree minimal, variante ("" : tout ; "any" : toutes les variantes)
+  const [branch, setBranch] = useState('');
+  const [pedigree, setPedigree] = useState(0);
+  const [variant, setVariant] = useState('');
   const max = content.showcase_max_entries;
   const chosen = new Set(picked);
   const byId = useMemo(() => new Map(state.bees.map((b) => [b.id, b])), [state.bees]);
-  const shown = useMemo(() => state.bees.filter((b) => beeMatches(content, b, query)), [content, state.bees, query]);
+  const branches = useMemo(() => [...new Set(state.bees.map((b) => content.species[b.genome.species[0]]?.branch))].filter(Boolean).sort(), [content, state.bees]);
+  const shown = useMemo(
+    () =>
+      state.bees.filter((b) => {
+        const v = variantOf(b.genome);
+        return (
+          beeMatches(content, b, query) &&
+          (!branch || content.species[b.genome.species[0]]?.branch === branch) &&
+          pedigreeLevel(b.genome) >= pedigree &&
+          (!variant || (variant === 'any' ? !!v : v === variant))
+        );
+      }),
+    [content, state.bees, query, branch, pedigree, variant],
+  );
   const toggle = (id: string) => {
     if (chosen.has(id)) setPicked(picked.filter((p) => p !== id));
     else if (picked.length < max) setPicked([...picked, id]);
@@ -61,6 +79,34 @@ function ShowcaseCreator({ onClose, onPublish }: { onClose: () => void; onPublis
           </b>
           <BeeSearch value={query} onChange={setQuery} shown={shown.length} total={state.bees.length} />
         </div>
+        <div className="creator-filters">
+          <select aria-label="Branche" value={branch} onChange={(e) => setBranch(e.target.value)}>
+            <option value="">Toutes les branches</option>
+            {branches.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+          <select aria-label="Pedigree" value={pedigree} onChange={(e) => setPedigree(Number(e.target.value))}>
+            <option value={0}>Tout pedigree</option>
+            {Object.entries(content.trophies.pedigree).map(([level, p]) => (
+              <option key={level} value={level}>
+                {p.icon} {p.label} ou mieux
+              </option>
+            ))}
+          </select>
+          <select aria-label="Variante" value={variant} onChange={(e) => setVariant(e.target.value)}>
+            <option value="">Variantes ou non</option>
+            <option value="any">✨ Variantes seulement</option>
+            {Object.entries(content.variants).map(([id, v]) => (
+              <option key={id} value={id}>
+                {v.icon} {v.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {shown.length === 0 && <p className="muted">Aucune abeille ne correspond à ces filtres.</p>}
         <div className="grid tiles creator-tiles">
           {shown.map((b) => (
             <button
