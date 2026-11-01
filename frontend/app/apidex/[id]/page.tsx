@@ -108,6 +108,11 @@ function KnownSheet({ id, species }: { id: string; species: Species }) {
 
       <div className="card stack">
         <div className="title">Récolte</div>
+        {species.yield > 1 && (
+          <span className="muted" title="Plus une espèce est loin dans l'arbre des mutations, plus elle tire de rayons de chaque récolte">
+            Rendement des rayons ×{String(species.yield).replace('.', ',')}
+          </span>
+        )}
         {species.products.map(([item, chance]) => (
           <div key={item} className="family">
             <ItemQty id={item} />

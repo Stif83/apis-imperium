@@ -91,6 +91,15 @@ def world_multiplier(level: int) -> float:
     return 1 + WORLD_HIVE_BONUS * level
 
 
+# Chaque niveau multiplie aussi le surplus des modules de production : les espèces de milieu de partie y gagnent
+# vers le niveau 10, celles du début vers le niveau 40
+WORLD_OVERFLOW_SCALE = 1.08
+
+
+def world_overflow(level: int) -> float:
+    return WORLD_OVERFLOW_SCALE ** level
+
+
 # ---- Distillerie ------------------------------------------------------------
 
 # Effets : "harvest" multiplie la récolte après le plafond, "mutation" les chances de mutation, "variant" les
@@ -144,6 +153,6 @@ EXPEDITION_MAX_CHANCE = 0.98
 def public_late() -> dict:
     return {
         "museum": {"collections": MUSEUM, "bonus": MUSEUM_BONUS, "comb_need": MUSEUM_COMB_NEED, "jar": JAR_ITEMS},
-        "world_hive": {"bonus": WORLD_HIVE_BONUS},
+        "world_hive": {"bonus": WORLD_HIVE_BONUS, "overflow_scale": WORLD_OVERFLOW_SCALE},
         "elixirs": ELIXIRS,
     }

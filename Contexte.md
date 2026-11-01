@@ -1043,6 +1043,20 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
 - `scripts/build-images.ps1` : ne construit plus que les trois images de prod (plus l'image Keycloak, qui
   demandait Internet), tag obligatoire, trois essais en cas d'échec de construction du frontend.
 
+## Demande du 2026-11-01 : modules de production rentables en fin de partie
+
+- Constat : les espèces avancées étaient déjà au plafond (un produit par cycle de travail) ; les modules de
+  production ne donnaient que +2,5 % de surplus et coûtaient plus qu'ils ne rapportaient sur leur vie
+  (10 générations). Les rayons étant partagés entre espèces de tous niveaux (rocheux, gelé…), les abeilles de
+  fin de partie rapportaient souvent moins que d'autres, moins avancées.
+- Rendement par espèce (`content.YIELD_PER_TIER`, 0,1) : +10 % de rayons par niveau de profondeur dans l'arbre
+  des mutations (`species.tier`, `species.yield` ; Aeterna ×2,2). Rayon impérial 30 → 40 miel, chaotique 20 → 25.
+- `OVERFLOW` 0,025 → 0,15 par module de production au-delà du plafond ; le surplus peut maintenant dépasser un
+  objet par cycle (`G.scale`).
+- Ruche-monde : chaque niveau multiplie le surplus des rayons par `late.WORLD_OVERFLOW_SCALE` (1,08), les
+  produits rares exceptés. Rentabilité d'un module en robo-ruche (miel gagné / prix) : fin de partie 2 à 6 au
+  niveau 0 ; milieu de partie rentable vers le niveau 10 ; début vers 20 à 40.
+
 ## Questions pour toi
 
 1. « Sans pull vers quay » : mon interprétation ci-dessus est-elle la bonne, ou ton registre

@@ -214,6 +214,10 @@ const GUIDES: Guide[] = [
           Les cadres se montent dans tous les types de ruche, les autres modules seulement dans un alvéaire. Certains s'usent : ils
           durent un nombre de générations de reine, puis disparaissent. Un module démonté garde son usure.
         </p>
+        <p>
+          Un produit sort au plus une fois par cycle de travail : une fois ce plafond atteint, les cadres n'ajoutent plus rien. Seul
+          le <b>module de production</b> le dépasse (voir « Rendement, plafond et surplus »).
+        </p>
         <table className="guide-table">
           <thead>
             <tr>
@@ -237,6 +241,95 @@ const GUIDES: Guide[] = [
         </table>
       </>
     ),
+  },
+  {
+    id: 'rendement',
+    icon: '📈',
+    title: 'Rendement, plafond et surplus',
+    keywords: 'rendement plafond surplus module production robo-ruche rentable rentabilité pourcentage ruche-monde profondeur',
+    page: { href: '/', label: 'Rucher' },
+    body: (content) => {
+      const { overflow, yield_per_tier } = content.production;
+      const scale = content.late.world_hive.overflow_scale;
+      const times = (x: number) => `×${x.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}`;
+      return (
+        <>
+          <p>
+            <b>Chance par cycle.</b> Chaque produit d'une espèce a une chance de sortir à chaque cycle de travail (indiquée dans
+            l'Apidex). Elle est multipliée par la vitesse de la reine, le type de ruche et les cadres ou modules. Elle plafonne à{' '}
+            <b>100 %</b> : un produit sort au plus une fois par cycle. Les abeilles avancées, rapides et productives, atteignent
+            souvent ce plafond sans aucun cadre : un cadre ne leur apporte alors plus rien.
+          </p>
+          <p>
+            <b>Rendement de l'espèce.</b> Plus une espèce est loin dans l'arbre des mutations, plus elle tire de rayons de chaque
+            récolte : +{pct(yield_per_tier)} par étage. Une espèce de base est à ×1, une espèce à dix mutations de distance à{' '}
+            {times(1 + 10 * yield_per_tier)}. Le rendement est affiché sur sa fiche de l'Apidex. Il ne concerne que les rayons, pas les
+            produits rares.
+          </p>
+          <p>
+            <b>Surplus du module de production.</b> C'est le seul module qui dépasse le plafond. Chaque module dont le doublement
+            tombe au-delà de 100 % ajoute <b>+{pct(overflow)}</b> de récolte en surplus : neuf modules sur une espèce déjà au plafond
+            donnent environ +{pct(9 * overflow)}, soit {times(1 + 9 * overflow)} rayons. Le surplus profite ensuite du rendement de
+            l'espèce et des autres bonus de récolte (Ruche-monde, reine dorée, hydromel…).
+          </p>
+          <p>
+            <b>Ruche-monde.</b> Chaque niveau achevé multiplie le surplus des rayons par {String(scale).replace('.', ',')} :{' '}
+            {[10, 20, 30, 40].map((l) => `${times(scale ** l)} au niveau ${l}`).join(', ')}. Les produits rares (gelées, essences…)
+            gardent le surplus de base.
+          </p>
+          <p>
+            <b>Rentabilité.</b> Un module de production s'use en {content.modules.alveary_production?.uses} générations : il est
+            rentable si le miel qu'il fait gagner pendant ce temps dépasse son prix. Ordre de grandeur pour un module dans une
+            robo-ruche (lanterne et abri montés), en « miel gagné ÷ prix du module » ; au-dessus de 1, il est rentable :
+          </p>
+          <table className="guide-table">
+            <thead>
+              <tr>
+                <th>Abeilles</th>
+                <th>Niveau 0</th>
+                <th>Niveau 10</th>
+                <th>Niveau 20</th>
+                <th>Niveau 40</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Légendaires (Aeterna, Imperatrix, Primordiale…)</td>
+                <td>5 à 6</td>
+                <td>13 à 15</td>
+                <td>33 à 37</td>
+                <td>≈ 200</td>
+              </tr>
+              <tr>
+                <td>Fin de partie (Électrique, Mécaniques, Pétrolières…)</td>
+                <td>1,7 à 2,4</td>
+                <td>4 à 6</td>
+                <td>11 à 16</td>
+                <td>65 à 95</td>
+              </tr>
+              <tr>
+                <td>Milieu de partie (Sucrées, Agricoles…)</td>
+                <td>≈ 0,5</td>
+                <td>1,1 à 1,5</td>
+                <td>≈ 3</td>
+                <td>≈ 20</td>
+              </tr>
+              <tr>
+                <td>Début de partie (Forestière, Commune…)</td>
+                <td>≈ 0,1</td>
+                <td>≈ 0,1</td>
+                <td>≈ 0,3</td>
+                <td>≈ 2</td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="muted">
+            Les reines à vie courte usent leurs modules plus vite (une génération passe plus vite) : elles en tirent moins. Les
+            espèces qui produisent surtout des objets (métaux, gemmes) rapportent peu de miel, module ou pas.
+          </p>
+        </>
+      );
+    },
   },
   {
     id: 'elevage',
@@ -297,8 +390,8 @@ const GUIDES: Guide[] = [
           Chaque rayon donne du miel et parfois des ressources (le détail est dans l'Apidex, onglet Rayons). À la main, maintenez le
           bouton quelques secondes : un rayon par geste, puis jusqu'à {fmt(content.manual_batches[content.manual_batches.length - 1])}{' '}
           avec les niveaux de la <b>manivelle renforcée</b> ({content.manual_batches.join(' → ')}), payée en miel. Chaque centrifugeuse
-          automatique traite un rayon par cycle ({cycle} s), même hors ligne. Plus un rayon vient de loin dans l'arbre des mutations, plus
-          il rend de miel et de cire.
+          automatique traite un rayon par cycle ({cycle} s), même hors ligne. Plus une espèce vient de loin dans l'arbre des mutations,
+          plus elle tire de rayons de chaque récolte (rendement affiché dans l'Apidex).
         </p>
         <p>
           L'interrupteur <b>Automatique</b> arrête ou relance toutes les centrifugeuses ; la case <b>Auto</b> d'un rayon le met de côté.
@@ -477,7 +570,9 @@ const GUIDES: Guide[] = [
       <p>
         Un chantier sans fin. Chaque niveau demande du miel et un panier de produits de branches différentes, tirés parmi les espèces
         que vous connaissez ; il grossit à chaque niveau. Chaque niveau achevé ajoute {pct(content.late.world_hive.bonus)} de production
-        à toutes vos ruches, et les bonus s'additionnent.
+        à toutes vos ruches, et les bonus s'additionnent. Il multiplie aussi par{' '}
+        {String(content.late.world_hive.overflow_scale).replace('.', ',')} les rayons en surplus des modules de production : à haut
+        niveau, une robo-ruche pleine de modules devient rentable même avec des abeilles du début.
       </p>
     ),
   },

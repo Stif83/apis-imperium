@@ -12,6 +12,9 @@ export type Species = {
   temp: string;
   products: [string, number][];
   template: Record<string, string>;
+  /** Profondeur dans l'arbre des mutations, et rendement des rayons qui en découle */
+  tier: number;
+  yield: number;
   /** Espèce sauvage : région d'expédition où on la trouve */
   wild?: string;
 };
@@ -67,6 +70,8 @@ export type Content = {
   manual_batches: number[];
   /** uses : générations avant usure (absent = inusable) */
   modules: Record<string, { frame: boolean; desc: string; uses?: number }>;
+  /** overflow : surplus par module de production au-delà du plafond ; yield_per_tier : rendement par étage de l'arbre */
+  production: { overflow: number; yield_per_tier: number };
   hive_types: Record<string, { label: string; slots: number; max_slots: number; frames_only: boolean; production: number; automated?: boolean }>;
   machines: Record<string, { label: string; desc: string }>;
   offers: Offer[];
@@ -110,7 +115,7 @@ export type Content = {
   };
   late: {
     museum: { collections: Record<string, Record<string, number>>; bonus: number; comb_need: number; jar: Record<string, number> };
-    world_hive: { bonus: number };
+    world_hive: { bonus: number; overflow_scale: number };
     elixirs: Record<string, Elixir>;
   };
   /** Variantes rares : robe, pouvoir de reine, chance de naissance et d'héritage */
@@ -279,7 +284,7 @@ export type GameState = {
   /** Musée du miel : ce qui a été donné à chaque collection (et au Bocal commun, clé « _jar »), les branches complètes */
   museum: { given: Record<string, Record<string, number>>; complete: string[]; jar_full: boolean };
   /** Ruche-monde : niveaux achevés, panier en cours et multiplicateur de production obtenu */
-  world_hive: { level: number; request: Cost; given: Record<string, number>; multiplier: number };
+  world_hive: { level: number; request: Cost; given: Record<string, number>; multiplier: number; overflow: number };
   /** Élixirs en cours : fin de chaque effet (ms) */
   effects: Record<string, number>;
   discovered: string[];

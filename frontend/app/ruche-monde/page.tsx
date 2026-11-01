@@ -21,8 +21,9 @@ export default function WorldHivePage() {
       <PageHead guide="ruche-monde" title="Ruche-monde">
         Une ruche immense, nichée au cœur de l'arbre-monde, que tous les apiculteurs rêvent d'achever et qui ne l'est jamais.
         Chaque niveau demande un panier de produits de branches différentes, tiré parmi les espèces que vous connaissez. Chaque
-        niveau achevé allume des alvéoles et une lanterne dans l'arbre, et ajoute {pct(content.late.world_hive.bonus)} de
-        production à toutes vos ruches.
+        niveau achevé allume des alvéoles et une lanterne dans l'arbre, ajoute {pct(content.late.world_hive.bonus)} de
+        production à toutes vos ruches et multiplie par {String(content.late.world_hive.overflow_scale).replace('.', ',')} les
+        rayons en surplus des modules de production.
       </PageHead>
       <div className="world-tree pixel" style={{ backgroundImage: `url(${worldTreeUrl(world.level)})` }}>
         <div className="world-plate">
@@ -33,6 +34,9 @@ export default function WorldHivePage() {
             </span>
             <span className="world-bonus">
               Production ×{world.multiplier.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} dans toutes les ruches
+            </span>
+            <span className="world-bonus">
+              Surplus des modules de production ×{world.overflow.toLocaleString('fr-FR', { maximumFractionDigits: 2 })}
             </span>
           </div>
         </div>

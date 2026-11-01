@@ -344,7 +344,8 @@ class Game:
         biome_temp = self._biome_temp(hive)
         sanctified = self.project_stage("sanctuary") >= 3
         museum = self._museum_done()
-        world_mult = L.world_multiplier(self._world_hive()["level"])
+        world_level = self._world_hive()["level"]
+        world_mult, world_overflow = L.world_multiplier(world_level), L.world_overflow(world_level)
         forced = None if self._greenhouse(hive) else self._sky().get(hive.biome)
         out = dict(hive.output or {})
         t = start
@@ -368,14 +369,20 @@ class Game:
                 rate *= L.MUSEUM_BONUS
             # Après le plafond : Ruche-monde, reine dorée, hydromel de vigueur
             harvest = world_mult * V.power(genome, "harvest") * self._effect("harvest", t)
+            # Rendement de l'espèce : les plus avancées tirent plus de rayons de chaque récolte
+            comb_yield = C.SPECIES[genome["species"][0]]["yield"]
             # Reine Suprême : ses produits à elle s'ajoutent à ceux de l'espèce
             for item, chance in G.products(genome) + V.power(genome, "products", []):
+                comb = C.ITEMS.get(item, {}).get("category") == "comb"
                 made = G.binomial(self.rng, working, min(1.0, chance * rate))
-                made += G.binomial(self.rng, working, G.overflow(chance * rate, mods["overflow"]))
-                made = G.scale(self.rng, made, harvest)
+                # Surplus des modules de production, qui peut dépasser un objet par cycle ; la Ruche-monde ne
+                # l'augmente que pour les rayons (les produits rares restent rares)
+                surplus = G.overflow(chance * rate, mods["overflow"]) * (world_overflow if comb else 1.0)
+                made += G.scale(self.rng, working, surplus)
+                made = G.scale(self.rng, made, harvest * (comb_yield if comb else 1.0))
                 if auto:
                     self.add_item(item, made)
-                    if made and C.ITEMS.get(item, {}).get("category") == "comb":
+                    if made and comb:
                         self._count_combs(made)
                 elif made:
                     out[item] = out.get(item, 0) + made
@@ -1680,7 +1687,8 @@ class Game:
             "expeditions": {**self._expeditions(), "stage": self.project_stage("outpost")},
             "museum": {"given": dict(self.p.museum or {}), "complete": sorted(self._museum_done()),
                        "jar_full": L.jar_full(self.p.museum or {})},
-            "world_hive": {**self._world_hive(), "multiplier": L.world_multiplier(self._world_hive()["level"])},
+            "world_hive": {**self._world_hive(), "multiplier": L.world_multiplier(self._world_hive()["level"]),
+                           "overflow": L.world_overflow(self._world_hive()["level"])},
             "effects": {k: v for k, v in (self.p.effects or {}).items() if v > t},
             "orders": {
                 **self.orders_board(t),

@@ -1049,6 +1049,41 @@ def test_production_modules_overflow_the_cap():
     assert mods["overflow"] == 8 and mods["production"] == pytest.approx(1.2 * 8 * 2.2)
 
 
+def test_late_species_yield_more_and_world_hive_boosts_the_surplus():
+    from app.game import late as L
+
+    # Rendement selon la profondeur dans l'arbre des mutations
+    assert C.SPECIES["forest"]["tier"] == 0 and C.SPECIES["forest"]["yield"] == 1
+    assert C.SPECIES["common"]["tier"] == 1
+    assert C.SPECIES["aeterna"]["yield"] > C.SPECIES["electric"]["yield"] > C.SPECIES["sweet"]["yield"] > 1
+    assert L.world_overflow(0) == 1 and L.world_overflow(10) > 2
+
+
+def _robo_combs(game, species, modules, world_level=0):
+    hive = game.hives[0]
+    hive.hive_type, hive.slots = "robo", 10
+    hive.modules, hive.settings, hive.queen = list(modules), {}, None
+    game.p.world_hive = {**game._world_hive(), "level": world_level}
+    game.add_bee("princess", G.pure_genome(species))
+    game.add_bee("drone", G.pure_genome(species))
+    game.install(hive.id, _bee(game, "princess", species).id, _bee(game, "drone", species).id)
+    comb = C.SPECIES[species]["products"][0][0]
+    before = game.qty(comb)
+    game.advance(200)
+    return game.qty(comb) - before
+
+
+def test_production_modules_pay_off_in_a_robo_hive(game):
+    lantern = ["hive_lantern", "hive_shelter"]
+    plain = _robo_combs(game, "aeterna", lantern)
+    full = _robo_combs(game, "aeterna", lantern + ["alveary_production"] * 8)
+    # Huit modules : +8 × 15 % de rayons en surplus, au-delà du plafond
+    assert full > plain * 1.8
+    # La Ruche-monde multiplie ce surplus
+    boosted = _robo_combs(game, "aeterna", lantern + ["alveary_production"] * 8, world_level=10)
+    assert boosted > full * 1.5
+
+
 def test_world_hive_scales_the_harvest_past_the_cap():
     import random
 

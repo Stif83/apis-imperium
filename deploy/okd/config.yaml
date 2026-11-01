@@ -11,4 +11,4 @@ data:
   KEYCLOAK_REALM: okd
   KEYCLOAK_CLIENT_ID: apisimperium-web
   # Comptes « pseudo:mot de passe » du formulaire de connexion proposé en plus de Keycloak (vide : pas de formulaire)
-  LOCAL_ACCOUNTS: "test:test"
+  LOCAL_ACCOUNTS: "test:test,Jenna:Jenna"

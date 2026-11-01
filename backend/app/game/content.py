@@ -579,6 +579,28 @@ MUTATION_CONDITIONS = {
     "temp", "biome", "phase", "hours", "weather", "module", "automated", "hives_min", "hives_max", "machines", "discovered", "trait", "sanctuary",
 }
 
+# Rendement : plus une espèce est loin dans l'arbre des mutations, plus elle tire de rayons de chaque récolte.
+# Les rayons sont partagés entre espèces de tous niveaux (rocheux, gelé…) : c'est l'espèce qui fait la différence.
+YIELD_PER_TIER = 0.1
+
+
+def _tiers() -> None:
+    """Profondeur de chaque espèce : 0 sans mutation qui y mène, sinon 1 + le plus avancé de ses parents (au plus court)."""
+    tier = {s: 0 for s in SPECIES if not any(m["result"] == s for m in MUTATIONS)}
+    changed = True
+    while changed:
+        changed = False
+        for m in MUTATIONS:
+            if m["a"] in tier and m["b"] in tier and 1 + max(tier[m["a"]], tier[m["b"]]) < tier.get(m["result"], 10 ** 9):
+                tier[m["result"]] = 1 + max(tier[m["a"]], tier[m["b"]])
+                changed = True
+    for sid, species in SPECIES.items():
+        species["tier"] = tier.get(sid, 0)
+        species["yield"] = round(1 + YIELD_PER_TIER * species["tier"], 2)
+
+
+_tiers()
+
 
 def _items(category, rows):
     return {i: {"label": label, "category": category, "color": color, "sell": sell} for i, label, color, sell in rows}
@@ -753,8 +775,8 @@ RECIPES = {
     "comb_storm": [("honey", 0.5, 32), ("energy", 0.2, 1), ("lightning_shard", 0.03, 1), ("wax", 0.9, 4)],
     "comb_floral": [("honey", 0.9, 15), ("petal", 0.6, 1), ("pollen", 0.2, 1), ("wax", 1.0, 3)],
     "comb_mechanical": [("honey", 0.5, 50), ("gear", 0.15, 1), ("iron", 0.1, 1), ("wax", 1.0, 5)],
-    "comb_chaotic": [("honey", 0.5, 40), ("dye", 0.3, 1), ("chaos_shard", 0.04, 1), ("wax", 1.0, 4)],
-    "comb_royal": [("honey", 1.0, 30), ("royal_jelly", 0.5, 1), ("imperial_jelly", 0.02, 1), ("wax", 1.0, 4)],
+    "comb_chaotic": [("honey", 0.5, 50), ("dye", 0.3, 1), ("chaos_shard", 0.04, 1), ("wax", 1.0, 4)],
+    "comb_royal": [("honey", 1.0, 40), ("royal_jelly", 0.5, 1), ("imperial_jelly", 0.02, 1), ("wax", 1.0, 4)],
 }
 # Centrifugation à la main : rayons traités par geste (appui maintenu côté interface), selon le niveau
 # de la manivelle renforcée achetée en boutique
@@ -777,14 +799,16 @@ MODULES = {
     "alveary_mutator": {"frame": False, "effects": {"mutation": 2.0}, "desc": "Chance de mutation ×2", "uses": 5},
     # Presque un cadre éprouvé, mais deux fois plus durable ; seul module qui dépasse le plafond (voir OVERFLOW)
     "alveary_production": {"frame": False, "effects": {"production": 2.0}, "overflow": True,
-                           "desc": "Production ×2 ; au-delà de 100 %, +2,5 % de récolte en surplus", "uses": 10},
+                           "desc": "Production ×2 ; au-delà de 100 %, +15 % de récolte en surplus, davantage avec la Ruche-monde", "uses": 10},
     "alveary_lifespan": {"frame": False, "effects": {"lifespan": 0.6}, "desc": "Durée de vie ×0,6 (générations plus rapides)"},
     # Même effet que le module d'élevage, mais trois fois plus durable : il justifie son prix
     "alveary_automation": {"frame": False, "effects": {"automation": True}, "desc": "Récolte et renouvellement de la reine automatiques, très durable", "uses": 300},
 }
 # Un produit sort au plus une fois par cycle ; chaque doublement qu'un module "overflow" apporte au-delà de
 # ce plafond donne OVERFLOW produit de plus par cycle. Les cadres, bon marché, restent plafonnés.
-OVERFLOW = 0.025
+# Réglé pour qu'une robo-ruche pleine de modules soit rentable avec les espèces de fin de partie seulement ;
+# la Ruche-monde (late.world_overflow) étend ensuite l'intérêt aux espèces moins avancées.
+OVERFLOW = 0.15
 
 HIVE_TYPES = {
     "apiary": {"label": "Rucher", "slots": 2, "max_slots": 2, "frames_only": True, "production": 1.0},
@@ -975,6 +999,7 @@ def public_content() -> dict:
         "manual_batch": MANUAL_BATCH,
         "manual_batches": MANUAL_BATCHES,
         "modules": MODULES,
+        "production": {"overflow": OVERFLOW, "yield_per_tier": YIELD_PER_TIER},
         "hive_types": HIVE_TYPES,
         "machines": MACHINES,
         "offers": list(OFFERS.values()),
