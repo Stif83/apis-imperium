@@ -185,7 +185,7 @@ Le jeu tourne sur le cluster `okd.lab.local`, namespace `apps-apisimperium` :
 
 Procédure suivie, à refaire pour chaque nouvelle version (remplacer 1.0.0) :
 
-1. `.\scriptsuild-images.ps1 -Tag 1.0.0` → `distpiculteur-images-1.0.0.tar` (678 Mo). C'est la
+1. `.\scripts\build-images.ps1 -Tag 1.0.0` → `dist\apiculteur-images-1.0.0.tar` (678 Mo). C'est la
    seule étape qui a besoin d'Internet.
 2. Pousser l'archive dans le registre interne, sans Docker ni registre externe :
    `python scripts/push-images.py dist/apiculteur-images-1.0.0.tar default-route-openshift-image-registry.apps.okd.lab.local apps-apisimperium --ca-file ca.crt`
@@ -1029,6 +1029,19 @@ Choix validés : les objectifs du Carnet sont fondus dans les trophées ; en exp
 - Profil : avatar choisi parmi les espèces découvertes, dans la robe d'une variante déjà vue ; décors de bannière
   débloqués (`profiles.decors`) : arbre-monde (un niveau de Ruche-monde), régions d'expédition (espèce sauvage
   découverte). L'API prend `avatar`, `avatar_variant`, `decor` au lieu de `favorite_bee_id`.
+
+## Demande du 2026-11-01 : vérification du kit d'installation de la prod
+
+- Le dernier kit (`dist/deploiement-prod-1.14.2`) fonctionnait, mais datait de la 1.14.2 : il lui manquait
+  `LOCAL_ACCOUNTS` (formulaire de connexion par pseudo, ajouté en 1.16.0) et il ne contrôlait pas l'empreinte
+  de l'archive qu'il fournit.
+- Nouveau kit `dist/deploiement-prod-1.19.0` (316 Mo d'images, sources en bundle git) : empreinte SHA-256
+  vérifiée avant toute action, `LOCAL_ACCOUNTS` facultatif dans `prod.env` (vide = Keycloak seulement,
+  valeur protégée dans le YAML), section « Mise à jour » dans le LISEZ-MOI. PostgreSQL reste en 1.9.0.
+- Testé sur une copie : syntaxe de `deployer.sh`, refus d'un `prod.env` non rempli, rendu kustomize, dry-run
+  serveur sur le cluster de test (rien d'appliqué), valeur relue à l'identique, archive intacte.
+- `scripts/build-images.ps1` : ne construit plus que les trois images de prod (plus l'image Keycloak, qui
+  demandait Internet), tag obligatoire, trois essais en cas d'échec de construction du frontend.
 
 ## Questions pour toi
 
