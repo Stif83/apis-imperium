@@ -345,6 +345,11 @@ const GUIDES: Guide[] = [
         </p>
         <ul>
           <li>
+            <b>Élevage automatique / à l'arrêt</b> : l'interrupteur des réglages de la ruche coupe le renouvellement de la reine. La
+            récolte reste automatique ; à la mort de la reine, sa princesse et ses faux-bourdons attendent dans la ruche, comme sans
+            module, et il faut réinstaller une reine à la main.
+          </li>
+          <li>
             <b>Réinjecter le faux-bourdon installé</b> : tant qu'il en reste en réserve, la nouvelle reine est accouplée avec le même
             faux-bourdon que la première. Génération après génération, la lignée se rapproche de l'espèce de ce faux-bourdon.
           </li>

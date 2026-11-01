@@ -56,6 +56,7 @@ class HiveIn(BaseModel):
     keep_drones: bool | None = None
     reuse_drone: bool | None = None
     greenhouse: str | None = None
+    auto_breed: bool | None = None
 
 
 class ProcessIn(BaseModel):
@@ -316,7 +317,7 @@ def expand(hive_id: str, game: Game = Depends(current_game)):
 
 @router.post("/hives/{hive_id}")
 def update_hive(hive_id: str, body: HiveIn, game: Game = Depends(current_game)):
-    game.update_hive(hive_id, body.name, body.keep_drones, body.reuse_drone, body.greenhouse)
+    game.update_hive(hive_id, body.name, body.keep_drones, body.reuse_drone, body.greenhouse, body.auto_breed)
     return _done(game)
 
 

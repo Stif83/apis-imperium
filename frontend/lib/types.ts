@@ -217,6 +217,8 @@ export type Hive = {
   output: Record<string, number>;
   keep_drones: boolean;
   reuse_drone: boolean;
+  /** Renouvellement automatique de la reine (ruche automatisée) */
+  auto_breed: boolean;
   /** Réserve du faux-bourdon installé ; genome est nul quand la réserve est épuisée */
   line_drone: { genome: Genome | null; count: number } | null;
   mods: { production: number; lifespan: number; mutation: number; automation: boolean; light: boolean; shelter: boolean; temp: string };

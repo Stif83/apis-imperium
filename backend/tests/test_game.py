@@ -577,6 +577,28 @@ def test_achievements(game):
     assert state["trophies"]["firsts"]["progress"] == 2
 
 
+def test_automatic_breeding_can_be_stopped(game):
+    game.p.honey = 5000
+    game.add_item("wax", 50)
+    game.buy("item:hive_automation")
+    hive = game.hives[0]
+    game.add_module(hive.id, "hive_automation")
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
+    game.update_hive(hive.id, None, None, auto_breed=False)
+    assert game.state()["hives"][0]["auto_breed"] is False
+    combs = game.qty("comb_honey")
+    game.advance(hive.queen["health"])
+    # La récolte reste automatique, mais la reine n'est pas renouvelée : sa descendance attend dans la ruche
+    assert hive.queen is None and hive.output == {} and game.qty("comb_honey") > combs
+    assert {b.type for b in game.bees if b.hive_id == hive.id} == {"princess", "drone"}
+    # Relancé : la reine suivante se renouvelle de nouveau toute seule
+    game.update_hive(hive.id, None, None, auto_breed=True)
+    game.collect(hive.id)
+    game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
+    game.advance(hive.queen["health"])
+    assert hive.queen is not None and hive.queen["generation"] == 2
+
+
 def test_automation_reuses_the_installed_drone(game):
     game.p.honey = 5000
     game.add_item("wax", 50)

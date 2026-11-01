@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActiveEffects } from '@/components/Effects';
 import { SkyControl } from '@/components/Sky';
-import { BeeSearch, BeeSheet, BeeTile, CostView, GenesTip, GenomeIcon, GenomeTable, Honey, ItemIcon, ItemQty, Modal, PageHead, Traits } from '@/components/ui';
+import { BeeSearch, BeeSheet, BeeTile, CostView, GenesTip, GenomeIcon, GenomeTable, Honey, ItemIcon, ItemQty, Modal, PageHead, Switch, Traits } from '@/components/ui';
 import { BIOME_ICONS, SHORT, WEATHER_ICONS, canAfford, fmt } from '@/lib/format';
 import { TYPE_LABELS, beeMatches, climateFit, groupBees, speciesName, variantOf, type BeeGroup } from '@/lib/bees';
 import { HiveArt } from '@/components/HiveArt';
@@ -499,15 +499,32 @@ function AutomationOptions({ hive }: { hive: Hive }) {
   const line = hive.line_drone;
   return (
     <>
-      <label className="row muted">
-        <input type="checkbox" checked={hive.keep_drones} onChange={(e) => act(`/hives/${hive.id}`, { keep_drones: e.target.checked })} />
-        Conserver les faux-bourdons en surplus
-      </label>
-      <label className="row muted">
-        <input type="checkbox" checked={hive.reuse_drone} onChange={(e) => act(`/hives/${hive.id}`, { reuse_drone: e.target.checked })} />
-        Réinjecter le faux-bourdon installé tant qu'il en reste en réserve
-        {line && <span className="badge">{line.genome ? `${speciesName(content, line.genome)} ×${line.count}` : 'réserve épuisée'}</span>}
-      </label>
+      <div className="row">
+        <Switch
+          on={hive.auto_breed}
+          onChange={(on) => act(`/hives/${hive.id}`, { auto_breed: on })}
+          label={hive.auto_breed ? 'Élevage automatique' : 'Élevage à l’arrêt'}
+          title={
+            hive.auto_breed
+              ? 'Arrêter le renouvellement de la reine : à sa mort, princesse et faux-bourdons attendront dans la ruche'
+              : 'Relancer le renouvellement automatique de la reine'
+          }
+        />
+        {!hive.auto_breed && <span className="muted">La récolte reste automatique ; à la mort de la reine, sa descendance attend ici.</span>}
+      </div>
+      {hive.auto_breed && (
+        <>
+          <label className="row muted">
+            <input type="checkbox" checked={hive.keep_drones} onChange={(e) => act(`/hives/${hive.id}`, { keep_drones: e.target.checked })} />
+            Conserver les faux-bourdons en surplus
+          </label>
+          <label className="row muted">
+            <input type="checkbox" checked={hive.reuse_drone} onChange={(e) => act(`/hives/${hive.id}`, { reuse_drone: e.target.checked })} />
+            Réinjecter le faux-bourdon installé tant qu'il en reste en réserve
+            {line && <span className="badge">{line.genome ? `${speciesName(content, line.genome)} ×${line.count}` : 'réserve épuisée'}</span>}
+          </label>
+        </>
+      )}
     </>
   );
 }
