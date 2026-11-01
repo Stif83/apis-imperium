@@ -398,7 +398,7 @@ class Game:
             ctx = self._hive_ctx(hive, mods, t - cycle_ms, world)
             mutation = mods["mutation"] * self._effect("mutation", t - cycle_ms)
             princess = G.breed(genome, mate, self.rng, mutation, mods["temp"], ctx=ctx, pure_mutation=True)
-            variant = V.roll(self.rng, genome, self._effect("variant", t - cycle_ms))
+            variant = V.roll(self.rng, genome, self._effect("variant", t - cycle_ms), princess)
             if variant:
                 princess = V.apply(princess, variant)
                 self._found_variant(princess)

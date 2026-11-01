@@ -2,7 +2,8 @@
 
 La variante n'est pas un gène : elle est rangée dans le génome sous la clé "variant" (une paire, comme
 un chromosome, pour que les génomes gardent la même forme partout) et ne passe pas par les croisements.
-Elle se transmet de reine en princesse, toujours : une lignée variante le reste. Les faux-bourdons ne le
+Elle se transmet de reine en princesse de la même espèce : une lignée variante le reste tant qu'elle ne mute
+pas (une princesse d'une autre espèce naît ordinaire, sauf nouveau tirage). Les faux-bourdons ne le
 sont jamais et ne peuvent pas la donner : une princesse ordinaire n'a que la chance "chance" de chaque
 variante de naître variante. Le pouvoir agit sur la ruche de la reine.
 Règle de compatibilité : les identifiants de variantes sont stockés dans les sauvegardes.
@@ -64,10 +65,13 @@ def power(genome: dict | None, key: str, neutral=1.0):
     return VARIANTS[variant]["power"].get(key, neutral) if variant else neutral
 
 
-def roll(rng, queen: dict, chance_mult: float = 1.0) -> str | None:
-    """Variante de la princesse d'une reine : celle de sa mère, sinon tirée au sort (un seul tirage), ou aucune."""
+def roll(rng, queen: dict, chance_mult: float = 1.0, princess: dict | None = None) -> str | None:
+    """Variante de la princesse d'une reine : celle de sa mère, sinon tirée au sort (un seul tirage), ou aucune.
+
+    Une princesse qui a muté vers une autre espèce n'hérite pas : une variante ne se propage pas dans l'arbre.
+    """
     inherited = of(queen)
-    if inherited:
+    if inherited and (princess is None or princess["species"][0] == queen["species"][0]):
         return inherited
     pick = rng.random()
     for variant, spec in VARIANTS.items():

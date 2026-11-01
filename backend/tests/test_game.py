@@ -1287,6 +1287,9 @@ def test_variant_roll_and_inheritance():
     assert V.of(golden) == "golden" and V.of(plain) is None
     # Une reine variante la transmet toujours ; une Dorée naît une fois sur 4096
     assert V.roll(_FixedRng(0.99), golden) == "golden"
+    assert V.roll(_FixedRng(0.99), golden, princess=G.pure_genome("forest")) == "golden"
+    # Une princesse qui a muté vers une autre espèce naît ordinaire : la variante ne se propage pas dans l'arbre
+    assert V.roll(_FixedRng(0.99), golden, princess=G.pure_genome("common")) is None
     assert V.roll(_FixedRng(1 / 4096 - 1e-6), plain) == "golden"
     assert V.roll(_FixedRng(1 / 4096 + 1e-6), plain) != "golden"
     assert V.VARIANTS["golden"]["chance"] == 1 / 4096 and "crystal" not in V.VARIANTS

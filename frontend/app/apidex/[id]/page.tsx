@@ -252,7 +252,7 @@ function VariantsTab({ id }: { id: string }) {
           </span>
         </div>
         <span className="muted">
-          Une princesse variante naît d'une reine ordinaire, très rarement ; une reine variante la transmet toujours à sa princesse. Les variantes
+          Une princesse variante naît d'une reine ordinaire, très rarement ; une reine variante la transmet à sa princesse, sauf si celle-ci mute vers une autre espèce. Les variantes
           déjà vues se choisissent aussi sur le portrait de la présentation.
         </span>
       </div>

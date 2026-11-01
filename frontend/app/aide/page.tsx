@@ -610,7 +610,8 @@ const GUIDES: Guide[] = [
       <>
         <p>
           De rares princesses naissent avec une robe hors du commun et un pouvoir qui agit sur la ruche où elles règnent. Une reine
-          variante transmet toujours sa variante à sa princesse : la lignée le reste tant qu'elle dure. Les faux-bourdons, eux, ne
+          variante transmet sa variante à sa princesse de la même espèce : la lignée le reste tant qu'elle dure. Si la princesse
+          mute vers une autre espèce, elle naît ordinaire : une variante ne se propage pas dans l'arbre. Les faux-bourdons, eux, ne
           sont jamais variants et ne peuvent pas la donner : une princesse ordinaire ne devient pas variante en s'accouplant. Chaque
           variante déjà vue se choisit sur le portrait de l'espèce, dans l'Apidex, et le Nectar de fortune de la distillerie les rend plus fréquentes.
         </p>
