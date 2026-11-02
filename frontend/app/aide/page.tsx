@@ -345,9 +345,10 @@ const GUIDES: Guide[] = [
         </p>
         <ul>
           <li>
-            <b>Élevage automatique / à l'arrêt</b> : l'interrupteur des réglages de la ruche coupe le renouvellement de la reine. La
-            récolte reste automatique ; à la mort de la reine, sa princesse et ses faux-bourdons attendent dans la ruche, comme sans
-            module, et il faut réinstaller une reine à la main.
+            <b>Élevage automatique / à l'arrêt</b> (robo-ruche) : l'interrupteur des réglages coupe le renouvellement de la reine. La
+            récolte reste automatique ; à la mort de la reine, sa princesse et ses faux-bourdons attendent dans la ruche, et il faut
+            réinstaller une reine à la main. Un rucher ou un alvéaire ne s'automatise que par son module : démontez-le pour reprendre
+            la main.
           </li>
           <li>
             <b>Réinjecter le faux-bourdon installé</b> : tant qu'il en reste en réserve, la nouvelle reine est accouplée avec le même

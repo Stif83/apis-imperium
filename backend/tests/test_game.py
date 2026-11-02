@@ -583,6 +583,12 @@ def test_automatic_breeding_can_be_stopped(game):
     game.buy("item:hive_automation")
     hive = game.hives[0]
     game.add_module(hive.id, "hive_automation")
+    # Hors robo-ruche, pas d'interrupteur : on démonte le module pour reprendre la main
+    with pytest.raises(GameError):
+        game.update_hive(hive.id, None, None, auto_breed=False)
+    hive.settings = {**(hive.settings or {}), "auto_breed": False}  # réglage d'avant la 1.20.3 : ignoré
+    assert game.state()["hives"][0]["auto_breed"] is True
+    hive.hive_type = "robo"
     game.install(hive.id, _bee(game, "princess", "forest").id, _bee(game, "drone", "forest").id)
     game.update_hive(hive.id, None, None, auto_breed=False)
     assert game.state()["hives"][0]["auto_breed"] is False

@@ -376,11 +376,12 @@ function Harvest({ hive }: { hive: Hive }) {
   );
 }
 
-/** Cadres montés (avec leur usure) et cadres de la réserve qu'on peut encore monter. */
+/** Cadres montés (avec leur usure) et cadres de la réserve qu'on peut encore monter ; une robo-ruche se règle par sa configuration. */
 function MountedModules({ hive }: { hive: Hive }) {
   const { content, state, act } = useGame();
   const type = content.hive_types[hive.hive_type];
-  const fittable = Object.keys(content.modules).filter((m) => (state.inventory[m] ?? 0) > 0 && (!type.frames_only || content.modules[m].frame));
+  const robo = hive.hive_type === 'robo';
+  const fittable = robo ? [] : Object.keys(content.modules).filter((m) => (state.inventory[m] ?? 0) > 0 && (!type.frames_only || content.modules[m].frame));
   return (
     <div className="slots">
       {keyed(hive.modules, (m) => m).map(({ item: m, key }, i) => {
@@ -394,9 +395,11 @@ function MountedModules({ hive }: { hive: Hive }) {
                 {wear}/{content.modules[m]?.uses} gén.
               </span>
             )}
-            <button className="small" title="Démonter (il garde son usure)" onClick={() => act(`/hives/${hive.id}/modules/${i}`, undefined, 'DELETE')}>
-              ×
-            </button>
+            {!robo && (
+              <button className="small" title="Démonter (il garde son usure)" onClick={() => act(`/hives/${hive.id}/modules/${i}`, undefined, 'DELETE')}>
+                ×
+              </button>
+            )}
           </span>
         );
       })}
@@ -410,7 +413,9 @@ function MountedModules({ hive }: { hive: Hive }) {
             </button>
           );
         })}
-      {hive.modules.length === 0 && fittable.length === 0 && <span className="muted">Aucun cadre monté. Les cadres s'achètent en boutique.</span>}
+      {hive.modules.length === 0 && fittable.length === 0 && (
+        <span className="muted">{robo ? 'Aucun cadre monté : choisissez-les dans la configuration ci-dessous.' : "Aucun cadre monté. Les cadres s'achètent en boutique."}</span>
+      )}
     </div>
   );
 }
@@ -499,19 +504,22 @@ function AutomationOptions({ hive }: { hive: Hive }) {
   const line = hive.line_drone;
   return (
     <>
-      <div className="row">
-        <Switch
-          on={hive.auto_breed}
-          onChange={(on) => act(`/hives/${hive.id}`, { auto_breed: on })}
-          label={hive.auto_breed ? 'Élevage automatique' : 'Élevage à l’arrêt'}
-          title={
-            hive.auto_breed
-              ? 'Arrêter le renouvellement de la reine : à sa mort, princesse et faux-bourdons attendront dans la ruche'
-              : 'Relancer le renouvellement automatique de la reine'
-          }
-        />
-        {!hive.auto_breed && <span className="muted">La récolte reste automatique ; à la mort de la reine, sa descendance attend ici.</span>}
-      </div>
+      {/* Les autres ruches s'automatisent par un module : on le démonte pour reprendre la main */}
+      {hive.hive_type === 'robo' && (
+        <div className="row">
+          <Switch
+            on={hive.auto_breed}
+            onChange={(on) => act(`/hives/${hive.id}`, { auto_breed: on })}
+            label={hive.auto_breed ? 'Élevage automatique' : 'Élevage à l’arrêt'}
+            title={
+              hive.auto_breed
+                ? 'Arrêter le renouvellement de la reine : à sa mort, princesse et faux-bourdons attendront dans la ruche'
+                : 'Relancer le renouvellement automatique de la reine'
+            }
+          />
+          {!hive.auto_breed && <span className="muted">La récolte reste automatique ; à la mort de la reine, sa descendance attend ici.</span>}
+        </div>
+      )}
       {hive.auto_breed && (
         <>
           <label className="row muted">
@@ -557,7 +565,7 @@ function HiveSettings({ hive }: { hive: Hive }) {
   return (
     <div className="stack">
       <MountedModules hive={hive} />
-      {hive.loadout && <RoboLoadout hive={hive} stage={roboticsStage} />}
+      {hive.hive_type === 'robo' && <RoboLoadout hive={hive} stage={roboticsStage} />}
       <HiveUpgrades hive={hive} />
       {greenhouseStage >= 1 && <GreenhouseSelect hive={hive} stage={greenhouseStage} />}
       {hive.mods.automation && <AutomationOptions hive={hive} />}

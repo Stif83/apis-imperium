@@ -404,8 +404,9 @@ class Game:
                 self._found_variant(princess)
             drones = [G.breed(genome, mate, self.rng, mutation, mods["temp"], ctx=ctx)
                       for _ in range(G.value(genome, "fertility") + V.power(genome, "drones", 0))]
-            # Élevage automatique coupé : la récolte reste automatique, mais princesse et faux-bourdons attendent dans la ruche
-            if auto and (hive.settings or {}).get("auto_breed", True):
+            # Robo-ruche à l'élevage coupé : la récolte reste automatique, mais princesse et faux-bourdons attendent
+            # dans la ruche (les autres ruches s'automatisent par un module, qu'il suffit de démonter)
+            if auto and self._auto_breed(hive):
                 self.discover(princess)
                 self.discover(drones[0])
                 # Tant qu'il en reste en réserve, le faux-bourdon installé repart avec la nouvelle reine :
@@ -689,10 +690,16 @@ class Game:
         stock = next((b for b in self.bees if b.type == "drone" and b.hive_id is None and b.genome_hash == line), None)
         return {"genome": stock.genome, "count": stock.count} if stock else {"genome": None, "count": 0}
 
+    def _auto_breed(self, hive: Hive) -> bool:
+        """Renouvellement de la reine en marche ; seul l'interrupteur d'une robo-ruche peut l'arrêter."""
+        return hive.hive_type != "robo" or bool((hive.settings or {}).get("auto_breed", True))
+
     def update_hive(self, hive_id: str, name: str | None, keep_drones: bool | None, reuse_drone: bool | None = None,
                     greenhouse: str | None = None, auto_breed: bool | None = None) -> None:
         hive = self._hive(hive_id)
         if auto_breed is not None:
+            if hive.hive_type != "robo":
+                raise GameError("Seule une robo-ruche peut mettre son élevage à l'arrêt.")
             hive.settings = {**(hive.settings or {}), "auto_breed": auto_breed}
         if greenhouse is not None:
             self._set_greenhouse(hive, greenhouse)
@@ -1653,7 +1660,7 @@ class Game:
                 "output": hive.output or {},
                 "keep_drones": bool((hive.settings or {}).get("keep_drones")),
                 "reuse_drone": bool((hive.settings or {}).get("reuse_drone", True)),
-                "auto_breed": bool((hive.settings or {}).get("auto_breed", True)),
+                "auto_breed": self._auto_breed(hive),
                 "line_drone": self._line_drone_state(hive),
                 "greenhouse": self._greenhouse_spot(hive),
                 "loadout": (hive.settings or {}).get("loadout") if hive.hive_type == "robo" else None,
